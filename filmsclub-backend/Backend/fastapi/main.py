@@ -1,5 +1,7 @@
 import asyncio
+import os
 import shutil
+import tempfile
 from time import time
 from typing import Any, Dict, List, Optional, Union
 from Backend.helper.encrypt import decode_string
@@ -44,6 +46,75 @@ def add_cache_headers(response, max_age: int = 60, etag: str = None):
 
 app = FastAPI()
 class_cache = {}
+
+# Disk cache for ffmpeg remuxed outputs: (file_id, audio_idx, sub_idx) -> (temp_path, timestamp)
+remux_cache: Dict[tuple, tuple] = {}
+remux_cache_lock = asyncio.Lock()
+MAX_REMUX_CACHE_ENTRIES = 6  # Max cached track combinations across all files
+
+async def _evict_oldest_remux():
+    """Evict oldest entry from remux cache and delete its temp file."""
+    if not remux_cache:
+        return
+    oldest_key = min(remux_cache, key=lambda k: remux_cache[k][1])
+    old_path, _ = remux_cache.pop(oldest_key)
+    try:
+        if os.path.exists(old_path):
+            os.remove(old_path)
+            LOGGER.info(f"Evicted cached remux: {old_path}")
+    except Exception as e:
+        LOGGER.warning(f"Failed to delete cached remux file {old_path}: {e}")
+
+async def serve_local_file(request: Request, file_path: str, file_name: str):
+    """Serve a local file with HTTP byte-range support for seeking."""
+    file_size = os.path.getsize(file_path)
+    range_header = request.headers.get("Range", 0)
+
+    if range_header:
+        from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
+        from_bytes = int(from_bytes)
+        until_bytes = int(until_bytes) if until_bytes else file_size - 1
+    else:
+        from_bytes = 0
+        until_bytes = file_size - 1
+
+    until_bytes = min(until_bytes, file_size - 1)
+    if until_bytes < from_bytes or from_bytes < 0 or until_bytes >= file_size:
+        return StreamingResponse(
+            content=(b"416: Range not satisfiable",),
+            status_code=416,
+            headers={"Content-Range": f"bytes */{file_size}"},
+        )
+
+    req_length = until_bytes - from_bytes + 1
+
+    async def file_chunk_generator():
+        with open(file_path, "rb") as f:
+            f.seek(from_bytes)
+            remaining = req_length
+            while remaining > 0:
+                chunk_size = min(1024 * 1024, remaining)
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+                remaining -= len(chunk)
+
+    headers = {
+        "Content-Type": "video/mp4",
+        "Content-Disposition": f'inline; filename="{file_name}"',
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=3600",
+    }
+    if range_header:
+        headers["Content-Range"] = f"bytes {from_bytes}-{until_bytes}/{file_size}"
+        headers["Content-Length"] = str(req_length)
+
+    return StreamingResponse(
+        content=file_chunk_generator(),
+        status_code=206 if range_header else 200,
+        headers=headers,
+    )
 
 templates = Jinja2Templates(directory="Backend/fastapi/templates")
 
@@ -599,20 +670,38 @@ async def media_streamer_with_tracks(
 ):
     """
     Remux video with a specific audio track and optional subtitle using ffmpeg.
+    Caches remuxed output to disk so subsequent switches are instant and seekable.
     Falls back to direct stream if ffmpeg is unavailable or fails.
     """
+    global remux_cache
+
     # Check if ffmpeg is installed
     if not shutil.which("ffmpeg"):
         LOGGER.warning("ffmpeg not found on system, falling back to direct stream")
         return None
 
-    # Build source URL (self-referential without audio/subtitle params to avoid recursion)
+    cache_key = (file_id, audio_idx, subtitle_idx)
+
+    # Check disk cache first
+    async with remux_cache_lock:
+        cached = remux_cache.get(cache_key)
+        if cached:
+            cached_path, _ = cached
+            if os.path.exists(cached_path) and os.path.getsize(cached_path) > 1024 * 1024:
+                LOGGER.info(f"Cache hit for remux {cache_key}, serving from disk: {cached_path}")
+                remux_cache[cache_key] = (cached_path, time())  # Update LRU timestamp
+                return await serve_local_file(request, cached_path, file_name)
+            else:
+                LOGGER.warning(f"Cached remux file missing or too small: {cached_path}")
+                remux_cache.pop(cache_key, None)
+
+    # Build source URL
     base_url = Telegram.BASE_URL
     source_url = f"{base_url}/dl/{file_id}/{urllib.parse.quote(file_name)}"
 
-    LOGGER.info(f"FFmpeg remux: audio={audio_idx}, subtitle={subtitle_idx}, source={source_url}")
+    LOGGER.info(f"FFmpeg remux cache miss: audio={audio_idx}, subtitle={subtitle_idx}, source={source_url}")
 
-    # Pre-flight test: check if ffmpeg can process the source
+    # Pre-flight test
     try:
         test_cmd = [
             "ffmpeg",
@@ -642,16 +731,20 @@ async def media_streamer_with_tracks(
         LOGGER.error(f"FFmpeg pre-flight error: {e}")
         return None
 
-    # Build ffmpeg command
+    # Create temp file for remuxed output
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".mp4")
+    os.close(temp_fd)
+
+    # Build ffmpeg command - write to file instead of stdout for caching
     cmd = [
         "ffmpeg",
+        "-y",  # Overwrite output
         "-v", "error",
         "-i", source_url,
         "-map", "0:v:0",
         "-map", f"0:a:{audio_idx}",
     ]
 
-    # Map subtitle if requested
     if subtitle_idx >= 0:
         cmd.extend(["-map", f"0:s:{subtitle_idx}"])
         cmd.extend(["-c:s", "mov_text"])
@@ -659,10 +752,9 @@ async def media_streamer_with_tracks(
     cmd.extend([
         "-c:v", "copy",
         "-c:a", "copy",
-        "-movflags", "frag_keyframe+empty_moov+faststart",
+        "-movflags", "faststart",
         "-fflags", "+genpts",
-        "-f", "mp4",
-        "-",
+        temp_path,
     ])
 
     LOGGER.info(f"FFmpeg command: {' '.join(cmd)}")
@@ -675,48 +767,48 @@ async def media_streamer_with_tracks(
         )
     except Exception as e:
         LOGGER.error(f"Failed to start ffmpeg: {e}")
+        try:
+            os.remove(temp_path)
+        except:
+            pass
         return None
 
-    async def stdout_generator():
-        chunk_size = 1024 * 1024  # 1MB chunks
+    # Wait for ffmpeg to finish with a generous timeout
+    try:
+        _, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
+        if process.returncode != 0:
+            err = stderr.decode("utf-8", errors="ignore")[:500] if stderr else "unknown"
+            LOGGER.error(f"FFmpeg remux failed: {err}")
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+            return None
+    except asyncio.TimeoutError:
+        LOGGER.error("FFmpeg remux timed out after 300s")
         try:
-            while True:
-                chunk = await process.stdout.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-        except (ConnectionResetError, asyncio.CancelledError):
-            LOGGER.info("Client disconnected during ffmpeg stream")
-        finally:
-            if process.returncode is None:
-                try:
-                    process.kill()
-                    await asyncio.wait_for(process.wait(), timeout=5)
-                except Exception:
-                    pass
-
-    # Log stderr asynchronously
-    async def log_stderr():
-        try:
-            while True:
-                line = await process.stderr.readline()
-                if not line:
-                    break
-                line_str = line.decode("utf-8", errors="ignore").strip()
-                if line_str:
-                    LOGGER.debug(f"FFmpeg stderr: {line_str}")
-        except Exception:
+            process.kill()
+            os.remove(temp_path)
+        except:
             pass
+        return None
 
-    asyncio.create_task(log_stderr())
+    # Verify output file
+    if not os.path.exists(temp_path) or os.path.getsize(temp_path) < 1024 * 1024:
+        LOGGER.error(f"Remuxed file too small or missing: {temp_path}")
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        return None
 
-    return StreamingResponse(
-        content=stdout_generator(),
-        media_type="video/mp4",
-        headers={
-            "Content-Type": "video/mp4",
-            "Content-Disposition": f'inline; filename="{file_name}"',
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
-    )
+    LOGGER.info(f"FFmpeg remux complete: {temp_path} ({os.path.getsize(temp_path)} bytes)")
+
+    # Store in cache with LRU eviction
+    async with remux_cache_lock:
+        if len(remux_cache) >= MAX_REMUX_CACHE_ENTRIES:
+            await _evict_oldest_remux()
+        remux_cache[cache_key] = (temp_path, time())
+
+    # Serve the cached file with byte-range support
+    return await serve_local_file(request, temp_path, file_name)

@@ -18,6 +18,8 @@ export default function Home() {
   const [topRatedMovies, setTopRatedMovies] = useState([]);
   const [topRatedTv, setTopRatedTv] = useState([]);
   const [trendingNow, setTrendingNow] = useState([]);
+  const [animeShows, setAnimeShows] = useState([]);
+  const [kdramaShows, setKdramaShows] = useState([]);
   const [isHeroLoading, setIsHeroLoading] = useState(true);
   const [isTrendingMoviesLoading, setIsTrendingMoviesLoading] = useState(true);
   const [isTrendingTvLoading, setIsTrendingTvLoading] = useState(true);
@@ -25,6 +27,8 @@ export default function Home() {
   const [isTopRatedMoviesLoading, setIsTopRatedMoviesLoading] = useState(true);
   const [isTopRatedTvLoading, setIsTopRatedTvLoading] = useState(true);
   const [isTrendingNowLoading, setIsTrendingNowLoading] = useState(true);
+  const [isAnimeLoading, setIsAnimeLoading] = useState(true);
+  const [isKdramaLoading, setIsKdramaLoading] = useState(true);
 
   useEffect(() => {
     setIsHeroLoading(true);
@@ -162,6 +166,48 @@ export default function Home() {
       .catch((error) => {
         console.error("Error fetching trending now:", error);
         setIsTrendingNowLoading(false);
+      });
+  }, [BASE]);
+
+  useEffect(() => {
+    setIsAnimeLoading(true);
+    axios
+      .get(`${BASE}/api/tvshows`, {
+        params: {
+          sort_by: "rating:desc",
+          page: 1,
+          page_size: 20,
+          genre: "Animation",
+        },
+      })
+      .then((response) => {
+        setAnimeShows(response.data.tv_shows);
+        setIsAnimeLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching anime shows:", error);
+        setIsAnimeLoading(false);
+      });
+  }, [BASE]);
+
+  useEffect(() => {
+    setIsKdramaLoading(true);
+    axios
+      .get(`${BASE}/api/tvshows`, {
+        params: {
+          sort_by: "rating:desc",
+          page: 1,
+          page_size: 20,
+          genre: "Drama",
+        },
+      })
+      .then((response) => {
+        setKdramaShows(response.data.tv_shows);
+        setIsKdramaLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching kdrama shows:", error);
+        setIsKdramaLoading(false);
       });
   }, [BASE]);
 

@@ -461,11 +461,11 @@ export default function WatchTrailer(props) {
               </div>
             )}
 
-            {/* Seeking disabled warning */}
+            {/* Remux active indicator */}
             {(currentAudioTrack > 0 || currentSubtitleTrack >= 0) && (
-              <div className="px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20">
+              <div className="px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
                 <span className="text-[11px] text-amber-400/80">
-                  Audio/Subtitle active — seeking/scrubbing is disabled during remuxed playback
+                  Audio/Subtitle remux active — first load may take a moment, then cached for instant switching
                 </span>
               </div>
             )}
