@@ -24,6 +24,12 @@ class Database:
 
     async def connect(self):
         """Establish a connection to the database."""
+        if not self.connection_uri or not self.connection_uri.strip():
+            LOGGER.error("DATABASE connection URI is empty. Set the DATABASE environment variable on Heroku.")
+            self._conn = None
+            self.db = None
+            return
+        
         try:
             if self._conn is not None:
                 await self._conn.close()
@@ -254,19 +260,24 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int
+        page_size: int,
+        genre: Optional[str] = None
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = [
+        pipeline = []
+        if genre:
+            pipeline.append({"$match": {"genres": {"$regex": genre, "$options": "i"}}})
+        
+        pipeline.extend([
             {"$sort": dict(sort_criteria)},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
                 "data": [{"$skip": skip}, {"$limit": page_size}]
             }}
-        ]
+        ])
         
         result = await self.tv_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0
@@ -277,19 +288,24 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int
+        page_size: int,
+        genre: Optional[str] = None
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = [
+        pipeline = []
+        if genre:
+            pipeline.append({"$match": {"genres": {"$regex": genre, "$options": "i"}}})
+        
+        pipeline.extend([
             {"$sort": dict(sort_criteria)},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
                 "data": [{"$skip": skip}, {"$limit": page_size}]
             }}
-        ]
+        ])
         
         result = await self.movie_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0

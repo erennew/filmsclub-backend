@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useState, useEffect } from "react";
+import { BASE_URL as BASE, API_URL, API_KEY } from "../config";
 import { Select, SelectItem } from "@nextui-org/select";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import { Button } from "@nextui-org/button";
@@ -7,9 +8,6 @@ import { FaCloudDownloadAlt, FaPlay } from "react-icons/fa";
 import Spinner from "./svg/Spinner";
 
 const DownloadButton = ({ movieData, btnType }) => {
-  const BASE = import.meta.env.VITE_BASE_URL;
-  const API_URL = import.meta.env.VITE_API_URL;
-  const API_KEY = import.meta.env.VITE_API_KEY;
 
   const [selectedSeason, setSelectedSeason] = useState("");
   const [selectedEpisode, setSelectedEpisode] = useState("");

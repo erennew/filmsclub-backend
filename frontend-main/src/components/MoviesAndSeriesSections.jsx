@@ -2,6 +2,17 @@ import React from "react";
 import MovieCard from "./MovieCard";
 import MovieCardSkeleton from "./MovieCardSkeleton"
 
+const GENRE_LIST = [
+  { name: "Action", value: "Action" },
+  { name: "Comedy", value: "Comedy" },
+  { name: "Horror", value: "Horror" },
+  { name: "Drama", value: "Drama" },
+  { name: "Anime", value: "Animation" },
+  { name: "Romance", value: "Romance" },
+  { name: "Thriller", value: "Thriller" },
+  { name: "Sci-Fi", value: "Science Fiction" },
+];
+
 export default function HomeSection(props) {
   return (
     <>
@@ -40,6 +51,39 @@ export default function HomeSection(props) {
           )}
         </div>
       </div>
+
+      {/* Genre Filters */}
+      {(props.dataType === "movies" || props.dataType === "series") && (
+        <div className="flex items-center flex-wrap gap-2 pb-[1.5rem]">
+          <button
+            onClick={() => {
+              if (props.setGenreFilter) props.setGenreFilter("");
+            }}
+            className={
+              !props.genreFilter
+                ? "py-1 px-3 bg-primaryBtn rounded-full text-bgColor text-xs transition-all duration-300 ease-in-out sm:text-sm"
+                : "py-1 px-3 bg-bgColorSecondary rounded-full text-secondaryTextColor text-xs transition-all duration-300 ease-in-out hover:bg-primaryTextColor hover:text-bgColor sm:text-sm"
+            }
+          >
+            All
+          </button>
+          {GENRE_LIST.map((g, i) => (
+            <button
+              key={i}
+              onClick={() => {
+                if (props.setGenreFilter) props.setGenreFilter(g.value);
+              }}
+              className={
+                props.genreFilter === g.value
+                  ? "py-1 px-3 bg-primaryBtn rounded-full text-bgColor text-xs transition-all duration-300 ease-in-out sm:text-sm"
+                  : "py-1 px-3 bg-bgColorSecondary rounded-full text-secondaryTextColor text-xs transition-all duration-300 ease-in-out hover:bg-primaryTextColor hover:text-bgColor sm:text-sm"
+              }
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Movies, series, and all other sections */}
       <div>

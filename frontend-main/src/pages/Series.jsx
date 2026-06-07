@@ -1,15 +1,12 @@
 // src/pages/Series.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { BASE_URL as BASE, SITENAME } from "../config";
 import Pagination from "../components/Pagination";
 import MoviesAndSeriesSections from "../components/MoviesAndSeriesSections";
 import SEO from "../components/SEO"; // import SEO
 
 export default function Series() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base URL for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
-
-
   // States
   const [series, setSeries] = useState([]);
   const [isSeriesDataLoading, setIsSeriesDataLoading] = useState(true); 
@@ -17,19 +14,23 @@ export default function Series() {
   const [currentPage, setCurrentPage] = useState(1); 
   const [seriesFilter, setSeriesFilter] = useState("updated_on"); 
   const [seriesFilterVal, setSeriesFilterVal] = useState("updated_on"); 
+  const [genreFilter, setGenreFilter] = useState("");
 
   // FETCH SERIES DATA SECTION
   useEffect(() => {
     setIsSeriesDataLoading(true); 
     window.scrollTo(0, 0); 
 
-    axios.get(`${BASE}/api/tvshows`, {
-      params: {
-        sort_by: `${seriesFilter}:desc`,
-        page: currentPage,
-        page_size: 20
-      }
-    })
+    const params = {
+      sort_by: `${seriesFilter}:desc`,
+      page: currentPage,
+      page_size: 20
+    };
+    if (genreFilter) {
+      params.genre = genreFilter;
+    }
+
+    axios.get(`${BASE}/api/tvshows`, { params })
     .then(response => {
       setSeries(response.data.tv_shows);
       setSeriesDataForPageCount(response.data.total_count);
@@ -39,7 +40,7 @@ export default function Series() {
       console.error("Error fetching series:", error);
       setIsSeriesDataLoading(false); // Set loading state to false even if there is an error
     });
-  }, [seriesFilter, currentPage, BASE]); // Added BASE as a dependency
+  }, [seriesFilter, currentPage, genreFilter, BASE]); // Added BASE as a dependency
 
   return (
     <div>
@@ -61,6 +62,8 @@ export default function Series() {
         setMovieFilter={setSeriesFilter}
         movieFilterVal={seriesFilterVal}
         setMovieFilterVal={setSeriesFilterVal}
+        genreFilter={genreFilter}
+        setGenreFilter={setGenreFilter}
       />
 
       {/* Call Pagination Component */}

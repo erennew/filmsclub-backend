@@ -253,7 +253,8 @@ async def file_receive_handler(bot: Client, message: Message):
                 size = get_readable_file_size(file.file_size)
                 channel = str(message.chat.id).replace("-100", "")
                 
-                metadata_info = await metadata(clean_filename(title), file)
+                title = clean_filename(title)
+                metadata_info = await metadata(title, file)
                 if metadata_info is None:
                     return await message.reply_text("> Not added check log")
                 title = remove_urls(title)

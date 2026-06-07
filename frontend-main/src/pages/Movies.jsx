@@ -1,14 +1,12 @@
 // src/pages/Movies.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { BASE_URL as BASE, SITENAME } from "../config";
 import MoviesAndSeriesSections from "../components/MoviesAndSeriesSections";
 import Pagination from "../components/Pagination";
 import SEO from "../components/SEO"; // import SEO
 
 export default function Movies() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base Url for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
-
   // States
   const [movies, setMovies] = useState([]);
   const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true);
@@ -16,20 +14,24 @@ export default function Movies() {
   const [currentPage, setCurrentPage] = useState(1);
   const [movieFilter, setMovieFilter] = useState("updated_on");
   const [movieFilterVal, setMovieFilterVal] = useState("updated_on");
+  const [genreFilter, setGenreFilter] = useState("");
 
   // FETCH MOVIE DATA SECTION
   useEffect(() => {
     setIsMoviesDataLoading(true);
     window.scrollTo(0, 0);
 
+    const params = {
+      sort_by: `${movieFilter}:desc`,
+      page: currentPage,
+      page_size: 20,
+    };
+    if (genreFilter) {
+      params.genre = genreFilter;
+    }
+
     axios
-      .get(`${BASE}/api/movies`, {
-        params: {
-          sort_by: `${movieFilter}:desc`,
-          page: currentPage,
-          page_size: 20,
-        },
-      })
+      .get(`${BASE}/api/movies`, { params })
       .then((response) => {
         setMovies(response.data.movies);
         setMoviesDataForPageCount(response.data.total_count);
@@ -39,7 +41,7 @@ export default function Movies() {
         console.error("Error fetching movies:", error);
         setIsMoviesDataLoading(false);
       });
-  }, [movieFilter, currentPage, BASE]);
+  }, [movieFilter, currentPage, genreFilter, BASE]);
 
   return (
     <div>
@@ -61,6 +63,8 @@ export default function Movies() {
         setMovieFilter={setMovieFilter}
         movieFilterVal={movieFilterVal}
         setMovieFilterVal={setMovieFilterVal}
+        genreFilter={genreFilter}
+        setGenreFilter={setGenreFilter}
       />
 
       {/* Call Pagination Component */}

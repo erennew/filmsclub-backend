@@ -1,3 +1,5 @@
+import asyncio
+import shutil
 from time import time
 from typing import Any, Dict, List, Optional, Union
 from Backend.helper.encrypt import decode_string
@@ -62,11 +64,17 @@ async def get_bot_workloads():
     """
     Home route to list each bot's workload and total number of bots.
     """
+    # Check database connection
+    db_status = "connected" if db.db is not None else "disconnected"
+    redis_status = await redis_cache.health_check() if redis_cache._available else {"status": "disabled"}
+    
     response = {
             "server_status": "running",
             "uptime": get_readable_time(time() - StartTime),
             "telegram_bot": "@" + StreamBot.username,
             "connected_bots": len(multi_clients),
+            "database": db_status,
+            "redis": redis_status.get("status", "unknown"),
             "loads": dict(
                 ("bot" + str(c + 1), l)
                 for c, (_, l) in enumerate(
@@ -124,11 +132,12 @@ async def watch(
 async def get_sorted_tv_shows(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page")
+    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page"),
+    genre: Optional[str] = Query(default=None, description="Filter by genre (case-insensitive partial match)")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size)
+        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size, genre)
         return sorted_tv_shows
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -137,11 +146,12 @@ async def get_sorted_tv_shows(
 async def get_sorted_movies(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of movies per page")
+    page_size: int = Query(default=10, ge=1, description="Number of movies per page"),
+    genre: Optional[str] = Query(default=None, description="Filter by genre (case-insensitive partial match)")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_movies = await db.sort_movies(sort_params, page, page_size)
+        sorted_movies = await db.sort_movies(sort_params, page, page_size, genre)
         return sorted_movies
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -453,11 +463,29 @@ async def clear_video_cache():
 
 
 @app.get('/dl/{id}/{name}')
-    
-async def stream_handler(request: Request, id: str, name: str):
+async def stream_handler(
+    request: Request,
+    id: str,
+    name: str,
+    audio: Optional[int] = Query(None, description="Audio track index (0-based)"),
+    subtitle: Optional[int] = Query(None, description="Subtitle track index (-1 = off, 0-based)"),
+):
     decoded_data = await decode_string(id)
     if not decoded_data['msg_id'] or not decoded_data['hash']:
         raise HTTPException(status_code=400, detail="Missing id or hash")
+
+    # If audio or subtitle track switching is requested, use ffmpeg remux
+    if audio is not None or subtitle is not None:
+        audio_idx = audio if audio is not None else 0
+        subtitle_idx = subtitle if subtitle is not None else -1
+        remuxed = await media_streamer_with_tracks(
+            request, id, name, audio_idx, subtitle_idx,
+            decoded_data['chat_id'], decoded_data['msg_id'], decoded_data['hash']
+        )
+        if remuxed is not None:
+            return remuxed
+        # Fallback to direct stream if ffmpeg fails
+
     chat_id = f"-100{decoded_data['chat_id']}"
     return await media_streamer(request, int(chat_id), int(decoded_data['msg_id']), decoded_data['hash'])
 
@@ -555,5 +583,140 @@ async def media_streamer(request: Request, chat_id: int, id: int, secure_hash: s
             "Content-Length": str(req_length),
             "Content-Disposition": f'{disposition}; filename="{file_name}"',
             "Accept-Ranges": "bytes",
+        },
+    )
+
+
+async def media_streamer_with_tracks(
+    request: Request,
+    file_id: str,
+    file_name: str,
+    audio_idx: int,
+    subtitle_idx: int,
+    chat_id_raw: str,
+    msg_id: int,
+    secure_hash: str,
+):
+    """
+    Remux video with a specific audio track and optional subtitle using ffmpeg.
+    Falls back to direct stream if ffmpeg is unavailable or fails.
+    """
+    # Check if ffmpeg is installed
+    if not shutil.which("ffmpeg"):
+        LOGGER.warning("ffmpeg not found on system, falling back to direct stream")
+        return None
+
+    # Build source URL (self-referential without audio/subtitle params to avoid recursion)
+    base_url = Telegram.BASE_URL
+    source_url = f"{base_url}/dl/{file_id}/{urllib.parse.quote(file_name)}"
+
+    LOGGER.info(f"FFmpeg remux: audio={audio_idx}, subtitle={subtitle_idx}, source={source_url}")
+
+    # Pre-flight test: check if ffmpeg can process the source
+    try:
+        test_cmd = [
+            "ffmpeg",
+            "-v", "error",
+            "-i", source_url,
+            "-t", "1",
+            "-f", "null",
+            "-",
+        ]
+        test_process = await asyncio.wait_for(
+            asyncio.create_subprocess_exec(
+                *test_cmd,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,
+            ),
+            timeout=15,
+        )
+        _, stderr = await asyncio.wait_for(test_process.communicate(), timeout=15)
+        if test_process.returncode != 0:
+            err = stderr.decode("utf-8", errors="ignore")[:200] if stderr else "unknown"
+            LOGGER.error(f"FFmpeg pre-flight failed: {err}")
+            return None
+    except asyncio.TimeoutError:
+        LOGGER.warning("FFmpeg pre-flight timeout, falling back to direct stream")
+        return None
+    except Exception as e:
+        LOGGER.error(f"FFmpeg pre-flight error: {e}")
+        return None
+
+    # Build ffmpeg command
+    cmd = [
+        "ffmpeg",
+        "-v", "error",
+        "-i", source_url,
+        "-map", "0:v:0",
+        "-map", f"0:a:{audio_idx}",
+    ]
+
+    # Map subtitle if requested
+    if subtitle_idx >= 0:
+        cmd.extend(["-map", f"0:s:{subtitle_idx}"])
+        cmd.extend(["-c:s", "mov_text"])
+
+    cmd.extend([
+        "-c:v", "copy",
+        "-c:a", "copy",
+        "-movflags", "frag_keyframe+empty_moov+faststart",
+        "-fflags", "+genpts",
+        "-f", "mp4",
+        "-",
+    ])
+
+    LOGGER.info(f"FFmpeg command: {' '.join(cmd)}")
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except Exception as e:
+        LOGGER.error(f"Failed to start ffmpeg: {e}")
+        return None
+
+    async def stdout_generator():
+        chunk_size = 1024 * 1024  # 1MB chunks
+        try:
+            while True:
+                chunk = await process.stdout.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        except (ConnectionResetError, asyncio.CancelledError):
+            LOGGER.info("Client disconnected during ffmpeg stream")
+        finally:
+            if process.returncode is None:
+                try:
+                    process.kill()
+                    await asyncio.wait_for(process.wait(), timeout=5)
+                except Exception:
+                    pass
+
+    # Log stderr asynchronously
+    async def log_stderr():
+        try:
+            while True:
+                line = await process.stderr.readline()
+                if not line:
+                    break
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                if line_str:
+                    LOGGER.debug(f"FFmpeg stderr: {line_str}")
+        except Exception:
+            pass
+
+    asyncio.create_task(log_stderr())
+
+    return StreamingResponse(
+        content=stdout_generator(),
+        media_type="video/mp4",
+        headers={
+            "Content-Type": "video/mp4",
+            "Content-Disposition": f'inline; filename="{file_name}"',
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
         },
     )

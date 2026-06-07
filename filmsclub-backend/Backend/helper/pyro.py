@@ -54,6 +54,7 @@ def clean_filename(filename):
     # Remove common uploader prefixes like "mj_link_4u -"
     cleaned_filename = re.sub(r'^[A-Za-z0-9_]+\s*-\s*', ' ', cleaned_filename)
     cleaned_filename = re.sub(r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b)(?=\W)', '', cleaned_filename, flags=re.IGNORECASE)
+    cleaned_filename = re.sub(r'\\[ntr]', ' ', cleaned_filename)
     cleaned_filename = re.sub(r'\s+', ' ', cleaned_filename).strip()
     return cleaned_filename
 

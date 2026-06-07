@@ -24,10 +24,9 @@ import "react-toastify/dist/ReactToastify.css";
 
 import { IoEye, IoEyeOff } from "react-icons/io5";
 import logo from "../assets/images/logo.png";
+import { SITEKEY, WORKERURL } from "../config";
 
 export default function Login() {
-  const SITEKEY = import.meta.env.VITE_SITEKEY;
-  const WORKERURL = import.meta.env.VITE_WORKERURL;
 
   const [selected, setSelected] = useState("login");
   const [email, setEmail] = useState("");

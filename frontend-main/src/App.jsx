@@ -3,6 +3,7 @@ import MovieDetails from "./pages/MovieDetails";
 import TvDetails from "./pages/TvDetails";
 import Movies from "./pages/Movies";
 import Series from "./pages/Series";
+import Category from "./pages/Category";
 import SimilarMov from "./pages/SimilarMov";
 import SimilarSeries from "./pages/SimilarSeries";
 import SearResults from "./pages/SearchResults";
@@ -51,6 +52,14 @@ function App() {
           <Route
             path="/Series"
             element={<Series />}
+          />
+          <Route
+            path="/Anime"
+            element={<Category genre="Animation" mediaType="tvshows" title="Anime" />}
+          />
+          <Route
+            path="/Kdrama"
+            element={<Category genre="Drama" mediaType="tvshows" title="Kdrama" />}
           />
           <Route
             path="*"

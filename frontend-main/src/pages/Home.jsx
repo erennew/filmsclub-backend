@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { BASE_URL as BASE, SITENAME } from "../config";
 import HeroSlider from "../components/HomeHero";
 import HomeSections from "../components/HomeSections";
 import TopTenToday from "../components/TopTenToday";
@@ -9,18 +10,21 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base Url for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
-
   // States
   const [heroPopularMovies, setHeroPopularMovies] = useState([]);
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [trendingTv, setTrendingTv] = useState([]);
   const [topTenData, setTopTenData] = useState([]);
+  const [topRatedMovies, setTopRatedMovies] = useState([]);
+  const [topRatedTv, setTopRatedTv] = useState([]);
+  const [trendingNow, setTrendingNow] = useState([]);
   const [isHeroLoading, setIsHeroLoading] = useState(true);
   const [isTrendingMoviesLoading, setIsTrendingMoviesLoading] = useState(true);
   const [isTrendingTvLoading, setIsTrendingTvLoading] = useState(true);
   const [isTopTenLoading, setIsTopTenLoading] = useState(true);
+  const [isTopRatedMoviesLoading, setIsTopRatedMoviesLoading] = useState(true);
+  const [isTopRatedTvLoading, setIsTopRatedTvLoading] = useState(true);
+  const [isTrendingNowLoading, setIsTrendingNowLoading] = useState(true);
 
   useEffect(() => {
     setIsHeroLoading(true);
@@ -102,6 +106,65 @@ export default function Home() {
       });
   }, [BASE]);
 
+  useEffect(() => {
+    setIsTopRatedMoviesLoading(true);
+    axios
+      .get(`${BASE}/api/movies`, {
+        params: {
+          sort_by: "rating:desc",
+          page: 1,
+          page_size: 20,
+        },
+      })
+      .then((response) => {
+        setTopRatedMovies(response.data.movies);
+        setIsTopRatedMoviesLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching top rated movies:", error);
+        setIsTopRatedMoviesLoading(false);
+      });
+  }, [BASE]);
+
+  useEffect(() => {
+    setIsTopRatedTvLoading(true);
+    axios
+      .get(`${BASE}/api/tvshows`, {
+        params: {
+          sort_by: "rating:desc",
+          page: 1,
+          page_size: 20,
+        },
+      })
+      .then((response) => {
+        setTopRatedTv(response.data.tv_shows);
+        setIsTopRatedTvLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching top rated tv shows:", error);
+        setIsTopRatedTvLoading(false);
+      });
+  }, [BASE]);
+
+  useEffect(() => {
+    setIsTrendingNowLoading(true);
+    axios
+      .get(`${BASE}/api/trending/today`, { params: { limit: 20 } })
+      .then((response) => {
+        const movies = response.data.movies || [];
+        const tvShows = response.data.tv_shows || [];
+        const combined = [...movies, ...tvShows].sort(
+          (a, b) => (b.view_count || 0) - (a.view_count || 0)
+        );
+        setTrendingNow(combined.slice(0, 20));
+        setIsTrendingNowLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching trending now:", error);
+        setIsTrendingNowLoading(false);
+      });
+  }, [BASE]);
+
   return (
     <div>
       <ToastContainer style={{ fontSize: "0.8rem" }} />
@@ -146,6 +209,30 @@ export default function Home() {
         sectionTitle="Latest Series"
         sectionSeeMoreButtonLink="/Series"
         dataType="latestTv"
+      />
+      {/* Top Rated Movies Section */}
+      <HomeSections
+        movieData={topRatedMovies}
+        isMovieDataLoading={isTopRatedMoviesLoading}
+        sectionTitle="Top Rated Movies"
+        sectionSeeMoreButtonLink="/Movies"
+        dataType="topRatedMovies"
+      />
+      {/* Top Rated Series Section */}
+      <HomeSections
+        movieData={topRatedTv}
+        isMovieDataLoading={isTopRatedTvLoading}
+        sectionTitle="Top Rated Series"
+        sectionSeeMoreButtonLink="/Series"
+        dataType="topRatedTv"
+      />
+      {/* Trending Now / Most Viewed Section */}
+      <HomeSections
+        movieData={trendingNow}
+        isMovieDataLoading={isTrendingNowLoading}
+        sectionTitle="Most Viewed Today"
+        sectionSeeMoreButtonLink="/Movies"
+        dataType="trendingNow"
       />
     </div>
   );

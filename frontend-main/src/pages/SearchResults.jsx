@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { BASE_URL as BASE, SITENAME } from "../config";
 import MoviesAndSeriesSections from "../components/MoviesAndSeriesSections";
 import Pagination from "../components/Pagination";
 import { useParams } from "react-router-dom";
 import SEO from "../components/SEO"; // import SEO
 
 export default function SimilarMovies() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base URL for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
-
-
   // States
   const [movies, setMovies] = useState([]);
   const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true);

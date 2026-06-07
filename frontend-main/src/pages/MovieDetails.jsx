@@ -6,9 +6,8 @@ import Similars from "../components/Similars";
 import SEO from "../components/SEO"; // import SEO
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { BASE_URL as BASE, SITENAME } from "../config";
 export default function MovieDetails() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base URL for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
 
   let { movieID } = useParams();
 

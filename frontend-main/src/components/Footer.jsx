@@ -1,9 +1,8 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { TG_URL, SITENAME } from "../config";
 
 export default function Footer() {
-  const TG_URL = import.meta.env.VITE_TG_URL;
-  const SITENAME = import.meta.env.VITE_SITENAME;
 
 
   const location = useLocation();

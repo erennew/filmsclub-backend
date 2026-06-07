@@ -7,11 +7,15 @@ from Backend.fastapi import server
 from Backend.helper.pyro import restart_notification
 from Backend.pyrofork import StreamBot
 from Backend.pyrofork.clients import initialize_clients
+from Backend.config import Telegram
 
 loop = get_event_loop()
 
 async def start_services():
     try:
+        # Validate critical env vars before doing anything else
+        Telegram.validate()
+        
         LOGGER.info(f"Initializing Project-Stream v-{__version__}")
         await asleep(1.2)
         

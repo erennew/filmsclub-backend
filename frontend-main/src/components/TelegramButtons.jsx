@@ -5,11 +5,9 @@ import axios from "axios";
 import { Button } from "@nextui-org/button";
 import Spinner from "./svg/Spinner";
 import { useLocation } from "react-router-dom";
+import { TG_USERNAME as USERNAME, API_URL, API_KEY } from "../config";
 
 const TelegramButton = ({ movieData }) => {
-  const USERNAME = import.meta.env.VITE_TG_USERNAME;
-  const API_URL = import.meta.env.VITE_API_URL;
-  const API_KEY = import.meta.env.VITE_API_KEY;
 
   const [shortenedUrls, setShortenedUrls] = useState({});
   const [loading, setLoading] = useState({});

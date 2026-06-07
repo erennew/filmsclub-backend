@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { LazyLoadImage } from "react-lazy-load-image-component";
 import "react-lazy-load-image-component/src/effects/black-and-white.css";
+import { BASE_URL as BASE, SITENAME } from "../config";
 
 import { FiSearch } from "react-icons/fi";
 import { VscClose } from "react-icons/vsc";
@@ -14,9 +15,6 @@ import posterPlaceholder from "../assets/images/poster-placeholder.png";
 // import UserInfoBtn from "./Logout";
 
 export default function Nav() {
-  const BASE = import.meta.env.VITE_BASE_URL; // Base Url for backend
-  const SITENAME = import.meta.env.VITE_SITENAME;
-
   // Query State
   const [query, setQuery] = React.useState("");
   const [debouncedVal, setDebouncedVal] = React.useState("");
@@ -36,6 +34,10 @@ export default function Nav() {
       setNavStatus("Movies");
     } else if (path.startsWith("/ser") || path.startsWith("/Series")) {
       setNavStatus("Series");
+    } else if (path.startsWith("/Anime")) {
+      setNavStatus("Anime");
+    } else if (path.startsWith("/Kdrama")) {
+      setNavStatus("Kdrama");
     }
   }, [location.pathname]);
 
@@ -124,6 +126,8 @@ export default function Nav() {
                 { icon: BiHomeAlt2, name: "Home" },
                 { icon: BiSolidMovie, name: "Movies" },
                 { icon: BsTv, name: "Series" },
+                { icon: BiSolidMovie, name: "Anime" },
+                { icon: BsTv, name: "Kdrama" },
               ].map((navItem, index) => {
                 return (
                   <Link
@@ -174,6 +178,8 @@ export default function Nav() {
                     { icon: BiHomeAlt2, name: "Home" },
                     { icon: BiSolidMovie, name: "Movies" },
                     { icon: BsTv, name: "Series" },
+                    { icon: BiSolidMovie, name: "Anime" },
+                    { icon: BsTv, name: "Kdrama" },
                   ].map((navItem, index) => {
                     return (
                       <Link

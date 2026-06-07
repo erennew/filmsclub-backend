@@ -23,6 +23,9 @@ except ImportError:
     LOGGER.warning("Redis not installed. Redis caching will be disabled.")
     LOGGER.info("Install with: pip install redis")
 
+# Import config for Redis settings
+from Backend.config import Cache as CacheConfig
+
 
 class RedisCache:
     """
@@ -36,19 +39,19 @@ class RedisCache:
     - Graceful fallback when Redis unavailable
     """
     
-    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
+    def __init__(self, redis_url: str = None):
         """
         Initialize Redis cache.
         
         Args:
-            redis_url: Redis connection URL
-                      Format: redis://host:port/db
+            redis_url: Redis connection URL. If None, uses CacheConfig.REDIS_URL.
+                      Format: redis://host:port/db or rediss://default:pass@host:port
                       Example: redis://localhost:6379/0
         """
-        self.redis_url = redis_url
+        self.redis_url = redis_url or CacheConfig.REDIS_URL
         self._client = None
         self._connected = False
-        self._available = REDIS_AVAILABLE
+        self._available = REDIS_AVAILABLE and CacheConfig.ENABLE_REDIS
     
     async def connect(self) -> bool:
         """
