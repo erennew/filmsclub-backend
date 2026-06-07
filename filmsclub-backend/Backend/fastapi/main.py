@@ -185,7 +185,7 @@ async def get_media_details(
 @app.get("/api/similar/")
 async def get_similar_media(
     tmdb_id: int,
-    media_type: str = Query(..., regex="^(movie|tvshow)$"),
+    media_type: str = Query(..., pattern="^(movie|tvshow)$"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
     page_size: int = Query(default=10, ge=1, description="Number of similar media per page")
 ):
@@ -236,7 +236,7 @@ async def search_documents_endpoint(
 @app.post("/api/track-view")
 async def track_view_endpoint(
     tmdb_id: int = Query(..., description="TMDB ID of the media"),
-    media_type: str = Query(..., regex="^(movie|tv)$", description="Media type: movie or tv")
+    media_type: str = Query(..., pattern="^(movie|tv)$", description="Media type: movie or tv")
 ):
     """
     Track a view for a movie or TV show. Increments the daily view counter.

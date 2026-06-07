@@ -11,14 +11,10 @@ RUN apt-get update && \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Install FFmpeg 7.1 static build
-RUN mkdir -p /opt/ffmpeg && \
-    wget -O /tmp/ffmpeg.tar.xz \
-    https://johnvansickle.com/ffmpeg/releases/old-releases/ffmpeg-7.1-amd64-static.tar.xz && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /opt/ffmpeg --strip-components=1 && \
-    ln -s /opt/ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
-    ln -s /opt/ffmpeg/ffprobe /usr/local/bin/ffprobe && \
-    rm -f /tmp/ffmpeg.tar.xz
+# Install FFmpeg from Debian repos (reliable for Heroku)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    rm -rf /var/lib/apt/lists/*
 
 # Verify FFmpeg version
 RUN ffmpeg -version && ffprobe -version

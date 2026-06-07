@@ -4,7 +4,16 @@ from dotenv import load_dotenv
 from Backend import LOGGER
 
 
-load_dotenv(path.join(path.dirname(path.dirname(__file__)), "config.env"))
+# Try loading from config.env first, then fall back to .env (for Heroku compatibility)
+_config_env_path = path.join(path.dirname(path.dirname(__file__)), "config.env")
+_env_path = path.join(path.dirname(path.dirname(__file__)), ".env")
+
+if path.exists(_config_env_path):
+    load_dotenv(_config_env_path)
+elif path.exists(_env_path):
+    load_dotenv(_env_path)
+else:
+    LOGGER.warning("No config.env or .env file found. Using environment variables directly.")
 class Telegram:
     API_ID = int(getenv("API_ID", "0"))
     API_HASH = getenv("API_HASH", "")
