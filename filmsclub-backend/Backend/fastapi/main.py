@@ -1,7 +1,5 @@
 import asyncio
-import os
 import shutil
-import tempfile
 from time import time
 from typing import Any, Dict, List, Optional, Union
 from Backend.helper.encrypt import decode_string
@@ -19,19 +17,20 @@ import math
 
 from Backend.logger import LOGGER
 from Backend.config import Telegram, Cache as CacheConfig
+from pyrogram.enums import ChatMemberStatus
 from Backend.pyrofork import StreamBot, work_loads, multi_clients
 from Backend.helper.exceptions import InvalidHash
 from Backend.helper.custom_dl import ByteStreamer
 from fastapi.middleware.cors import CORSMiddleware
 from Backend.helper.pyro import get_readable_time
 from Backend.helper.media_tracks import probe_media_tracks
-from Backend.helper.cache import get_all_cache_stats, clear_all_caches
+from Backend.helper.cache import get_all_cache_stats, clear_all_caches, video_chunk_cache
 from Backend.helper.redis_cache import redis_cache, cache_response, invalidate_cache_pattern
 from Backend import StartTime, __version__, db
 
 
 # Helper function to add HTTP cache headers for browser caching
-def add_cache_headers(response, max_age: int = 60, etag: str = None):
+def add_cache_headers(response, max_age: int = 60, etag: Optional[str] = None):
     """Add HTTP cache headers for browser caching."""
     headers = {
         "Cache-Control": f"public, max-age={max_age}",
@@ -46,75 +45,6 @@ def add_cache_headers(response, max_age: int = 60, etag: str = None):
 
 app = FastAPI()
 class_cache = {}
-
-# Disk cache for ffmpeg remuxed outputs: (file_id, audio_idx, sub_idx) -> (temp_path, timestamp)
-remux_cache: Dict[tuple, tuple] = {}
-remux_cache_lock = asyncio.Lock()
-MAX_REMUX_CACHE_ENTRIES = 6  # Max cached track combinations across all files
-
-async def _evict_oldest_remux():
-    """Evict oldest entry from remux cache and delete its temp file."""
-    if not remux_cache:
-        return
-    oldest_key = min(remux_cache, key=lambda k: remux_cache[k][1])
-    old_path, _ = remux_cache.pop(oldest_key)
-    try:
-        if os.path.exists(old_path):
-            os.remove(old_path)
-            LOGGER.info(f"Evicted cached remux: {old_path}")
-    except Exception as e:
-        LOGGER.warning(f"Failed to delete cached remux file {old_path}: {e}")
-
-async def serve_local_file(request: Request, file_path: str, file_name: str):
-    """Serve a local file with HTTP byte-range support for seeking."""
-    file_size = os.path.getsize(file_path)
-    range_header = request.headers.get("Range", 0)
-
-    if range_header:
-        from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
-        from_bytes = int(from_bytes)
-        until_bytes = int(until_bytes) if until_bytes else file_size - 1
-    else:
-        from_bytes = 0
-        until_bytes = file_size - 1
-
-    until_bytes = min(until_bytes, file_size - 1)
-    if until_bytes < from_bytes or from_bytes < 0 or until_bytes >= file_size:
-        return StreamingResponse(
-            content=(b"416: Range not satisfiable",),
-            status_code=416,
-            headers={"Content-Range": f"bytes */{file_size}"},
-        )
-
-    req_length = until_bytes - from_bytes + 1
-
-    async def file_chunk_generator():
-        with open(file_path, "rb") as f:
-            f.seek(from_bytes)
-            remaining = req_length
-            while remaining > 0:
-                chunk_size = min(1024 * 1024, remaining)
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-                remaining -= len(chunk)
-
-    headers = {
-        "Content-Type": "video/mp4",
-        "Content-Disposition": f'inline; filename="{file_name}"',
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=3600",
-    }
-    if range_header:
-        headers["Content-Range"] = f"bytes {from_bytes}-{until_bytes}/{file_size}"
-        headers["Content-Length"] = str(req_length)
-
-    return StreamingResponse(
-        content=file_chunk_generator(),
-        status_code=206 if range_header else 200,
-        headers=headers,
-    )
 
 templates = Jinja2Templates(directory="Backend/fastapi/templates")
 
@@ -203,12 +133,11 @@ async def watch(
 async def get_sorted_tv_shows(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page"),
-    genre: Optional[str] = Query(default=None, description="Filter by genre (case-insensitive partial match)")
+    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size, genre)
+        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size)
         return sorted_tv_shows
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -217,12 +146,11 @@ async def get_sorted_tv_shows(
 async def get_sorted_movies(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of movies per page"),
-    genre: Optional[str] = Query(default=None, description="Filter by genre (case-insensitive partial match)")
+    page_size: int = Query(default=10, ge=1, description="Number of movies per page")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_movies = await db.sort_movies(sort_params, page, page_size, genre)
+        sorted_movies = await db.sort_movies(sort_params, page, page_size)
         return sorted_movies
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -347,6 +275,57 @@ async def get_trending_today_endpoint(
         raise HTTPException(status_code=500, detail="Failed to fetch trending data")
 
 
+@app.get("/api/most-viewed", response_model=dict)
+@cache_response(ttl=CacheConfig.TRENDING_CACHE_TTL, key_prefix="most_viewed")
+async def get_most_viewed_endpoint(
+    limit: int = Query(default=10, ge=1, le=50, description="Number of most viewed items to return")
+):
+    """
+    Get the top movies and TV shows by all-time view count.
+    Cached for 5 minutes to reduce database load.
+    """
+    try:
+        most_viewed = await db.get_most_viewed(limit=limit)
+        return most_viewed
+    except Exception as e:
+        LOGGER.error(f"Error fetching most viewed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch most viewed data")
+
+
+@app.get("/api/anime", response_model=dict)
+@cache_response(ttl=CacheConfig.TRENDING_CACHE_TTL, key_prefix="anime")
+async def get_anime_endpoint(
+    page: int = Query(default=1, ge=1, description="Page number to return"),
+    page_size: int = Query(default=20, ge=1, description="Number of anime per page")
+):
+    """
+    Get anime movies and TV shows (Animation/Anime genre).
+    """
+    try:
+        anime = await db.get_anime(limit=page_size, page=page)
+        return anime
+    except Exception as e:
+        LOGGER.error(f"Error fetching anime: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch anime data")
+
+
+@app.get("/api/k-drama", response_model=dict)
+@cache_response(ttl=CacheConfig.TRENDING_CACHE_TTL, key_prefix="kdrama")
+async def get_kdrama_endpoint(
+    page: int = Query(default=1, ge=1, description="Page number to return"),
+    page_size: int = Query(default=20, ge=1, description="Number of K-Drama per page")
+):
+    """
+    Get K-Drama TV shows (Korean language + Drama genre).
+    """
+    try:
+        kdrama = await db.get_kdrama(limit=page_size, page=page)
+        return kdrama
+    except Exception as e:
+        LOGGER.error(f"Error fetching K-Drama: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch K-Drama data")
+
+
 @app.get("/api/media-info/{file_id}")
 @cache_response(ttl=CacheConfig.MEDIA_INFO_CACHE_TTL, key_prefix="media_info")
 async def get_media_info(
@@ -442,7 +421,6 @@ async def get_subtitle_file(
     Returns the subtitle file content converted to WebVTT if needed.
     """
     try:
-        from Backend.helper.encrypt import decode_string
         decoded = await decode_string(file_id)
         chat_id = f"-100{decoded['chat_id']}"
         
@@ -588,7 +566,7 @@ async def media_streamer(request: Request, chat_id: int, id: int, secure_hash: s
     if range_header:
         from_bytes, until_bytes = range_header.replace("bytes=", "").split("-")
         from_bytes = int(from_bytes)
-        until_bytes = int(until_bytes) if until_bytes else file_size - 1
+        until_bytes = int(until_bytes) if until_bytes != "" else file_size - 1
     else:
         from_bytes = 0
         until_bytes = file_size - 1
@@ -670,38 +648,20 @@ async def media_streamer_with_tracks(
 ):
     """
     Remux video with a specific audio track and optional subtitle using ffmpeg.
-    Caches remuxed output to disk so subsequent switches are instant and seekable.
     Falls back to direct stream if ffmpeg is unavailable or fails.
     """
-    global remux_cache
-
     # Check if ffmpeg is installed
     if not shutil.which("ffmpeg"):
         LOGGER.warning("ffmpeg not found on system, falling back to direct stream")
         return None
 
-    cache_key = (file_id, audio_idx, subtitle_idx)
-
-    # Check disk cache first
-    async with remux_cache_lock:
-        cached = remux_cache.get(cache_key)
-        if cached:
-            cached_path, _ = cached
-            if os.path.exists(cached_path) and os.path.getsize(cached_path) > 1024 * 1024:
-                LOGGER.info(f"Cache hit for remux {cache_key}, serving from disk: {cached_path}")
-                remux_cache[cache_key] = (cached_path, time())  # Update LRU timestamp
-                return await serve_local_file(request, cached_path, file_name)
-            else:
-                LOGGER.warning(f"Cached remux file missing or too small: {cached_path}")
-                remux_cache.pop(cache_key, None)
-
-    # Build source URL
+    # Build source URL (self-referential without audio/subtitle params to avoid recursion)
     base_url = Telegram.BASE_URL
     source_url = f"{base_url}/dl/{file_id}/{urllib.parse.quote(file_name)}"
 
-    LOGGER.info(f"FFmpeg remux cache miss: audio={audio_idx}, subtitle={subtitle_idx}, source={source_url}")
+    LOGGER.info(f"FFmpeg remux: audio={audio_idx}, subtitle={subtitle_idx}, source={source_url}")
 
-    # Pre-flight test
+    # Pre-flight test: check if ffmpeg can process the source
     try:
         test_cmd = [
             "ffmpeg",
@@ -731,20 +691,16 @@ async def media_streamer_with_tracks(
         LOGGER.error(f"FFmpeg pre-flight error: {e}")
         return None
 
-    # Create temp file for remuxed output
-    temp_fd, temp_path = tempfile.mkstemp(suffix=".mp4")
-    os.close(temp_fd)
-
-    # Build ffmpeg command - write to file instead of stdout for caching
+    # Build ffmpeg command
     cmd = [
         "ffmpeg",
-        "-y",  # Overwrite output
         "-v", "error",
         "-i", source_url,
         "-map", "0:v:0",
         "-map", f"0:a:{audio_idx}",
     ]
 
+    # Map subtitle if requested
     if subtitle_idx >= 0:
         cmd.extend(["-map", f"0:s:{subtitle_idx}"])
         cmd.extend(["-c:s", "mov_text"])
@@ -752,9 +708,10 @@ async def media_streamer_with_tracks(
     cmd.extend([
         "-c:v", "copy",
         "-c:a", "copy",
-        "-movflags", "faststart",
+        "-movflags", "frag_keyframe+empty_moov+faststart",
         "-fflags", "+genpts",
-        temp_path,
+        "-f", "mp4",
+        "-",
     ])
 
     LOGGER.info(f"FFmpeg command: {' '.join(cmd)}")
@@ -767,48 +724,48 @@ async def media_streamer_with_tracks(
         )
     except Exception as e:
         LOGGER.error(f"Failed to start ffmpeg: {e}")
-        try:
-            os.remove(temp_path)
-        except:
-            pass
         return None
 
-    # Wait for ffmpeg to finish with a generous timeout
-    try:
-        _, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
-        if process.returncode != 0:
-            err = stderr.decode("utf-8", errors="ignore")[:500] if stderr else "unknown"
-            LOGGER.error(f"FFmpeg remux failed: {err}")
-            try:
-                os.remove(temp_path)
-            except:
-                pass
-            return None
-    except asyncio.TimeoutError:
-        LOGGER.error("FFmpeg remux timed out after 300s")
+    async def stdout_generator():
+        chunk_size = 1024 * 1024  # 1MB chunks
         try:
-            process.kill()
-            os.remove(temp_path)
-        except:
-            pass
-        return None
+            while True:
+                chunk = await process.stdout.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+        except (ConnectionResetError, asyncio.CancelledError):
+            LOGGER.info("Client disconnected during ffmpeg stream")
+        finally:
+            if process.returncode is None:
+                try:
+                    process.kill()
+                    await asyncio.wait_for(process.wait(), timeout=5)
+                except Exception:
+                    pass
 
-    # Verify output file
-    if not os.path.exists(temp_path) or os.path.getsize(temp_path) < 1024 * 1024:
-        LOGGER.error(f"Remuxed file too small or missing: {temp_path}")
+    # Log stderr asynchronously
+    async def log_stderr():
         try:
-            os.remove(temp_path)
-        except:
+            while True:
+                line = await process.stderr.readline()
+                if not line:
+                    break
+                line_str = line.decode("utf-8", errors="ignore").strip()
+                if line_str:
+                    LOGGER.debug(f"FFmpeg stderr: {line_str}")
+        except Exception:
             pass
-        return None
 
-    LOGGER.info(f"FFmpeg remux complete: {temp_path} ({os.path.getsize(temp_path)} bytes)")
+    asyncio.create_task(log_stderr())
 
-    # Store in cache with LRU eviction
-    async with remux_cache_lock:
-        if len(remux_cache) >= MAX_REMUX_CACHE_ENTRIES:
-            await _evict_oldest_remux()
-        remux_cache[cache_key] = (temp_path, time())
-
-    # Serve the cached file with byte-range support
-    return await serve_local_file(request, temp_path, file_name)
+    return StreamingResponse(
+        content=stdout_generator(),
+        media_type="video/mp4",
+        headers={
+            "Content-Type": "video/mp4",
+            "Content-Disposition": f'inline; filename="{file_name}"',
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )

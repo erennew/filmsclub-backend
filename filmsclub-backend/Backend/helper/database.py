@@ -79,7 +79,7 @@ class Database:
     
     async def update_tv_show(self, tv_show_data: TVShowSchema) -> Optional[ObjectId]:
         try:
-            tv_show_dict = tv_show_data.dict()
+            tv_show_dict = tv_show_data.model_dump()
         except ValidationError as e:
             LOGGER.error(f"Validation error: {e}")
             return None
@@ -142,7 +142,7 @@ class Database:
             LOGGER.error("Database collection is not initialized. Did you call db.connect()?")
             return None
         try:
-            movie_dict = movie_data.dict()
+            movie_dict = movie_data.model_dump()
         except ValidationError as e:
             LOGGER.error(f"Validation error: {e}")
             return None
@@ -260,24 +260,19 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int,
-        genre: Optional[str] = None
+        page_size: int
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = []
-        if genre:
-            pipeline.append({"$match": {"genres": {"$regex": genre, "$options": "i"}}})
-        
-        pipeline.extend([
+        pipeline = [
             {"$sort": dict(sort_criteria)},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
                 "data": [{"$skip": skip}, {"$limit": page_size}]
             }}
-        ])
+        ]
         
         result = await self.tv_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0
@@ -288,24 +283,19 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int,
-        genre: Optional[str] = None
+        page_size: int
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = []
-        if genre:
-            pipeline.append({"$match": {"genres": {"$regex": genre, "$options": "i"}}})
-        
-        pipeline.extend([
+        pipeline = [
             {"$sort": dict(sort_criteria)},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
                 "data": [{"$skip": skip}, {"$limit": page_size}]
             }}
-        ])
+        ]
         
         result = await self.movie_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0
@@ -544,6 +534,95 @@ class Database:
                     tv_shows.append(doc)
 
         return {"movies": movies, "tv_shows": tv_shows}
+
+    async def get_most_viewed(self, limit: int = 10) -> dict:
+        """Get top movies and TV shows by all-time view count."""
+        pipeline = [
+            {"$group": {
+                "_id": {"tmdb_id": "$tmdb_id", "media_type": "$media_type"},
+                "total_count": {"$sum": "$count"}
+            }},
+            {"$sort": {"total_count": DESCENDING}},
+            {"$limit": limit}
+        ]
+
+        trending_views = await self.views_collection.aggregate(pipeline).to_list(None)
+
+        movies = []
+        tv_shows = []
+
+        for item in trending_views:
+            tmdb_id = item["_id"]["tmdb_id"]
+            media_type = item["_id"]["media_type"]
+            count = item["total_count"]
+
+            if media_type == "movie":
+                doc = await self.movie_collection.find_one({"tmdb_id": tmdb_id})
+                if doc:
+                    doc = self._convert_object_id(doc)
+                    doc["view_count"] = count
+                    movies.append(doc)
+            else:
+                doc = await self.tv_collection.find_one({"tmdb_id": tmdb_id})
+                if doc:
+                    doc = self._convert_object_id(doc)
+                    doc["view_count"] = count
+                    tv_shows.append(doc)
+
+        return {"movies": movies, "tv_shows": tv_shows}
+
+    async def get_anime(self, limit: int = 20, page: int = 1) -> dict:
+        """Get anime (Animation/Anime genre) movies and TV shows."""
+        skip = (page - 1) * limit
+
+        anime_pipeline = [
+            {"$match": {"genres": {"$in": ["Animation", "Anime"]}}},
+            {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
+            {"$facet": {
+                "metadata": [{"$count": "total_count"}],
+                "data": [{"$skip": skip}, {"$limit": limit}]
+            }}
+        ]
+
+        movie_result = await self.movie_collection.aggregate(anime_pipeline).to_list(1)
+        tv_result = await self.tv_collection.aggregate(anime_pipeline).to_list(1)
+
+        movies = [self._convert_object_id(doc) for doc in movie_result[0]["data"]] if movie_result else []
+        tv_shows = [self._convert_object_id(doc) for doc in tv_result[0]["data"]] if tv_result else []
+
+        total_count = 0
+        if movie_result and movie_result[0]["metadata"]:
+            total_count += movie_result[0]["metadata"][0]["total_count"]
+        if tv_result and tv_result[0]["metadata"]:
+            total_count += tv_result[0]["metadata"][0]["total_count"]
+
+        combined = (movies + tv_shows)
+        combined.sort(key=lambda x: (x.get("rating") or 0), reverse=True)
+
+        return {"total_count": total_count, "results": combined[:limit]}
+
+    async def get_kdrama(self, limit: int = 20, page: int = 1) -> dict:
+        """Get K-Drama TV shows (Korean language + Drama genre)."""
+        skip = (page - 1) * limit
+
+        kdrama_pipeline = [
+            {"$match": {
+                "languages": {"$in": ["Korean", "ko", "korean"]},
+                "genres": {"$in": ["Drama"]}
+            }},
+            {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
+            {"$facet": {
+                "metadata": [{"$count": "total_count"}],
+                "data": [{"$skip": skip}, {"$limit": limit}]
+            }}
+        ]
+
+        tv_result = await self.tv_collection.aggregate(kdrama_pipeline).to_list(1)
+
+        tv_shows = [self._convert_object_id(doc) for doc in tv_result[0]["data"]] if tv_result else []
+        total_count = tv_result[0]["metadata"][0]["total_count"] if tv_result and tv_result[0]["metadata"] else 0
+
+        return {"total_count": total_count, "tv_shows": tv_shows}
 
     async def delete_document(
         self,

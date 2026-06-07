@@ -9,7 +9,7 @@ from Backend.helper.exceptions import FIleNotFound
 from Backend.helper.pyro import get_file_ids
 from Backend.pyrofork import work_loads
 from Backend.helper.cache import file_metadata_cache, cache_stats, video_chunk_cache
-from pyrogram import Client, utils, raw
+from pyrogram import Client
 
 
 class ByteStreamer:
