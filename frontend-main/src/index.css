@@ -1,0 +1,470 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  scroll-behavior: smooth;
+}
+body {
+  background: #000000;
+}
+/* Mask */
+.mask {
+  mask-image: linear-gradient(to top, transparent, #121212);
+}
+.modal {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+} /* Default video player style */
+
+#player {
+  transition: transform 0.3s ease;
+}
+
+/* Portrait mode */
+@media (orientation: portrait) {
+  #player {
+    transform: rotate(90deg) scale(1.75);
+    transform-origin: center center;
+  }
+}
+/* Landscape mode */
+@media (orientation: landscape) {
+  #player {
+    transform: none;
+  }
+}
+::-webkit-scrollbar {
+  width: 1px;
+  height: 1px;
+  background-color: transparent;
+}
+/* Track */
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 5px;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: transparent;
+}
+
+/* Loading Details */
+/* HTML: <div class="loader"></div> */
+.loader {
+  width: 20px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #50b498;
+  box-shadow: 0 0 0 0 #50b498;
+  animation: l2 1.5s infinite linear;
+  position: relative;
+}
+.loader:before,
+.loader:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 #50b498;
+  animation: inherit;
+  animation-delay: -0.5s;
+}
+.loader:after {
+  animation-delay: -1s;
+}
+@keyframes l2 {
+  100% {
+    box-shadow: 0 0 0 40px #50b4982f;
+  }
+}
+
+/* Loading Search results */
+.loader-search {
+  width: 10px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #50b498;
+  box-shadow: 0 0 0 0 #50b498;
+  animation: l3 1.5s infinite linear;
+  position: relative;
+}
+.loader-search:before,
+.loader-search:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 #50b498;
+  animation: inherit;
+  animation-delay: -0.5s;
+}
+.loader-search:after {
+  animation-delay: -1s;
+}
+@keyframes l3 {
+  100% {
+    box-shadow: 0 0 0 30px #50b4982f;
+  }
+}
+
+/*Episodes Loading*/
+.loader-episode {
+  width: 40px;
+  aspect-ratio: 1;
+  --c: linear-gradient(#50b498 0 0);
+  --r1: radial-gradient(farthest-side at bottom, #50b498 93%, #50b498);
+  --r2: radial-gradient(farthest-side at top, #50b498 93%, #50b498);
+  background: var(--c), var(--r1), var(--r2), var(--c), var(--r1), var(--r2),
+    var(--c), var(--r1), var(--r2);
+  background-repeat: no-repeat;
+  animation: l4 1s infinite alternate;
+}
+@keyframes l4 {
+  0%,
+  25% {
+    background-size: 8px 0, 8px 4px, 8px 4px, 8px 0, 8px 4px, 8px 4px, 8px 0,
+      8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(50% - 2px), 0 calc(50% + 2px), 50% 50%,
+      50% calc(50% - 2px), 50% calc(50% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+  50% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 0, 8px 4px, 8px 4px, 8px 0,
+      8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(50% - 2px), 50% calc(50% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+  75% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 100%, 8px 4px, 8px 4px,
+      8px 0, 8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(0% - 2px), 50% calc(100% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+  95%,
+  100% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 100%, 8px 4px, 8px 4px,
+      8px 100%, 8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(0% - 2px), 50% calc(100% + 2px), 100% 50%, 100% calc(0% - 2px),
+      100% calc(100% + 2px);
+  }
+}
+
+/* Audio Track Selector Styles */
+.audio-track-selector {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+  z-index: 20;
+}
+
+.audio-track-button {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s ease;
+}
+
+.audio-track-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.audio-track-button .audio-icon {
+  font-size: 14px;
+}
+
+.audio-track-button .lang-flag {
+  font-size: 16px;
+}
+
+.audio-track-button .audio-title {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-track-button .dropdown-arrow {
+  font-size: 10px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.audio-track-button .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.audio-track-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 180px;
+  max-height: 250px;
+  overflow-y: auto;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.audio-track-option {
+  width: 100%;
+  background: none;
+  border: none;
+  color: white;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.audio-track-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.audio-track-option.selected {
+  background: rgba(80, 180, 152, 0.3);
+}
+
+.audio-track-option .lang-flag {
+  font-size: 18px;
+}
+
+.audio-track-option .option-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-track-option .channels-badge {
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: #ccc;
+}
+
+.audio-track-option .check-icon {
+  font-size: 12px;
+  color: #50b498;
+}
+
+/* Firefox warning */
+.audio-api-warning {
+  position: absolute;
+  top: 50px;
+  right: 60px;
+  background: rgba(255, 193, 7, 0.9);
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 19;
+  max-width: 200px;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .audio-track-selector {
+    right: 50px;
+    top: 8px;
+  }
+
+  .audio-track-button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .audio-track-button .audio-title {
+    max-width: 50px;
+  }
+
+  .audio-track-dropdown {
+    min-width: 150px;
+  }
+
+  .audio-api-warning {
+    right: 50px;
+    top: 40px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+
+/* Subtitle Track Selector Styles */
+.subtitle-selector {
+  position: absolute;
+  top: 10px;
+  right: 180px;  /* Left of audio selector */
+  z-index: 20;
+}
+
+.subtitle-track-button {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(4px);
+  transition: background 0.2s ease;
+}
+
+.subtitle-track-button:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.subtitle-track-button .subtitle-icon {
+  font-size: 14px;
+}
+
+.subtitle-track-button .lang-flag {
+  font-size: 16px;
+}
+
+.subtitle-track-button .subtitle-title {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle-track-button .dropdown-arrow {
+  font-size: 10px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.subtitle-track-button .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.subtitle-track-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 180px;
+  max-height: 250px;
+  overflow-y: auto;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.subtitle-track-option {
+  width: 100%;
+  background: none;
+  border: none;
+  color: white;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.subtitle-track-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.subtitle-track-option.selected {
+  background: rgba(80, 180, 152, 0.3);
+}
+
+.subtitle-track-option .lang-flag {
+  font-size: 18px;
+}
+
+.subtitle-track-option .option-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle-track-option .forced-badge {
+  font-size: 9px;
+  background: rgba(255, 193, 7, 0.8);
+  color: #000;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.subtitle-track-option .format-badge {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ccc;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.subtitle-track-option .check-icon {
+  font-size: 12px;
+  color: #50b498;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 4px 0;
+}
+
+/* Responsive adjustments for subtitle selector */
+@media (max-width: 640px) {
+  .subtitle-selector {
+    right: 140px;
+    top: 8px;
+  }
+
+  .subtitle-track-button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .subtitle-track-button .subtitle-title {
+    max-width: 50px;
+  }
+
+  .subtitle-track-dropdown {
+    min-width: 150px;
+  }
+}

