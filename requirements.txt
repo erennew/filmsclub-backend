@@ -1,0 +1,26 @@
+aiofiles
+pyrofork
+tgcrypto
+python-dotenv
+fastapi[standard]
+parse-torrent-title
+requests
+jinja2
+motor
+themoviedb
+pytz
+pycountry
+httpx
+hachoir
+PyJWT
+python-multipart
+passlib[bcrypt]
+bcrypt==3.2.0
+redis>=5.0.0
+
+# SYSTEM REQUIREMENTS (not installable via pip):
+# FFmpeg with ffprobe - Required for audio/subtitle track detection
+#   Ubuntu/Debian: sudo apt-get install ffmpeg
+#   CentOS/RHEL: sudo yum install ffmpeg
+#   macOS: brew install ffmpeg
+#   Windows: Download from https://ffmpeg.org/download.html
