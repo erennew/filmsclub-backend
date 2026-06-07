@@ -5,13 +5,16 @@ from Backend import LOGGER
 
 
 # Try loading from config.env first, then fall back to .env (for Heroku compatibility)
+# Heroku env vars take precedence over file-based config
 _config_env_path = path.join(path.dirname(path.dirname(__file__)), "config.env")
 _env_path = path.join(path.dirname(path.dirname(__file__)), ".env")
 
 if path.exists(_config_env_path):
-    load_dotenv(_config_env_path)
+    load_dotenv(_config_env_path, override=False)  # Don't override Heroku env vars
+    LOGGER.info(f"Loaded config from {_config_env_path}")
 elif path.exists(_env_path):
-    load_dotenv(_env_path)
+    load_dotenv(_env_path, override=False)
+    LOGGER.info(f"Loaded config from {_env_path}")
 else:
     LOGGER.warning("No config.env or .env file found. Using environment variables directly.")
 class Telegram:
@@ -21,7 +24,28 @@ class Telegram:
     PORT = int(getenv("PORT", "8000"))
     BASE_URL = getenv("BASE_URL", "0.0.0.0").rstrip('/')
     AUTH_CHANNEL = [channel.strip() for channel in (getenv("AUTH_CHANNEL") or "").split(",") if channel.strip()]
-    DATABASE = getenv("DATABASE", "").split(", ")
+    # Handle DATABASE - strip quotes that might come from config.env
+    _db_raw = getenv("DATABASE", "")
+    if _db_raw:
+        _db_raw = _db_raw.strip().strip('"').strip("'")
+    DATABASE = _db_raw if _db_raw else ""
+    
+    @staticmethod
+    def validate():
+        """Validate critical config values are set."""
+        missing = []
+        if not Telegram.API_ID or Telegram.API_ID == 0:
+            missing.append("API_ID")
+        if not Telegram.API_HASH:
+            missing.append("API_HASH")
+        if not Telegram.BOT_TOKEN:
+            missing.append("BOT_TOKEN")
+        if not Telegram.DATABASE:
+            missing.append("DATABASE")
+        if missing:
+            LOGGER.error(f"Missing required environment variables: {', '.join(missing)}")
+            LOGGER.error("Please set them via: heroku config:set VAR_NAME=value -a your-app-name")
+            raise ValueError(f"Missing required config: {', '.join(missing)}")
     TMDB_API = getenv("TMDB_API", "")
     IMDB_API = getenv("IMDB_API", "")
     UPSTREAM_REPO = getenv("UPSTREAM_REPO", "")
