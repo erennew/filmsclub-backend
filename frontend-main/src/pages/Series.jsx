@@ -14,23 +14,19 @@ export default function Series() {
   const [currentPage, setCurrentPage] = useState(1); 
   const [seriesFilter, setSeriesFilter] = useState("updated_on"); 
   const [seriesFilterVal, setSeriesFilterVal] = useState("updated_on"); 
-  const [genreFilter, setGenreFilter] = useState("");
 
   // FETCH SERIES DATA SECTION
   useEffect(() => {
     setIsSeriesDataLoading(true); 
     window.scrollTo(0, 0); 
 
-    const params = {
-      sort_by: `${seriesFilter}:desc`,
-      page: currentPage,
-      page_size: 20
-    };
-    if (genreFilter) {
-      params.genre = genreFilter;
-    }
-
-    axios.get(`${BASE}/api/tvshows`, { params })
+    axios.get(`${BASE}/api/tvshows`, {
+      params: {
+        sort_by: `${seriesFilter}:desc`,
+        page: currentPage,
+        page_size: 20
+      }
+    })
     .then(response => {
       setSeries(response.data.tv_shows);
       setSeriesDataForPageCount(response.data.total_count);
@@ -40,7 +36,7 @@ export default function Series() {
       console.error("Error fetching series:", error);
       setIsSeriesDataLoading(false); // Set loading state to false even if there is an error
     });
-  }, [seriesFilter, currentPage, genreFilter, BASE]); // Added BASE as a dependency
+  }, [seriesFilter, currentPage, BASE]); // Added BASE as a dependency
 
   return (
     <div>
@@ -62,17 +58,14 @@ export default function Series() {
         setMovieFilter={setSeriesFilter}
         movieFilterVal={seriesFilterVal}
         setMovieFilterVal={setSeriesFilterVal}
-        genreFilter={genreFilter}
-        setGenreFilter={setGenreFilter}
       />
 
       {/* Call Pagination Component */}
       <Pagination
         currentPage={currentPage}
-        total={seriesDataForPageCount} 
-        pagesNum={Math.ceil(seriesDataForPageCount / 20)} 
+        total={seriesDataForPageCount}
         onPageChange={(p) => {
-          setCurrentPage(p); 
+          setCurrentPage(p);
         }}
         limit={20}
       />

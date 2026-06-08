@@ -6,7 +6,7 @@ import { useParams } from "react-router-dom";
 import SEO from "../components/SEO"; // import SEO
 import { BASE_URL as BASE, SITENAME } from "../config";
 
-export default function SimilarMovies() {
+export default function SimilarSeries() {
 
 
   // States
@@ -73,10 +73,9 @@ export default function SimilarMovies() {
       {/* Call Pagination Component */}
       <Pagination
         currentPage={currentPage}
-        total={moviesDataForPageCount} 
-        pagesNum={Math.ceil(moviesDataForPageCount / 20)} 
+        total={moviesDataForPageCount}
         onPageChange={(p) => {
-          setCurrentPage(p); 
+          setCurrentPage(p);
         }}
         limit={20}
       />

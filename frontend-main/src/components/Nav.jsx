@@ -8,9 +8,9 @@ import { BASE_URL as BASE, SITENAME } from "../config";
 
 import { FiSearch } from "react-icons/fi";
 import { VscClose } from "react-icons/vsc";
-import { BiHomeAlt2, BiSolidMovie, BiStar } from "react-icons/bi";
+import { BiHomeAlt2, BiSolidMovie, BiStar, BiTrendingUp } from "react-icons/bi";
 
-import { BsTv } from "react-icons/bs";
+import { BsTv, BsFire } from "react-icons/bs";
 import posterPlaceholder from "../assets/images/poster-placeholder.png";
 // import UserInfoBtn from "./Logout";
 
@@ -34,30 +34,30 @@ export default function Nav() {
       setNavStatus("Movies");
     } else if (path.startsWith("/ser") || path.startsWith("/Series")) {
       setNavStatus("Series");
-    } else if (path.startsWith("/Anime")) {
+    } else if (path.startsWith("/anime")) {
       setNavStatus("Anime");
-    } else if (path.startsWith("/Kdrama")) {
-      setNavStatus("Kdrama");
+    } else if (path.startsWith("/k-drama")) {
+      setNavStatus("K-Drama");
     }
   }, [location.pathname]);
 
   // const isLoginPage = location.pathname === "/login"; 
 
   // Query Data Fetcher
-  try {
-    useEffect(() => {
-      setIsLoading(true); 
-      fetch(`${BASE}/api/search/?query=${debouncedVal}&page=1`)
-        .then((search_res) => search_res.json())
-        .then((search_data) => {
-          setSearchResult(search_data.results);
-
-          setIsLoading(false); 
-        });
-    }, [debouncedVal]);
-  } catch (error) {
-    <p className="main-search-result-container">{error}</p>;
-  }
+  useEffect(() => {
+    if (!debouncedVal) return;
+    setIsLoading(true);
+    fetch(`${BASE}/api/search/?query=${debouncedVal}&page=1`)
+      .then((search_res) => search_res.json())
+      .then((search_data) => {
+        setSearchResult(search_data.results || []);
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        console.error("Search error:", error);
+        setIsLoading(false);
+      });
+  }, [debouncedVal]);
 
   // Debouncing Function
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function Nav() {
     return () => {
       clearTimeout(timer);
     };
-  }, [query, 1000]);
+  }, [query]);
 
   let closeSearchResultsDropDown = useRef(); 
   useEffect(() => {
@@ -123,16 +123,19 @@ export default function Nav() {
           <nav className="hidden md:block">
             <ul className="flex items-center gap-8">
               {[
-                { icon: BiHomeAlt2, name: "Home" },
-                { icon: BiSolidMovie, name: "Movies" },
-                { icon: BsTv, name: "Series" },
-                { icon: BiSolidMovie, name: "Anime" },
-                { icon: BsTv, name: "Kdrama" },
+                { icon: BiHomeAlt2, name: "Home", path: "/" },
+                { icon: BiSolidMovie, name: "Movies", path: "/Movies" },
+                { icon: BsTv, name: "Series", path: "/Series" },
+                { icon: BiStar, name: "Top Rated Movies", path: "/top-rated-movies" },
+                { icon: BiStar, name: "Top Rated Series", path: "/top-rated-series" },
+                { icon: BiTrendingUp, name: "Most Viewed", path: "/most-viewed" },
+                { icon: BsFire, name: "Anime", path: "/anime" },
+                { icon: BsTv, name: "K-Drama", path: "/k-drama" },
               ].map((navItem, index) => {
                 return (
                   <Link
                     key={index}
-                    to={navItem.name === "Home" ? "/" : navItem.name}
+                    to={navItem.path}
                     className={
                       navStatus === navItem.name
                         ? "flex flex-col items-center transition-all duration-300 ease-in-out text-otherColor scale-105"
@@ -175,16 +178,19 @@ export default function Nav() {
                   ref={closeMobileMenu}
                 >
                   {[
-                    { icon: BiHomeAlt2, name: "Home" },
-                    { icon: BiSolidMovie, name: "Movies" },
-                    { icon: BsTv, name: "Series" },
-                    { icon: BiSolidMovie, name: "Anime" },
-                    { icon: BsTv, name: "Kdrama" },
+                    { icon: BiHomeAlt2, name: "Home", path: "/" },
+                    { icon: BiSolidMovie, name: "Movies", path: "/Movies" },
+                    { icon: BsTv, name: "Series", path: "/Series" },
+                    { icon: BiStar, name: "Top Rated Movies", path: "/top-rated-movies" },
+                    { icon: BiStar, name: "Top Rated Series", path: "/top-rated-series" },
+                    { icon: BiTrendingUp, name: "Most Viewed", path: "/most-viewed" },
+                    { icon: BsFire, name: "Anime", path: "/anime" },
+                    { icon: BsTv, name: "K-Drama", path: "/k-drama" },
                   ].map((navItem, index) => {
                     return (
                       <Link
                         key={index}
-                        to={navItem.name === "Home" ? "/" : navItem.name}
+                        to={navItem.path}
                         className={
                           navStatus === navItem.name
                             ? "flex flex-col items-start p-3 transition-all duration-300 ease-in-out text-otherColor scale-105"

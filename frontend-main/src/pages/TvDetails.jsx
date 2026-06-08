@@ -7,7 +7,7 @@ import SEO from "../components/SEO"; // import SEO
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { BASE_URL as BASE, SITENAME } from "../config";
-export default function MovieDetails() {
+export default function TvDetails() {
 
   let { seriesID } = useParams();
 

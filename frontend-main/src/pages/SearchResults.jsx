@@ -6,7 +6,7 @@ import Pagination from "../components/Pagination";
 import { useParams } from "react-router-dom";
 import SEO from "../components/SEO"; // import SEO
 
-export default function SimilarMovies() {
+export default function SearchResults() {
   // States
   const [movies, setMovies] = useState([]);
   const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true);
@@ -59,10 +59,9 @@ export default function SimilarMovies() {
       {/* Pagination Component */}
       <Pagination
         currentPage={currentPage}
-        total={moviesDataForPageCount} 
-        pagesNum={Math.ceil(moviesDataForPageCount / 20)} 
+        total={moviesDataForPageCount}
         onPageChange={(p) => {
-          setCurrentPage(p); 
+          setCurrentPage(p);
         }}
         limit={20}
       />

@@ -16,17 +16,17 @@ export default function Home() {
   const [trendingTv, setTrendingTv] = useState([]);
   const [topTenData, setTopTenData] = useState([]);
   const [topRatedMovies, setTopRatedMovies] = useState([]);
-  const [topRatedTv, setTopRatedTv] = useState([]);
-  const [trendingNow, setTrendingNow] = useState([]);
-  const [animeShows, setAnimeShows] = useState([]);
-  const [kdramaShows, setKdramaShows] = useState([]);
+  const [topRatedSeries, setTopRatedSeries] = useState([]);
+  const [mostViewed, setMostViewed] = useState([]);
+  const [anime, setAnime] = useState([]);
+  const [kdrama, setKdrama] = useState([]);
   const [isHeroLoading, setIsHeroLoading] = useState(true);
   const [isTrendingMoviesLoading, setIsTrendingMoviesLoading] = useState(true);
   const [isTrendingTvLoading, setIsTrendingTvLoading] = useState(true);
   const [isTopTenLoading, setIsTopTenLoading] = useState(true);
   const [isTopRatedMoviesLoading, setIsTopRatedMoviesLoading] = useState(true);
-  const [isTopRatedTvLoading, setIsTopRatedTvLoading] = useState(true);
-  const [isTrendingNowLoading, setIsTrendingNowLoading] = useState(true);
+  const [isTopRatedSeriesLoading, setIsTopRatedSeriesLoading] = useState(true);
+  const [isMostViewedLoading, setIsMostViewedLoading] = useState(true);
   const [isAnimeLoading, setIsAnimeLoading] = useState(true);
   const [isKdramaLoading, setIsKdramaLoading] = useState(true);
 
@@ -131,7 +131,7 @@ export default function Home() {
   }, [BASE]);
 
   useEffect(() => {
-    setIsTopRatedTvLoading(true);
+    setIsTopRatedSeriesLoading(true);
     axios
       .get(`${BASE}/api/tvshows`, {
         params: {
@@ -141,51 +141,44 @@ export default function Home() {
         },
       })
       .then((response) => {
-        setTopRatedTv(response.data.tv_shows);
-        setIsTopRatedTvLoading(false);
+        setTopRatedSeries(response.data.tv_shows);
+        setIsTopRatedSeriesLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching top rated tv shows:", error);
-        setIsTopRatedTvLoading(false);
+        console.error("Error fetching top rated series:", error);
+        setIsTopRatedSeriesLoading(false);
       });
   }, [BASE]);
 
   useEffect(() => {
-    setIsTrendingNowLoading(true);
+    setIsMostViewedLoading(true);
     axios
-      .get(`${BASE}/api/trending/today`, { params: { limit: 20 } })
+      .get(`${BASE}/api/most-viewed`, { params: { limit: 20 } })
       .then((response) => {
         const movies = response.data.movies || [];
         const tvShows = response.data.tv_shows || [];
         const combined = [...movies, ...tvShows].sort(
           (a, b) => (b.view_count || 0) - (a.view_count || 0)
         );
-        setTrendingNow(combined.slice(0, 20));
-        setIsTrendingNowLoading(false);
+        setMostViewed(combined.slice(0, 20));
+        setIsMostViewedLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching trending now:", error);
-        setIsTrendingNowLoading(false);
+        console.error("Error fetching most viewed:", error);
+        setIsMostViewedLoading(false);
       });
   }, [BASE]);
 
   useEffect(() => {
     setIsAnimeLoading(true);
     axios
-      .get(`${BASE}/api/tvshows`, {
-        params: {
-          sort_by: "rating:desc",
-          page: 1,
-          page_size: 20,
-          genre: "Animation",
-        },
-      })
+      .get(`${BASE}/api/anime`, { params: { page: 1, page_size: 20 } })
       .then((response) => {
-        setAnimeShows(response.data.tv_shows);
+        setAnime(response.data.results || []);
         setIsAnimeLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching anime shows:", error);
+        console.error("Error fetching anime:", error);
         setIsAnimeLoading(false);
       });
   }, [BASE]);
@@ -193,20 +186,13 @@ export default function Home() {
   useEffect(() => {
     setIsKdramaLoading(true);
     axios
-      .get(`${BASE}/api/tvshows`, {
-        params: {
-          sort_by: "rating:desc",
-          page: 1,
-          page_size: 20,
-          genre: "Drama",
-        },
-      })
+      .get(`${BASE}/api/k-drama`, { params: { page: 1, page_size: 20 } })
       .then((response) => {
-        setKdramaShows(response.data.tv_shows);
+        setKdrama(response.data.tv_shows || []);
         setIsKdramaLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching kdrama shows:", error);
+        console.error("Error fetching K-Drama:", error);
         setIsKdramaLoading(false);
       });
   }, [BASE]);
@@ -261,24 +247,40 @@ export default function Home() {
         movieData={topRatedMovies}
         isMovieDataLoading={isTopRatedMoviesLoading}
         sectionTitle="Top Rated Movies"
-        sectionSeeMoreButtonLink="/Movies"
+        sectionSeeMoreButtonLink="/top-rated-movies"
         dataType="topRatedMovies"
       />
       {/* Top Rated Series Section */}
       <HomeSections
-        movieData={topRatedTv}
-        isMovieDataLoading={isTopRatedTvLoading}
+        movieData={topRatedSeries}
+        isMovieDataLoading={isTopRatedSeriesLoading}
         sectionTitle="Top Rated Series"
-        sectionSeeMoreButtonLink="/Series"
-        dataType="topRatedTv"
+        sectionSeeMoreButtonLink="/top-rated-series"
+        dataType="topRatedSeries"
       />
-      {/* Trending Now / Most Viewed Section */}
+      {/* Most Viewed Section */}
       <HomeSections
-        movieData={trendingNow}
-        isMovieDataLoading={isTrendingNowLoading}
-        sectionTitle="Most Viewed Today"
-        sectionSeeMoreButtonLink="/Movies"
-        dataType="trendingNow"
+        movieData={mostViewed}
+        isMovieDataLoading={isMostViewedLoading}
+        sectionTitle="Most Viewed"
+        sectionSeeMoreButtonLink="/most-viewed"
+        dataType="mostViewed"
+      />
+      {/* Anime Section */}
+      <HomeSections
+        movieData={anime}
+        isMovieDataLoading={isAnimeLoading}
+        sectionTitle="Anime"
+        sectionSeeMoreButtonLink="/anime"
+        dataType="anime"
+      />
+      {/* K-Drama Section */}
+      <HomeSections
+        movieData={kdrama}
+        isMovieDataLoading={isKdramaLoading}
+        sectionTitle="K-Drama"
+        sectionSeeMoreButtonLink="/k-drama"
+        dataType="kdrama"
       />
     </div>
   );

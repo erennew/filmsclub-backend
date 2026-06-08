@@ -87,7 +87,7 @@ export default function Footer() {
                 </Link>
                 <Link
                   to="/series"
-                  className="ftransition-all duration-300 ease-in-out hover:text-primaryTextColor"
+                  className="transition-all duration-300 ease-in-out hover:text-primaryTextColor"
                 >
                   <li>series</li>
                 </Link>

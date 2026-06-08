@@ -256,6 +256,30 @@ class Database:
             )
             return await self.update_tv_show(tv_show)
 
+    async def is_file_exists(self, channel: int, msg_id: int, hash: str) -> bool:
+        """Check if a file (by channel + msg_id + hash) already exists in the database."""
+        try:
+            data = {"chat_id": channel, "msg_id": msg_id, "hash": hash}
+            encoded_id = await encode_string(data)
+            # Check movies
+            movie = await self.movie_collection.find_one(
+                {"telegram.id": encoded_id},
+                {"_id": 1}
+            )
+            if movie:
+                return True
+            # Check TV shows
+            tv = await self.tv_collection.find_one(
+                {"seasons.episodes.telegram.id": encoded_id},
+                {"_id": 1}
+            )
+            if tv:
+                return True
+            return False
+        except Exception as e:
+            LOGGER.error(f"Error checking file existence: {e}")
+            return False
+
     async def sort_tv_shows(
         self, 
         sort_params: List[Tuple[str, str]], 

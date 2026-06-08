@@ -54,7 +54,7 @@ const PaginationItem = ({ page, currentPage, onPageChange, isDisabled }) => {
   );
 };
 
-const Pagination = ({ currentPage, total, limit, onPageChange, pagesNum }) => {
+const Pagination = ({ currentPage, total, limit, onPageChange }) => {
   const pagesCount = Math.ceil(total / limit); // Calculate total number of pages
   const pagesCut = getPagesCut({ pagesCount, pagesCutCount: 5, currentPage });
   const pages = range(pagesCut.start, pagesCut.end);
@@ -93,7 +93,7 @@ const Pagination = ({ currentPage, total, limit, onPageChange, pagesNum }) => {
       <PaginationItem
         page={<AiFillFastForward className="text-xl" />}
         currentPage={Number(currentPage)}
-        onPageChange={() => onPageChange(pagesNum)}
+        onPageChange={() => onPageChange(pagesCount)}
         isDisabled={isLastPage}
       />
     </ul>

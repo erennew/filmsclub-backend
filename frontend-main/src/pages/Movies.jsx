@@ -14,24 +14,20 @@ export default function Movies() {
   const [currentPage, setCurrentPage] = useState(1);
   const [movieFilter, setMovieFilter] = useState("updated_on");
   const [movieFilterVal, setMovieFilterVal] = useState("updated_on");
-  const [genreFilter, setGenreFilter] = useState("");
 
   // FETCH MOVIE DATA SECTION
   useEffect(() => {
     setIsMoviesDataLoading(true);
     window.scrollTo(0, 0);
 
-    const params = {
-      sort_by: `${movieFilter}:desc`,
-      page: currentPage,
-      page_size: 20,
-    };
-    if (genreFilter) {
-      params.genre = genreFilter;
-    }
-
     axios
-      .get(`${BASE}/api/movies`, { params })
+      .get(`${BASE}/api/movies`, {
+        params: {
+          sort_by: `${movieFilter}:desc`,
+          page: currentPage,
+          page_size: 20,
+        },
+      })
       .then((response) => {
         setMovies(response.data.movies);
         setMoviesDataForPageCount(response.data.total_count);
@@ -41,7 +37,7 @@ export default function Movies() {
         console.error("Error fetching movies:", error);
         setIsMoviesDataLoading(false);
       });
-  }, [movieFilter, currentPage, genreFilter, BASE]);
+  }, [movieFilter, currentPage, BASE]);
 
   return (
     <div>
@@ -63,17 +59,14 @@ export default function Movies() {
         setMovieFilter={setMovieFilter}
         movieFilterVal={movieFilterVal}
         setMovieFilterVal={setMovieFilterVal}
-        genreFilter={genreFilter}
-        setGenreFilter={setGenreFilter}
       />
 
       {/* Call Pagination Component */}
       <Pagination
         currentPage={currentPage}
-        total={moviesDataForPageCount} 
-        pagesNum={Math.ceil(moviesDataForPageCount / 20)} 
+        total={moviesDataForPageCount}
         onPageChange={(p) => {
-          setCurrentPage(p); 
+          setCurrentPage(p);
         }}
         limit={20}
       />

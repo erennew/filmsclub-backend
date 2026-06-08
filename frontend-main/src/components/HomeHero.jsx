@@ -19,7 +19,7 @@ export default function HeroSlider({ movieData, isMovieDataLoading }) {
           <Swiper
             modules={[Autoplay, Navigation, A11y]}
             grabCursor={true}
-            lazy="true"
+            lazy={true}
             loop={true}
             navigation={{
               prevEl: ".heroSlidePrev",
@@ -58,32 +58,38 @@ export default function HeroSlider({ movieData, isMovieDataLoading }) {
                           {movie.release_year}
                         </p>
                       )}
-                      <span>•</span>
-                      <p className="text-[0.6rem] lg:text-[0.7rem] xl:text-[0.9rem]">
-                        {movie.languages
-                          .map(
-                            (lang) =>
-                              lang.charAt(0).toUpperCase() + lang.slice(1)
-                          ) // Capitalize each language code
-                          .join("-")}{" "}
-                      </p>
+                      {movie.languages && movie.languages.length > 0 && (
+                        <>
+                          <span>•</span>
+                          <p className="text-[0.6rem] lg:text-[0.7rem] xl:text-[0.9rem]">
+                            {movie.languages
+                              .map(
+                                (lang) =>
+                                  lang.charAt(0).toUpperCase() + lang.slice(1)
+                              )
+                              .join("-")}
+                          </p>
+                        </>
+                      )}
                       <span>|</span>
                       <p className="text-[0.6rem] lg:text-[0.7rem] xl:text-[0.9rem]">
                       {movie.rip}
                       </p>
                     </div>
-                    <div className="flex-col gap-3 text-sm  text-bgColor hidden md:flex">
-                      <div className="flex items-center gap-1 capitalize flex-wrap">
-                        {movie.genres.map((genreId, index) => (
-                          <div
-                            className=" text-[0.6rem] py-0.5 px-2.5 bg-primaryBtn rounded-full sm:text-sm"
-                            key={index}
-                          >
-                            {[genreId] || ""}
-                          </div>
-                        ))}
+                    {movie.genres && movie.genres.length > 0 && (
+                      <div className="flex-col gap-3 text-sm  text-bgColor hidden md:flex">
+                        <div className="flex items-center gap-1 capitalize flex-wrap">
+                          {movie.genres.map((genreId, index) => (
+                            <div
+                              className=" text-[0.6rem] py-0.5 px-2.5 bg-primaryBtn rounded-full sm:text-sm"
+                              key={index}
+                            >
+                              {genreId || ""}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {movie.description && (
                       <p className="font-extralight line-clamp-1 w-[80%] text-xs sm:line-clamp-2 sm:text-sm md:text-md">
@@ -103,12 +109,14 @@ export default function HeroSlider({ movieData, isMovieDataLoading }) {
                       </div>
 
                       {/* Mobile rating */}
-                      <div className="flex gap-1 w-fit items-center bg-bgColorSecondary text-yellow-300  text-sm py-0.5 px-5 rounded-full sm:text-base">
-                        <PiStarFill />
-                        <p className="text-xs sm:text-lg">
-                          {movie.rating.toFixed(1)}
-                        </p>
-                      </div>
+                      {movie.rating !== undefined && movie.rating !== null && (
+                        <div className="flex gap-1 w-fit items-center bg-bgColorSecondary text-yellow-300  text-sm py-0.5 px-5 rounded-full sm:text-base">
+                          <PiStarFill />
+                          <p className="text-xs sm:text-lg">
+                            {typeof movie.rating === 'number' ? movie.rating.toFixed(1) : movie.rating}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

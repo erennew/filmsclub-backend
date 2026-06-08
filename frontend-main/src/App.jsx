@@ -3,7 +3,11 @@ import MovieDetails from "./pages/MovieDetails";
 import TvDetails from "./pages/TvDetails";
 import Movies from "./pages/Movies";
 import Series from "./pages/Series";
-import Category from "./pages/Category";
+import TopRatedMovies from "./pages/TopRatedMovies";
+import TopRatedSeries from "./pages/TopRatedSeries";
+import MostViewed from "./pages/MostViewed";
+import Anime from "./pages/Anime";
+import KDrama from "./pages/KDrama";
 import SimilarMov from "./pages/SimilarMov";
 import SimilarSeries from "./pages/SimilarSeries";
 import SearResults from "./pages/SearchResults";
@@ -24,8 +28,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 
 function App() {
-  ReactGa.initialize("G-JDFS7KRV40");
   useEffect(() => {
+    ReactGa.initialize("G-JDFS7KRV40");
     ReactGa.pageview(window.location.pathname + window.location.search);
   }, []);
 
@@ -38,11 +42,11 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route
-            path="mov/:movieID"
+            path="/mov/:movieID"
             element={<MovieDetails />}
           />
           <Route
-            path="ser/:seriesID"
+            path="/ser/:seriesID"
             element={<TvDetails />}
           />
           <Route
@@ -54,12 +58,24 @@ function App() {
             element={<Series />}
           />
           <Route
-            path="/Anime"
-            element={<Category genre="Animation" mediaType="tvshows" title="Anime" />}
+            path="/top-rated-movies"
+            element={<TopRatedMovies />}
           />
           <Route
-            path="/Kdrama"
-            element={<Category genre="Drama" mediaType="tvshows" title="Kdrama" />}
+            path="/top-rated-series"
+            element={<TopRatedSeries />}
+          />
+          <Route
+            path="/most-viewed"
+            element={<MostViewed />}
+          />
+          <Route
+            path="/anime"
+            element={<Anime />}
+          />
+          <Route
+            path="/k-drama"
+            element={<KDrama />}
           />
           <Route
             path="*"
