@@ -61,6 +61,8 @@ class Telegram:
         if admin_id.strip().isdigit()
     ]
     UPDATE_CHANNEL = getenv("UPDATE_CHANNEL", "")
+    TG_USERNAME = getenv("TG_USERNAME", "")
+    WEBSITE_URL = getenv("WEBSITE_URL", "").rstrip('/')
 
 
 class Cache:
@@ -94,3 +96,7 @@ class Cache:
     # CDN/Edge cache TTL (for CloudFlare/CDN)
     CDN_CACHE_TTL = int(getenv("CDN_CACHE_TTL", "300"))  # 5 minutes for dynamic content
     CDN_STATIC_TTL = int(getenv("CDN_STATIC_TTL", "2592000"))  # 30 days for static assets
+
+
+# Backward compatibility: Config class aliases Telegram
+Config = Telegram
