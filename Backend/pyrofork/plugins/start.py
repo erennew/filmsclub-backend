@@ -271,7 +271,7 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
     """Parse a message's video/document and add to queue. Returns True if queued/skipped, False if error."""
     try:
         if not (message.video or (message.document and message.document.mime_type and message.document.mime_type.startswith("video/"))):
-            return False  # Not a video
+            return False
 
         file = message.video or message.document
         if not file:
@@ -297,8 +297,21 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         size = get_readable_file_size(file.file_size)
         channel_int = int(channel)
 
-        title = clean_filename(title)
+        # ========== UPDATED: Clean filename and extract languages ==========
+        cleaned_title, detected_langs = clean_filename(title)
+        title = cleaned_title
+        
+        LOGGER.info(f"Original title: {title[:100]}...")
+        LOGGER.info(f"Cleaned title: {cleaned_title[:100]}...")
+        if detected_langs:
+            LOGGER.info(f"Detected languages: {detected_langs}")
+        
         metadata_info = await metadata(title, file)
+        
+        # If metadata_info exists and we detected languages, use them
+        if metadata_info and detected_langs and not metadata_info.get('languages'):
+            metadata_info['languages'] = detected_langs
+            
         if metadata_info is None:
             if not is_rescan:
                 await message.reply_text("> Not added — check log")
@@ -328,7 +341,6 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
     except Exception as e:
         LOGGER.error(f"Error parsing file: {e}")
         return False
-
 
 # =============================================================================
 # LIVE CHANNEL HANDLER

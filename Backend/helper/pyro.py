@@ -1,6 +1,8 @@
+import re
+import os
 import pycountry
+from typing import Optional, List, Dict, Tuple
 from pyrogram.file_id import FileId
-from typing import Optional
 from Backend.logger import LOGGER
 from Backend import __version__, now, timezone
 from Backend.config import Telegram
@@ -11,14 +13,13 @@ from aiofiles.os import path as aiopath, remove as aioremove
 from asyncio.subprocess import PIPE
 from pyrogram import Client
 from Backend.pyrofork import StreamBot
-import re
-import os
 
 from pyrogram import enums
 
 
 def is_media(message):
     return next((getattr(message, attr) for attr in ["document", "photo", "video", "audio", "voice", "video_note", "sticker", "animation"] if getattr(message, attr)), None)
+
 
 async def get_file_ids(client: Client, chat_id: int, message_id: int) -> Optional[FileId]:
     message = await client.get_messages(chat_id, message_id)
@@ -34,6 +35,7 @@ async def get_file_ids(client: Client, chat_id: int, message_id: int) -> Optiona
     setattr(file_id, 'unique_id', file_unique_id)
     return file_id
 
+
 def get_readable_file_size(size_in_bytes):
     size_in_bytes = int(size_in_bytes) if str(size_in_bytes).isdigit() else 0
     if not size_in_bytes:
@@ -46,31 +48,167 @@ def get_readable_file_size(size_in_bytes):
     return f'{size_in_bytes:.2f}{SIZE_UNITS[index]}' if index > 0 else f'{size_in_bytes:.2f}B'
 
 
-def clean_filename(filename):
-    # 1. Strip channel branding prefixes at start: "• @name • -", "[@name] -", "@name -"
-    cleaned_filename = re.sub(
-        r'^[•·\s]*[\[\(]?\s*@[A-Za-z0-9_]+\s*[\]\)]?\s*[•·]?\s*[-–—]?\s*',
-        ' ', filename
+def extract_languages_from_filename(filename: str) -> List[str]:
+    """
+    Extract language codes from filename patterns like [Tel + Tam + Mal + Kan]
+    Returns list of ISO 639-1 language codes.
+    """
+    language_map = {
+        # Indian languages
+        'tel': 'te', 'telugu': 'te',
+        'tam': 'ta', 'tamil': 'ta',
+        'mal': 'ml', 'malayalam': 'ml',
+        'kan': 'kn', 'kannada': 'kn',
+        'hin': 'hi', 'hindi': 'hi',
+        'ben': 'bn', 'bengali': 'bn',
+        'mar': 'mr', 'marathi': 'mr',
+        'guj': 'gu', 'gujarati': 'gu',
+        'pun': 'pa', 'punjabi': 'pa',
+        'urd': 'ur', 'urdu': 'ur',
+        
+        # International
+        'eng': 'en', 'english': 'en',
+        'spa': 'es', 'spanish': 'es',
+        'fre': 'fr', 'french': 'fr',
+        'ger': 'de', 'german': 'de',
+        'ita': 'it', 'italian': 'it',
+        'jpn': 'ja', 'japanese': 'ja',
+        'kor': 'ko', 'korean': 'ko',
+        'chi': 'zh', 'chinese': 'zh',
+        'rus': 'ru', 'russian': 'ru',
+        'ara': 'ar', 'arabic': 'ar',
+    }
+    
+    # Pattern 1: [Tel + Tam + Mal + Kan] or [Tel+Tam+Mal+Kan]
+    pattern1 = r'\[([^\]]+)\]'
+    match = re.search(pattern1, filename, re.IGNORECASE)
+    
+    if match:
+        content = match.group(1)
+        # Split by + or | or , or space
+        parts = re.split(r'[\+\|\s,]+', content)
+        languages = []
+        for part in parts:
+            part_clean = part.strip().lower()
+            if part_clean in language_map:
+                languages.append(language_map[part_clean])
+            elif len(part_clean) <= 3 and part_clean.isalpha():
+                # Try to find by 3-letter code
+                for key, value in language_map.items():
+                    if key.startswith(part_clean):
+                        languages.append(value)
+                        break
+        if languages:
+            return list(dict.fromkeys(languages))  # Remove duplicates
+    
+    # Pattern 2: (Telugu + Tamil) or (Hindi, English)
+    pattern2 = r'\(([^\)]+)\)'
+    match = re.search(pattern2, filename, re.IGNORECASE)
+    if match:
+        content = match.group(1)
+        if '+' in content or ',' in content:
+            parts = re.split(r'[\+\|\s,]+', content)
+            languages = []
+            for part in parts:
+                part_clean = part.strip().lower()
+                if part_clean in language_map:
+                    languages.append(language_map[part_clean])
+            if languages:
+                return list(dict.fromkeys(languages))
+    
+    return []
+
+
+def clean_filename(filename: str) -> Tuple[str, List[str]]:
+    """
+    Enhanced filename cleaning that also extracts languages.
+    Returns (cleaned_filename, detected_languages)
+    """
+    original = filename
+    
+    # Extract languages first
+    detected_languages = extract_languages_from_filename(original)
+    
+    # ========== 1. REMOVE CHANNEL PROMOTIONS ==========
+    # Handle [@ChannelName] - format
+    cleaned = re.sub(
+        r'^\[@[A-Za-z0-9_]+\]\s*[-–—]?\s*',
+        '',
+        filename
     )
-    # 2. Remove Telegram usernames with underscores, dashes, brackets, spaces
-    # Handles: @WANTED_Originals, @PH_FILES, [@Animes2u], @TG_Movies4u_, etc.
+    
+    # Handle @ChannelName - format
+    cleaned = re.sub(
+        r'^@[A-Za-z0-9_]+\s*[-–—]?\s*',
+        '',
+        cleaned
+    )
+    
+    # Handle • @ChannelName • - format
+    cleaned = re.sub(
+        r'^[•·]\s*@[A-Za-z0-9_]+\s*[•·]\s*[-–—]?\s*',
+        '',
+        cleaned
+    )
+    
+    # Handle [@ChannelName] - format (with space after bracket)
+    cleaned = re.sub(
+        r'^\[@[A-Za-z0-9_]+\]\s*-\s*',
+        '',
+        cleaned
+    )
+    
+    # 2. Strip channel branding prefixes at start
+    cleaned = re.sub(
+        r'^[•·\s]*[\[\(]?\s*@[A-Za-z0-9_]+\s*[\]\)]?\s*[•·]?\s*[-–—]?\s*',
+        ' ',
+        cleaned
+    )
+    
+    # 3. Remove Telegram usernames with underscores, dashes, brackets, spaces
     pattern = r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]_-]*|[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]_-]*'
-    cleaned_filename = re.sub(pattern, ' ', cleaned_filename)
-    # Remove common uploader prefixes like "mj_link_4u -"
-    cleaned_filename = re.sub(r'^[A-Za-z0-9_]+\s*-\s*', ' ', cleaned_filename)
-    cleaned_filename = re.sub(r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b)(?=\W)', '', cleaned_filename, flags=re.IGNORECASE)
-    cleaned_filename = re.sub(r'\\[ntr]', ' ', cleaned_filename)
-    # Replace dots and underscores with spaces for readability, but preserve file extension
-    cleaned_filename = re.sub(r'(?<!\.[a-z0-9]{3,4})[._]', ' ', cleaned_filename, flags=re.IGNORECASE)
-    cleaned_filename = re.sub(r'\s+', ' ', cleaned_filename).strip()
-    return cleaned_filename
+    cleaned = re.sub(pattern, ' ', cleaned)
+    
+    # 4. Remove common uploader prefixes
+    cleaned = re.sub(r'^[A-Za-z0-9_]+\s*-\s*', ' ', cleaned)
+    
+    # 5. Remove technical tags
+    cleaned = re.sub(r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|WEB-DL|WEBRip|BluRay|HDTV|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b|x265|x264|HEVC|H\.?264|H\.?265)(?=\W)', '', cleaned, flags=re.IGNORECASE)
+    
+    # 6. Remove language bracket patterns (preserve the content but remove brackets)
+    # Remove [Tel + Tam + Mal + Kan] but keep the text
+    cleaned = re.sub(r'\[[^\]]*(?:Tel|Tam|Mal|Kan|Hin|Eng|Tamil|Telugu|Malayalam|Kannada|Hindi|English)[^\]]*\]', '', cleaned, flags=re.IGNORECASE)
+    
+    # 7. Remove ESubs, Subs tags
+    cleaned = re.sub(r'\b(ESubs?|Subs?|HC|Subbed|Dubbed)\b', '', cleaned, flags=re.IGNORECASE)
+    
+    # 8. Remove newlines/tabs
+    cleaned = re.sub(r'\\[ntr]', ' ', cleaned)
+    
+    # 9. Replace dots and underscores with spaces (preserve extension)
+    ext_match = re.search(r'\.[a-z0-9]{3,4}$', cleaned, re.IGNORECASE)
+    if ext_match:
+        ext = ext_match.group()
+        base = cleaned[: -len(ext)]
+        base = re.sub(r'[._]', ' ', base, flags=re.IGNORECASE)
+        base = re.sub(r'\s+', ' ', base)
+        cleaned = base.strip() + ext
+    else:
+        cleaned = re.sub(r'[._]', ' ', cleaned, flags=re.IGNORECASE)
+    
+    # 10. Clean up multiple spaces
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    # 11. Remove any remaining non-printable or special characters
+    cleaned = re.sub(r'[^\w\s\-\(\)\[\]\.]', ' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned, detected_languages
 
 
 def normalize_filename(filename: str) -> str:
     """Normalize filename before PTN.parse to handle edge cases."""
     # 1. Fix malformed extensions (missing closing bracket/paren before ext)
-    # e.g. "[Telugu (DD.mkv" -> "[Telugu (DD)].mkv"
-    # e.g. "[Telugu (Org .mkv" -> "[Telugu (Org)].mkv"
     ext = os.path.splitext(filename)[1]
     if ext:
         base = filename[: -len(ext)]
@@ -86,7 +224,7 @@ def normalize_filename(filename: str) -> str:
     # 2. Normalize "S01 - EP07" / "S01 - E07" / "S01 EP07" -> "S01E07"
     filename = re.sub(r'S(\d{1,3})\s*[-_]?\s*EP?(\d{1,4})\b', r'S\1E\2', filename, flags=re.IGNORECASE)
 
-    # 3. Remove trailing dash/space before extension: "HDRip -.mkv" -> "HDRip.mkv"
+    # 3. Remove trailing dash/space before extension
     filename = re.sub(r'[\s\-]+(?=\.(mkv|mp4|avi|mov)$)', '', filename, flags=re.IGNORECASE)
 
     # 4. Remove leading dashes/spaces
@@ -98,7 +236,6 @@ def normalize_filename(filename: str) -> str:
     filename = re.sub(r'\.+', '.', filename)
 
     return filename.strip()
-
 
 
 def get_readable_time(seconds: int) -> str:
@@ -125,26 +262,25 @@ def get_readable_time(seconds: int) -> str:
     return readable_time
 
 
-
 def extract_tmdb_id(url):
     # Match TMDB URLs
     tmdb_match = re.search(r'/(movie|tv)/(\d+)', url)
     if tmdb_match:
-        return tmdb_match.group(2)  # Returns the TMDB ID
+        return tmdb_match.group(2)
 
     # Match IMDb URLs
     imdb_match = re.search(r'/title/(tt\d+)', url)
     if imdb_match:
-        return imdb_match.group(1)  # Returns the IMDb ID
+        return imdb_match.group(1)
 
     return None
+
 
 def remove_urls(text):
     url_pattern = r'\b(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*'
     text_without_urls = re.sub(url_pattern, '', text)
     cleaned_text = re.sub(r'\s+', ' ', text_without_urls).strip()
     return cleaned_text
-
 
 
 def normalize_languages(language):
@@ -180,15 +316,12 @@ async def cmd_exec(cmd, shell=False):
     return stdout, stderr, proc.returncode
 
 
-
 async def restart_notification():
     chat_id, msg_id = 0, 0
 
     try:
-        # Check if the restart message file exists
         if await aiopath.exists(".restartmsg"):
             async with aiopen(".restartmsg", "r") as f:
-                # Read the chat ID and message ID from the file
                 data = await f.readlines()
                 chat_id, msg_id = map(int, data)
 
@@ -196,16 +329,14 @@ async def restart_notification():
                 repo = Telegram.UPSTREAM_REPO.split('/')
                 UPSTREAM_REPO = f"https://github.com/{repo[-2]}/{repo[-1]}"
                 await StreamBot.edit_message_text(
-                chat_id=chat_id,
-                message_id=msg_id,
-                text=f"<blockquote>♻️ Restart Successfully...! \n\nDate: {now.strftime('%d/%m/%y')}\nTime: {now.strftime('%I:%M:%S %p')}\nTimeZone: {timezone.zone}\n\nRepo: {UPSTREAM_REPO}\nBranch: {Telegram.UPSTREAM_BRANCH}\nVersion: {__version__}</blockquote>",
-                parse_mode=enums.ParseMode.HTML
-            )
-
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text=f"<blockquote>♻️ Restart Successfully...! \n\nDate: {now.strftime('%d/%m/%y')}\nTime: {now.strftime('%I:%M:%S %p')}\nTimeZone: {timezone.zone}\n\nRepo: {UPSTREAM_REPO}\nBranch: {Telegram.UPSTREAM_BRANCH}\nVersion: {__version__}</blockquote>",
+                    parse_mode=enums.ParseMode.HTML
+                )
             except Exception as e:
                 LOGGER.error(f"Failed to edit restart message: {e}")
 
-            # Remove the restart message file
             await aioremove(".restartmsg")
 
     except Exception as e:

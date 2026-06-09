@@ -62,7 +62,7 @@ class Telegram:
     ]
     UPDATE_CHANNEL = getenv("UPDATE_CHANNEL", "")
     TG_USERNAME = getenv("TG_USERNAME", "")
-    WEBSITE_URL = getenv("WEBSITE_URL", "").rstrip('/')
+    WEBSITE_URL = getenv("WEBSITE_URL", "https://teluguflix-two.vercel.app/").rstrip('/')
 
 
 class Cache:
