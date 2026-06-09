@@ -68,6 +68,14 @@ async def fetch_anime_from_jikan(title: str) -> dict:
         if not detailed_anime:
             return anime_data
         
+        # Fetch characters separately
+        await asyncio.sleep(DELAY)
+        characters = await jikan_api_service.get_anime_characters(anime_data.id)
+        
+        # Attach characters to the anime data
+        if characters:
+            detailed_anime.characters = characters
+        
         return detailed_anime
         
     except Exception as e:
@@ -92,6 +100,20 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
         rate = ratings.average if ratings else 0
         
         genres = anime_data.genres if hasattr(anime_data, 'genres') else []
+        
+        # Format cast data
+        cast = []
+        if hasattr(anime_data, 'characters') and anime_data.characters:
+            for char_data in anime_data.characters[:16]:  # Limit to 16 cast members
+                character = char_data.character if hasattr(char_data, 'character') else None
+                if character:
+                    cast.append({
+                        "id": character.id if hasattr(character, 'id') else 0,
+                        "name": character.name if hasattr(character, 'name') else "Unknown",
+                        "profile": character.image if hasattr(character, 'image') else "",
+                        "character": char_data.role if hasattr(char_data, 'role') else "",
+                        "tmdb_id": character.id if hasattr(character, 'id') else 0
+                    })
         
         return {
             "tmdb_id": anime_data.id if hasattr(anime_data, 'id') else 0,
@@ -120,7 +142,7 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
             "group": group_name,
             "release_group": group_name,
             "has_seasonal_format": has_season,
-            "cast": [],
+            "cast": cast,
             "next_episode_to_air": None,
             "last_episode_to_air": None,
         }
@@ -139,6 +161,19 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
         
         images = anime_data.images if hasattr(anime_data, 'images') else None
         poster = images.jpg_large if images else (images.jpg_image if images else '')
+        
+        # Format cast data
+        cast = []
+        if hasattr(anime_data, 'characters') and anime_data.characters:
+            for char_data in anime_data.characters[:16]:  # Limit to 16 cast members
+                if char_data:
+                    cast.append({
+                        "id": char_data.id if hasattr(char_data, 'id') else 0,
+                        "name": char_data.name if hasattr(char_data, 'name') else "Unknown",
+                        "profile": char_data.image if hasattr(char_data, 'image') else "",
+                        "character": char_data.role if hasattr(char_data, 'role') else "",
+                        "tmdb_id": char_data.id if hasattr(char_data, 'id') else 0
+                    })
         
         return {
             "tmdb_id": anime_data.id if hasattr(anime_data, 'id') else 0,
@@ -167,7 +202,7 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
             "group": group_name,
             "release_group": group_name,
             "has_seasonal_format": has_season,
-            "cast": [],
+            "cast": cast,
             "next_episode_to_air": None,
             "last_episode_to_air": None,
         }
