@@ -1,3 +1,4 @@
+import re
 from asyncio import create_task, sleep as asleep
 from urllib.parse import urlparse
 from Backend.logger import LOGGER
@@ -215,61 +216,310 @@ async def start(bot: Client, message: Message):
 
 
 
-# Global queue for processing file updates
-
+# =============================================================================
+# FILE PROCESSING QUEUE SYSTEM
+# =============================================================================
 from asyncio import Lock
 
 file_queue = Queue()
 db_lock = Lock()
 
-async def process_file():
+# Track files currently in queue to prevent duplicates
+queued_files: set = set()          # {(channel, msg_id)}
+queue_stats = {
+    "processed": 0,
+    "failed": 0,
+    "skipped": 0,
+}
+QUEUE_WORKERS = 3
+
+
+async def process_file(worker_id: int):
+    """Worker that pulls from queue and inserts into DB one by one."""
     while True:
-        metadata_info, hash, channel, msg_id, size, title = await file_queue.get()
-        async with db_lock:
-            updated_id = await db.insert_media(metadata_info, hash=hash, channel=channel, msg_id=msg_id, size=size, name=title)
-            if updated_id:
-                LOGGER.info(f"{metadata_info['media_type']} updated with ID: {updated_id}")
-            else:
-                LOGGER.info("Update failed due to validation errors.")
-        file_queue.task_done()
+        item = await file_queue.get()
+        metadata_info, hash, channel, msg_id, size, title, source = item
+        cache_key = (channel, msg_id)
 
-for _ in range(1):
-    create_task(process_file())
+        try:
+            async with db_lock:
+                updated_id = await db.insert_media(
+                    metadata_info, hash=hash, channel=channel, msg_id=msg_id, size=size, name=title
+                )
+                if updated_id:
+                    queue_stats["processed"] += 1
+                    LOGGER.info(f"[Worker {worker_id}] {metadata_info['media_type']} updated with ID: {updated_id}")
+                else:
+                    queue_stats["failed"] += 1
+                    LOGGER.warning(f"[Worker {worker_id}] Update failed for {title}")
+        except Exception as e:
+            queue_stats["failed"] += 1
+            LOGGER.error(f"[Worker {worker_id}] Error processing {title}: {e}")
+        finally:
+            queued_files.discard(cache_key)
+            file_queue.task_done()
+
+# Start multiple worker tasks
+for w in range(QUEUE_WORKERS):
+    create_task(process_file(w + 1))
 
 
+# =============================================================================
+# SHARED FILE PARSING LOGIC (used by both live handler and rescan)
+# =============================================================================
+async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool = False):
+    """Parse a message's video/document and add to queue. Returns True if queued/skipped, False if error."""
+    try:
+        if not (message.video or (message.document and message.document.mime_type and message.document.mime_type.startswith("video/"))):
+            return False  # Not a video
+
+        file = message.video or message.document
+        if not file:
+            return False
+
+        # Extract title from caption or filename
+        if message.caption:
+            title = None
+            for line in message.caption.split("\n"):
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if re.search(r'\.(mkv|mp4|avi|mov)\b', stripped, re.IGNORECASE):
+                    title = stripped
+                    break
+            if not title:
+                title = file.file_name or file.file_id
+        else:
+            title = file.file_name or file.file_id
+
+        msg_id = message.id
+        hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
+        size = get_readable_file_size(file.file_size)
+        channel_int = int(channel)
+
+        title = clean_filename(title)
+        metadata_info = await metadata(title, file)
+        if metadata_info is None:
+            if not is_rescan:
+                await message.reply_text("> Not added — check log")
+            return False
+
+        title = remove_urls(title)
+        if not title.endswith(('.mkv', '.mp4')):
+            title += '.mkv'
+
+        cache_key = (channel_int, msg_id)
+        if cache_key in queued_files:
+            LOGGER.info(f"Skipping duplicate in queue: {title} ({channel_int}, {msg_id})")
+            return True
+
+        # For live handler: also check DB to avoid re-adding same file
+        if not is_rescan:
+            exists = await db.is_file_exists(channel_int, msg_id, hash_val)
+            if exists:
+                queue_stats["skipped"] += 1
+                LOGGER.info(f"File already in DB, skipping: {title}")
+                return True
+
+        queued_files.add(cache_key)
+        await file_queue.put((metadata_info, hash_val, channel_int, msg_id, size, title, "live" if not is_rescan else "rescan"))
+        LOGGER.info(f"Queued ({file_queue.qsize()} pending): {title}")
+        return True
+    except Exception as e:
+        LOGGER.error(f"Error parsing file: {e}")
+        return False
+
+
+# =============================================================================
+# LIVE CHANNEL HANDLER
+# =============================================================================
 @StreamBot.on_message(filters.channel & (filters.document | filters.video))
 async def file_receive_handler(bot: Client, message: Message):
     if str(message.chat.id) in Telegram.AUTH_CHANNEL:
         try:
-            if message.video or message.document.mime_type.startswith("video/"):
-                file = message.video or message.document
-                if message.caption:
-                    title = message.caption.replace("\n", "\\n")
-                else:
-                    title = file.file_name or file.file_id
-
-                msg_id = message.id
-                hash = file.file_unique_id[:6]
-                size = get_readable_file_size(file.file_size)
-                channel = str(message.chat.id).replace("-100", "")
-                
-                title = clean_filename(title)
-                metadata_info = await metadata(title, file)
-                if metadata_info is None:
-                    return await message.reply_text("> Not added check log")
-                title = remove_urls(title)
-                if not title.endswith(('.mkv', '.mp4')):
-                    title += '.mkv'
-                await file_queue.put((metadata_info, hash, int(channel), msg_id, size, title))
-            else:
-                await message.reply_text("> Not supported")
+            channel = str(message.chat.id).replace("-100", "")
+            await parse_and_queue_file(message, channel, is_rescan=False)
         except FloodWait as e:
             LOGGER.info(f"Sleeping for {str(e.value)}s")
             await asleep(e.value)
-            await message.reply_text(text=f"Got Floodwait of {str(e.value)}s",
-                                disable_web_page_preview=True, parse_mode=ParseMode.MARKDOWN)
+            await message.reply_text(
+                text=f"Got Floodwait of {str(e.value)}s",
+                disable_web_page_preview=True,
+                parse_mode=ParseMode.MARKDOWN
+            )
     else:
         await message.reply(text="> Channel is not in AUTH_CHANNEL")
+
+
+# =============================================================================
+# ADMIN /queue COMMAND
+# =============================================================================
+@StreamBot.on_message(filters.command("queue") & filters.private & CustomFilters.owner)
+async def queue_status(bot: Client, message: Message):
+    pending = file_queue.qsize()
+    active = len(queued_files)
+    processed = queue_stats["processed"]
+    failed = queue_stats["failed"]
+    skipped = queue_stats["skipped"]
+    workers = QUEUE_WORKERS
+
+    text = (
+        f"📊 <b>Queue Status</b>\n\n"
+        f"⏳ <b>Pending:</b> {pending}\n"
+        f"🔄 <b>Active:</b> {active}\n"
+        f"✅ <b>Processed:</b> {processed}\n"
+        f"❌ <b>Failed:</b> {failed}\n"
+        f"⏭ <b>Skipped (duplicates):</b> {skipped}\n"
+        f"👷 <b>Workers:</b> {workers}\n"
+    )
+    await message.reply_text(text, parse_mode=enums.ParseMode.HTML)
+
+
+# =============================================================================
+# ADMIN /rescan COMMAND
+# =============================================================================
+rescan_lock = Lock()
+rescan_running = False
+
+@StreamBot.on_message(filters.regex(r"^/rescan\d+$") & filters.private & CustomFilters.owner)
+async def rescan_channel(bot: Client, message: Message):
+    global rescan_running
+
+    async with rescan_lock:
+        if rescan_running:
+            await message.reply_text("⚠️ A rescan is already in progress. Use /queue to check status.")
+            return
+        rescan_running = True
+
+    try:
+        # Parse channel index from command (e.g., rescan0 -> index 0)
+        command = message.text.split()[0]  # /rescan0, /rescan1, etc.
+        channel_index = int(command.replace("/rescan", ""))
+
+        # Validate channel index
+        if not Telegram.AUTH_CHANNEL:
+            await message.reply_text("❌ No AUTH_CHANNEL configured.")
+            return
+
+        if channel_index < 0 or channel_index >= len(Telegram.AUTH_CHANNEL):
+            await message.reply_text(
+                f"❌ Invalid channel index. Use /rescanhelp to see available channels.",
+                parse_mode=enums.ParseMode.HTML
+            )
+            return
+
+        # Parse optional limit argument
+        args = message.text.split()
+        limit = 0
+        if len(args) >= 2:
+            try:
+                limit = int(args[1])
+            except ValueError:
+                pass
+
+        channel_id_str = Telegram.AUTH_CHANNEL[channel_index]
+        channel_id = int(channel_id_str)
+        channel_clean = channel_id_str.replace("-100", "")
+
+        status_msg = await message.reply_text(
+            f"🔍 <b>Rescan started</b>\n"
+            f"Channel: <code>{channel_id}</code> (Index: {channel_index})\n"
+            f"Checking all messages one by one...",
+            parse_mode=enums.ParseMode.HTML
+        )
+
+        total_checked = 0
+        total_new = 0
+        total_existing = 0
+        total_errors = 0
+        last_update = 0
+
+        async for msg in bot.get_chat_history(channel_id, limit=limit if limit > 0 else None):
+            total_checked += 1
+
+            # Only process video/document messages
+            if not (msg.video or (msg.document and msg.document.mime_type and msg.document.mime_type.startswith("video/"))):
+                continue
+
+            try:
+                file = msg.video or msg.document
+                if not file:
+                    continue
+                hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
+                exists = await db.is_file_exists(int(channel_clean), msg.id, hash_val)
+                if exists:
+                    total_existing += 1
+                    continue
+
+                # Not in DB — parse and queue
+                success = await parse_and_queue_file(msg, channel_clean, is_rescan=True)
+                if success:
+                    total_new += 1
+                else:
+                    total_errors += 1
+            except Exception as e:
+                LOGGER.error(f"Rescan error on msg {msg.id}: {e}")
+                total_errors += 1
+
+            # Update status every 50 messages
+            if total_checked % 50 == 0:
+                try:
+                    await status_msg.edit_text(
+                        f"🔍 <b>Rescanning...</b>\n"
+                        f"Checked: <code>{total_checked}</code>\n"
+                        f"📥 New queued: <code>{total_new}</code>\n"
+                        f"✅ Already in DB: <code>{total_existing}</code>\n"
+                        f"❌ Errors: <code>{total_errors}</code>",
+                        parse_mode=enums.ParseMode.HTML
+                    )
+                except Exception:
+                    pass
+
+            # Small delay to avoid flooding
+            if total_checked % 10 == 0:
+                await asleep(0.5)
+
+        # Final report
+        await status_msg.edit_text(
+            f"✅ <b>Rescan Complete</b>\n\n"
+            f"📁 Total checked: <code>{total_checked}</code>\n"
+            f"📥 New files queued: <code>{total_new}</code>\n"
+            f"✅ Already in DB: <code>{total_existing}</code>\n"
+            f"❌ Errors: <code>{total_errors}</code>\n"
+            f"⏳ Pending in queue: <code>{file_queue.qsize()}</code>\n\n"
+            f"Use /queue to monitor processing.",
+            parse_mode=enums.ParseMode.HTML
+        )
+
+    except Exception as e:
+        LOGGER.error(f"Rescan failed: {e}")
+        await message.reply_text(f"❌ Rescan failed: {e}")
+    finally:
+        async with rescan_lock:
+            rescan_running = False
+
+
+# =============================================================================
+# ADMIN /rescanhelp COMMAND
+# =============================================================================
+@StreamBot.on_message(filters.command("rescanhelp") & filters.private & CustomFilters.owner)
+async def rescan_help(bot: Client, message: Message):
+    """Show available rescan commands and their corresponding channels."""
+    if not Telegram.AUTH_CHANNEL:
+        await message.reply_text("❌ No AUTH_CHANNEL configured.")
+        return
+
+    text = "📋 <b>Available Rescan Commands</b>\n\n"
+    for idx, channel_id in enumerate(Telegram.AUTH_CHANNEL):
+        text += f"• <code>/rescan{idx}</code> → Channel: <code>{channel_id}</code>\n"
+
+    text += "\n💡 <b>Usage:</b>\n"
+    text += "• <code>/rescan0</code> - Scan first channel\n"
+    text += "• <code>/rescan1</code> - Scan second channel\n"
+    text += "• <code>/rescan0 100</code> - Scan first channel with limit of 100 messages\n\n"
+    text += "⚠️ Only one rescan can run at a time. Use /queue to check status."
+
+    await message.reply_text(text, parse_mode=enums.ParseMode.HTML)
 
 
 @Client.on_message(filters.command('caption') & filters.private & CustomFilters.owner)

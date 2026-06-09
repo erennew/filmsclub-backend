@@ -47,14 +47,21 @@ def get_readable_file_size(size_in_bytes):
 
 
 def clean_filename(filename):
-    # Remove Telegram usernames with underscores, dashes, brackets, spaces
+    # 1. Strip channel branding prefixes at start: "• @name • -", "[@name] -", "@name -"
+    cleaned_filename = re.sub(
+        r'^[•·\s]*[\[\(]?\s*@[A-Za-z0-9_]+\s*[\]\)]?\s*[•·]?\s*[-–—]?\s*',
+        ' ', filename
+    )
+    # 2. Remove Telegram usernames with underscores, dashes, brackets, spaces
     # Handles: @WANTED_Originals, @PH_FILES, [@Animes2u], @TG_Movies4u_, etc.
     pattern = r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]_-]*|[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]_-]*'
-    cleaned_filename = re.sub(pattern, ' ', filename)
+    cleaned_filename = re.sub(pattern, ' ', cleaned_filename)
     # Remove common uploader prefixes like "mj_link_4u -"
     cleaned_filename = re.sub(r'^[A-Za-z0-9_]+\s*-\s*', ' ', cleaned_filename)
     cleaned_filename = re.sub(r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b)(?=\W)', '', cleaned_filename, flags=re.IGNORECASE)
     cleaned_filename = re.sub(r'\\[ntr]', ' ', cleaned_filename)
+    # Replace dots and underscores with spaces for readability, but preserve file extension
+    cleaned_filename = re.sub(r'(?<!\.[a-z0-9]{3,4})[._]', ' ', cleaned_filename, flags=re.IGNORECASE)
     cleaned_filename = re.sub(r'\s+', ' ', cleaned_filename).strip()
     return cleaned_filename
 

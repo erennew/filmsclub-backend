@@ -55,6 +55,12 @@ class Telegram:
     USE_TMDB = getenv("USE_TMDB", "False").lower() == "true"
     OWNER_ID = int(getenv("OWNER_ID", "5422223708"))
     USE_DEFAULT_ID = getenv("USE_DEFAULT_ID", None)
+    ADMIN_IDS = [
+        int(admin_id.strip())
+        for admin_id in (getenv("ADMIN_IDS") or str(OWNER_ID)).split(",")
+        if admin_id.strip().isdigit()
+    ]
+    UPDATE_CHANNEL = getenv("UPDATE_CHANNEL", "")
 
 
 class Cache:
