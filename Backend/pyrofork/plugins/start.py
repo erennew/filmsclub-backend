@@ -92,7 +92,7 @@ def generate_password(length=10):
     chars = string.ascii_letters + string.digits
     return ''.join(random.choice(chars) for _ in range(length))
 
-@StreamBot.on_message(filters.command("user") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("user") & filters.private & CustomFilters.admin)
 async def create_user(bot: Client, message: Message):
     try:
         args = message.text.split()
@@ -135,7 +135,7 @@ async def create_user(bot: Client, message: Message):
         LOGGER.error(f"Error in /user command: {e}")
         await message.reply_text("❌ An error occurred while creating the user.")
 
-@StreamBot.on_message(filters.command('restart') & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command('restart') & filters.private & CustomFilters.admin)
 async def restart(bot: Client, message: Message):
     try:
         # Notify the user that the bot is restarting
@@ -259,7 +259,7 @@ async def start(bot: Client, message: Message):
 
 
 
-@StreamBot.on_message(filters.command('log') & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command('log') & filters.private & CustomFilters.admin)
 async def start(bot: Client, message: Message):
     try:
         path = ospath.abspath('log.txt')
@@ -875,7 +875,7 @@ def calculate_estimated_time(pending: int) -> str:
     return f"{est_minutes}m {est_seconds}s"
 
 
-@StreamBot.on_message(filters.command("queue") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("queue") & filters.private & CustomFilters.admin)
 async def queue_status(bot: Client, message: Message):
     pending = file_queue.qsize()
     active = len(queued_files)
@@ -923,7 +923,7 @@ clear_queue_state = {
     'timestamp': None
 }
 
-@StreamBot.on_message(filters.command("clearqueue") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("clearqueue") & filters.private & CustomFilters.admin)
 async def clear_queue(bot: Client, message: Message):
     """Emergency command to clear stuck queue."""
     global queued_files, file_queue
@@ -991,7 +991,7 @@ async def wait_for_clear_confirmation():
         await asyncio.sleep(0.1)
 
 
-@StreamBot.on_message(filters.command("confirmclear") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("confirmclear") & filters.private & CustomFilters.admin)
 async def confirm_clear(bot: Client, message: Message):
     """Confirm clear queue."""
     if clear_queue_state['waiting_for_confirmation']:
@@ -1006,7 +1006,7 @@ async def confirm_clear(bot: Client, message: Message):
         await message.reply_text("No pending clear queue request. Use /clearqueue first.")
 
 
-@StreamBot.on_message(filters.command("cancel") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("cancel") & filters.private & CustomFilters.admin)
 async def cancel_clear(bot: Client, message: Message):
     """Cancel clear queue."""
     if clear_queue_state['waiting_for_confirmation']:
@@ -1023,7 +1023,7 @@ async def cancel_clear(bot: Client, message: Message):
 rescan_lock = Lock()
 rescan_running = False
 
-@StreamBot.on_message(filters.regex(r"^/rescan\d+$") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.regex(r"^/rescan\d+$") & filters.private & CustomFilters.admin)
 async def rescan_channel(bot: Client, message: Message):
     global rescan_running
 
@@ -1144,7 +1144,7 @@ async def rescan_channel(bot: Client, message: Message):
 # =============================================================================
 # ADMIN /rescanhelp COMMAND
 # =============================================================================
-@StreamBot.on_message(filters.command("rescanhelp") & filters.private & CustomFilters.owner)
+@StreamBot.on_message(filters.command("rescanhelp") & filters.private & CustomFilters.admin)
 async def rescan_help(bot: Client, message: Message):
     """Show available rescan commands and their corresponding channels."""
     if not Telegram.AUTH_CHANNEL:
@@ -1164,7 +1164,7 @@ async def rescan_help(bot: Client, message: Message):
     await message.reply_text(text, parse_mode=enums.ParseMode.HTML)
 
 
-@Client.on_message(filters.command('caption') & filters.private & CustomFilters.owner)
+@Client.on_message(filters.command('caption') & filters.private & CustomFilters.admin)
 async def toggle_caption(bot: Client, message: Message):
     try:
         Telegram.USE_CAPTION = not Telegram.USE_CAPTION
@@ -1172,7 +1172,7 @@ async def toggle_caption(bot: Client, message: Message):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-@Client.on_message(filters.command('tmdb') & filters.private & CustomFilters.owner)
+@Client.on_message(filters.command('tmdb') & filters.private & CustomFilters.admin)
 async def toggle_tmdb(bot: Client, message: Message):
     try:
         Telegram.USE_TMDB = not Telegram.USE_TMDB
@@ -1180,7 +1180,7 @@ async def toggle_tmdb(bot: Client, message: Message):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-@Client.on_message(filters.command('set') & filters.private & CustomFilters.owner)
+@Client.on_message(filters.command('set') & filters.private & CustomFilters.admin)
 async def set_id(bot: Client, message: Message):
 
     url_part = message.text.split()[1:]  # Skip the command itself
@@ -1201,7 +1201,7 @@ async def set_id(bot: Client, message: Message):
 
 
 
-@Client.on_message(filters.command('delete') & filters.private & CustomFilters.owner)
+@Client.on_message(filters.command('delete') & filters.private & CustomFilters.admin)
 async def delete(bot: Client, message: Message):
     try:
         split_text = message.text.split()

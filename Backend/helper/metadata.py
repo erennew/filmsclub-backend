@@ -3,6 +3,8 @@ import PTN
 import re
 from Backend.helper.imdb import get_detail, get_season, search_title
 from Backend.helper.pyro import extract_tmdb_id, normalize_languages
+from Backend.helper.anilist import anilist_service
+from Backend.helper.jikan import jikan_api_service
 from themoviedb import aioTMDb
 from Backend.config import Config
 import Backend
@@ -13,6 +15,165 @@ import httpx
 DELAY = 2
 
 tmdb = aioTMDb(key=Config.TMDB_API, language="en-US", region="US")
+
+
+async def fetch_anime_from_anilist(title: str) -> dict:
+    """Fetch anime metadata from AniList API"""
+    try:
+        await asyncio.sleep(DELAY)
+        search_results = await anilist_service.search_anime(title, page=1, per_page=5)
+        
+        if not search_results or not search_results.get('results'):
+            LOGGER.debug(f"No AniList results for: {title}")
+            return None
+        
+        # Get the first (best) match
+        anime_data = search_results['results'][0]
+        if not anime_data:
+            return None
+        
+        # Get detailed information
+        await asyncio.sleep(DELAY)
+        detailed_anime = await anilist_service.get_anime_details(anime_data.id)
+        
+        if not detailed_anime:
+            return anime_data
+        
+        return detailed_anime
+        
+    except Exception as e:
+        LOGGER.debug(f"AniList fetch failed for '{title}': {e}")
+        return None
+
+
+async def fetch_anime_from_jikan(title: str) -> dict:
+    """Fetch anime metadata from Jikan (MyAnimeList) API"""
+    try:
+        await asyncio.sleep(DELAY)
+        search_results = await jikan_api_service.search_anime(title, page=1, limit=5)
+        
+        if not search_results or not search_results.get('results'):
+            LOGGER.debug(f"No Jikan results for: {title}")
+            return None
+        
+        # Get the first (best) match
+        anime_data = search_results['results'][0]
+        if not anime_data:
+            return None
+        
+        # Get detailed information
+        await asyncio.sleep(DELAY)
+        detailed_anime = await jikan_api_service.get_anime_by_id(anime_data.id)
+        
+        if not detailed_anime:
+            return anime_data
+        
+        return detailed_anime
+        
+    except Exception as e:
+        LOGGER.debug(f"Jikan fetch failed for '{title}': {e}")
+        return None
+
+
+def format_anilist_to_standard(anime_data, season_number: int, episode_number: int, episode_title: str = None, group_name: str = None, has_season: bool = False) -> dict:
+    """Format AniList data to standard metadata format"""
+    if not anime_data:
+        return None
+    
+    try:
+        title_obj = anime_data.title if hasattr(anime_data, 'title') else None
+        show_title = title_obj.english if title_obj and title_obj.english else (title_obj.romaji if title_obj else "Unknown")
+        
+        images = anime_data.images if hasattr(anime_data, 'images') else None
+        poster = images.cover if images else ''
+        backdrop = images.banner if images else ''
+        
+        ratings = anime_data.ratings if hasattr(anime_data, 'ratings') else None
+        rate = ratings.average if ratings else 0
+        
+        genres = anime_data.genres if hasattr(anime_data, 'genres') else []
+        
+        return {
+            "tmdb_id": anime_data.id if hasattr(anime_data, 'id') else 0,
+            "title": show_title,
+            "year": anime_data.season_year if hasattr(anime_data, 'season_year') else 0,
+            "rate": rate,
+            "description": anime_data.description if hasattr(anime_data, 'description') else '',
+            "total_seasons": anime_data.season_year if has_season else 1,
+            "total_episodes": anime_data.episodes if hasattr(anime_data, 'episodes') else episode_number,
+            "poster": poster,
+            "backdrop": backdrop,
+            "status": anime_data.status if hasattr(anime_data, 'status') else 'Ongoing',
+            "genres": genres,
+            "media_type": "tv",
+            "season_number": season_number,
+            "episode_number": episode_number,
+            "episode_title": episode_title or f"Episode {episode_number}",
+            "episode_backdrop": backdrop,
+            "quality": "1080p",
+            "languages": ['ja', 'en'],  # Default for anime
+            "rip": 'Blu-ray',
+            "source": "AniList",
+            "imdb_url": None,
+            "tmdb_url": f"https://anilist.co/anime/{anime_data.id}" if hasattr(anime_data, 'id') else None,
+            "is_anime": True,
+            "group": group_name,
+            "release_group": group_name,
+            "has_seasonal_format": has_season,
+            "cast": [],
+            "next_episode_to_air": None,
+            "last_episode_to_air": None,
+        }
+    except Exception as e:
+        LOGGER.error(f"Error formatting AniList data: {e}")
+        return None
+
+
+def format_jikan_to_standard(anime_data, season_number: int, episode_number: int, episode_title: str = None, group_name: str = None, has_season: bool = False) -> dict:
+    """Format Jikan data to standard metadata format"""
+    if not anime_data:
+        return None
+    
+    try:
+        show_title = anime_data.title_english if anime_data.title_english else anime_data.title
+        
+        images = anime_data.images if hasattr(anime_data, 'images') else None
+        poster = images.jpg_large if images else (images.jpg_image if images else '')
+        
+        return {
+            "tmdb_id": anime_data.id if hasattr(anime_data, 'id') else 0,
+            "title": show_title,
+            "year": anime_data.year if hasattr(anime_data, 'year') else 0,
+            "rate": anime_data.score if hasattr(anime_data, 'score') else 0,
+            "description": anime_data.synopsis if hasattr(anime_data, 'synopsis') else '',
+            "total_seasons": 1 if not has_season else season_number,
+            "total_episodes": anime_data.episodes if hasattr(anime_data, 'episodes') else episode_number,
+            "poster": poster,
+            "backdrop": '',
+            "status": anime_data.status if hasattr(anime_data, 'status') else 'Ongoing',
+            "genres": anime_data.genres if hasattr(anime_data, 'genres') else [],
+            "media_type": "tv",
+            "season_number": season_number,
+            "episode_number": episode_number,
+            "episode_title": episode_title or f"Episode {episode_number}",
+            "episode_backdrop": '',
+            "quality": "1080p",
+            "languages": ['ja', 'en'],  # Default for anime
+            "rip": 'Blu-ray',
+            "source": "MyAnimeList",
+            "imdb_url": f"https://myanimelist.net/anime/{anime_data.id}" if hasattr(anime_data, 'id') else None,
+            "tmdb_url": None,
+            "is_anime": True,
+            "group": group_name,
+            "release_group": group_name,
+            "has_seasonal_format": has_season,
+            "cast": [],
+            "next_episode_to_air": None,
+            "last_episode_to_air": None,
+        }
+    except Exception as e:
+        LOGGER.error(f"Error formatting Jikan data: {e}")
+        return None
 
 
 def _tmdb_image_url(path: str | None, size: str = "w500") -> str:
@@ -456,9 +617,31 @@ async def metadata(filename: str, media) -> dict:
 async def fetch_anime_metadata(title: str, season_number: int, episode_number: int, episode_title: str = None, group_name: str = None, has_season: bool = False) -> dict:
     """
     Special handler for anime series - preserves season information for seasonal anime
-    Enhanced to use default ID when set via /set command and get English episode titles
+    Enhanced to use AniList/Jikan as primary sources with IMDb/TMDB as fallback
     """
     try:
+        # Try AniList first (best for anime)
+        LOGGER.info(f"Trying AniList for anime: {title}")
+        anilist_data = await fetch_anime_from_anilist(title)
+        if anilist_data:
+            formatted = format_anilist_to_standard(anilist_data, season_number, episode_number, episode_title, group_name, has_season)
+            if formatted:
+                group_info = f" by {group_name}" if group_name else ""
+                LOGGER.info(f"✅ Anime metadata fetched from AniList for '{formatted['title']}' S{season_number}E{episode_number:03d}{group_info}")
+                return formatted
+        
+        # Try Jikan (MyAnimeList) as second option
+        LOGGER.info(f"Trying Jikan for anime: {title}")
+        jikan_data = await fetch_anime_from_jikan(title)
+        if jikan_data:
+            formatted = format_jikan_to_standard(jikan_data, season_number, episode_number, episode_title, group_name, has_season)
+            if formatted:
+                group_info = f" by {group_name}" if group_name else ""
+                LOGGER.info(f"✅ Anime metadata fetched from MyAnimeList for '{formatted['title']}' S{season_number}E{episode_number:03d}{group_info}")
+                return formatted
+        
+        # Fall back to original IMDb/TMDB approach
+        LOGGER.info(f"Falling back to IMDb/TMDB for anime: {title}")
         imdb_id = None
         
         # Check if we have a default ID set via /set command

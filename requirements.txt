@@ -11,6 +11,7 @@ themoviedb
 pytz
 pycountry
 httpx
+aiohttp
 hachoir
 PyJWT
 python-multipart
