@@ -341,3 +341,187 @@ async def restart_notification():
 
     except Exception as e:
         LOGGER.error(f"Error in restart_notification: {e}")
+
+
+# =============================================================================
+# TMDB VALIDATION WITH CACHING
+# =============================================================================
+import asyncio
+from datetime import datetime, timedelta
+from Backend.config import QueueConfig, TMDBValidation, Telegram
+from themoviedb import aioTMDb
+
+# TMDB client for validation
+tmdb_validator = aioTMDb(key=Telegram.TMDB_API, language="en-US", region="US")
+
+# Cache for validated TMDB IDs
+tmdb_validation_cache = {}
+tmdb_cache_expiry = {}
+
+# Track cache hits/misses for metrics
+tmdb_cache_hits = 0
+tmdb_cache_misses = 0
+
+
+async def validate_tmdb_id_thorough(tmdb_id: int, media_type: str, retry_count: int = 0) -> bool:
+    """
+    Thorough TMDB validation with caching and exponential backoff for timeouts.
+    Returns True if ID exists and is valid.
+    This is SLOW but ACCURATE.
+    """
+    global tmdb_cache_hits, tmdb_cache_misses
+    
+    if not TMDBValidation.ENABLE_VALIDATION:
+        return True  # Skip validation if disabled
+    
+    # Check cache first
+    cache_key = f"{media_type}:{tmdb_id}"
+    if TMDBValidation.CACHE_VALID_IDS:
+        if cache_key in tmdb_validation_cache:
+            expiry = tmdb_cache_expiry.get(cache_key, datetime.min)
+            if datetime.utcnow() < expiry:
+                tmdb_cache_hits += 1
+                LOGGER.debug(f"TMDB cache hit: {cache_key} = {tmdb_validation_cache[cache_key]}")
+                return tmdb_validation_cache[cache_key]
+    
+    tmdb_cache_misses += 1
+    
+    try:
+        LOGGER.info(f"🔍 Validating TMDB ID {tmdb_id} ({media_type})...")
+        
+        # Slow but thorough validation
+        if media_type == "movie":
+            # Fetch movie details (takes 2-5 seconds)
+            result = await asyncio.wait_for(
+                tmdb_validator.movie(tmdb_id).details(),
+                timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+            )
+            is_valid = result is not None and hasattr(result, 'id')
+            
+            if is_valid:
+                LOGGER.info(f"✅ TMDB validation PASSED for movie {tmdb_id}: {result.title if result else 'Unknown'}")
+            else:
+                LOGGER.warning(f"❌ TMDB validation FAILED for movie {tmdb_id}")
+                
+        elif media_type == "tv":
+            # Fetch TV details (takes 2-5 seconds)
+            result = await asyncio.wait_for(
+                tmdb_validator.tv(tmdb_id).details(),
+                timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+            )
+            is_valid = result is not None and hasattr(result, 'id')
+            
+            if is_valid:
+                LOGGER.info(f"✅ TMDB validation PASSED for TV {tmdb_id}: {result.name if result else 'Unknown'}")
+            else:
+                LOGGER.warning(f"❌ TMDB validation FAILED for TV {tmdb_id}")
+        else:
+            return False
+        
+        # Cache the result
+        if TMDBValidation.CACHE_VALID_IDS:
+            tmdb_validation_cache[cache_key] = is_valid
+            tmdb_cache_expiry[cache_key] = datetime.utcnow() + timedelta(seconds=QueueConfig.TMDB_CACHE_TTL)
+        
+        return is_valid
+        
+    except asyncio.TimeoutError:
+        LOGGER.error(f"⏰ TMDB validation TIMEOUT for {media_type} {tmdb_id} after {QueueConfig.TMDB_VALIDATION_TIMEOUT}s")
+        
+        # Smart exponential backoff: 5s, 10s, 20s
+        if retry_count < 3:
+            wait_time = 2 ** retry_count * 5
+            LOGGER.warning(f"🔄 TMDB timeout, retrying in {wait_time}s (attempt {retry_count + 1}/3)")
+            await asyncio.sleep(wait_time)
+            return await validate_tmdb_id_thorough(tmdb_id, media_type, retry_count + 1)
+        else:
+            LOGGER.error(f"❌ TMDB validation failed after 3 retries")
+            
+        if TMDBValidation.SKIP_ON_TIMEOUT:
+            LOGGER.warning(f"⚠️ Skipping validation due to timeout (file will be skipped)")
+            return False
+        else:
+            # Wait and retry (don't skip, just wait longer)
+            LOGGER.info(f"🔄 Waiting additional 10 seconds and retrying...")
+            await asyncio.sleep(10)
+            return await validate_tmdb_id_thorough(tmdb_id, media_type, 0)  # Reset retry count
+            
+    except Exception as e:
+        LOGGER.error(f"❌ TMDB validation ERROR for {media_type} {tmdb_id}: {e}")
+        return False
+
+
+async def validate_episode_exists(tmdb_id: int, season: int, episode: int) -> bool:
+    """
+    Validate that a specific episode exists in TMDB.
+    Very slow but ensures accuracy.
+    """
+    if not TMDBValidation.ENABLE_VALIDATION:
+        return True
+    
+    cache_key = f"episode:{tmdb_id}:{season}:{episode}"
+    
+    # Check cache
+    if cache_key in tmdb_validation_cache:
+        expiry = tmdb_cache_expiry.get(cache_key, datetime.min)
+        if datetime.utcnow() < expiry:
+            return tmdb_validation_cache[cache_key]
+    
+    try:
+        LOGGER.info(f"🔍 Validating episode S{season}E{episode} for TMDB ID {tmdb_id}...")
+        
+        # Fetch season details (takes 3-5 seconds)
+        season_details = await asyncio.wait_for(
+            tmdb_validator.season(tmdb_id, season).details(),
+            timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+        )
+        
+        if not season_details or not hasattr(season_details, 'episodes'):
+            return False
+        
+        # Check if episode exists
+        episode_numbers = [ep.episode_number for ep in season_details.episodes if hasattr(ep, 'episode_number')]
+        is_valid = episode in episode_numbers
+        
+        if is_valid:
+            LOGGER.info(f"✅ Episode validation PASSED: S{season}E{episode} exists")
+        else:
+            LOGGER.warning(f"❌ Episode validation FAILED: S{season}E{episode} not found (available: {episode_numbers})")
+        
+        # Cache result
+        tmdb_validation_cache[cache_key] = is_valid
+        tmdb_cache_expiry[cache_key] = datetime.utcnow() + timedelta(seconds=QueueConfig.TMDB_CACHE_TTL)
+        
+        return is_valid
+        
+    except asyncio.TimeoutError:
+        LOGGER.error(f"⏰ Episode validation TIMEOUT for S{season}E{episode}")
+        return False
+    except Exception as e:
+        LOGGER.error(f"❌ Episode validation ERROR: {e}")
+        return False
+
+
+async def cleanup_tmdb_cache():
+    """Remove expired TMDB cache entries every hour."""
+    while True:
+        await asyncio.sleep(3600)  # Run every hour
+        now = datetime.utcnow()
+        expired = [k for k, v in tmdb_cache_expiry.items() if now >= v]
+        for key in expired:
+            tmdb_validation_cache.pop(key, None)
+            tmdb_cache_expiry.pop(key, None)
+        if expired:
+            LOGGER.info(f"🧹 Cleaned {len(expired)} expired TMDB cache entries")
+
+
+def get_tmdb_cache_stats() -> dict:
+    """Get TMDB cache statistics for metrics."""
+    total = tmdb_cache_hits + tmdb_cache_misses
+    hit_rate = (tmdb_cache_hits / total * 100) if total > 0 else 0
+    return {
+        "cache_size": len(tmdb_validation_cache),
+        "hits": tmdb_cache_hits,
+        "misses": tmdb_cache_misses,
+        "hit_rate": round(hit_rate, 2)
+    }

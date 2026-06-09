@@ -42,10 +42,15 @@ class Database:
             self.movie_collection = self.db["movie"]
             self.deploy_config = self.db["deploy_config"]
             self.views_collection = self.db["views"]
+            self.replaced_versions = self.db["replaced_versions"]  # Backup collection for replaced files
 
             # Create index for efficient trending queries
             await self.views_collection.create_index([("date", DESCENDING), ("count", DESCENDING)])
             await self.views_collection.create_index([("tmdb_id", ASCENDING), ("media_type", ASCENDING), ("date", ASCENDING)])
+
+            # Create index for replaced_versions collection
+            await self.replaced_versions.create_index([("tmdb_id", ASCENDING)])
+            await self.replaced_versions.create_index([("replaced_at", DESCENDING)])
 
             LOGGER.info("Database connection established")
         
@@ -840,3 +845,33 @@ class Database:
     async def get_media_with_audio_tracks(self, file_id: str) -> Optional[Dict]:
         """Backward compatibility - calls get_media_with_tracks."""
         return await self.get_media_with_tracks(file_id)
+
+    async def backup_replaced_version(self, metadata_info: dict, old_version: dict, reason: str) -> bool:
+        """
+        Backup a version that is being replaced to the replaced_versions collection.
+        This provides a safety net for rollback if needed.
+        """
+        try:
+            backup_data = {
+                "tmdb_id": metadata_info.get("tmdb_id"),
+                "media_type": metadata_info.get("media_type"),
+                "title": metadata_info.get("title"),
+                "season_number": metadata_info.get("season_number"),
+                "episode_number": metadata_info.get("episode_number"),
+                "quality": old_version.get("quality"),
+                "old_version": old_version,
+                "replacement_reason": reason,
+                "replaced_at": datetime.utcnow(),
+                "backup_status": "success"
+            }
+            
+            result = await self.replaced_versions.insert_one(backup_data)
+            if result.inserted_id:
+                LOGGER.info(f"💾 Backed up replaced version for TMDB ID {metadata_info.get('tmdb_id')}")
+                return True
+            else:
+                LOGGER.error(f"Failed to backup replaced version for TMDB ID {metadata_info.get('tmdb_id')}")
+                return False
+        except Exception as e:
+            LOGGER.error(f"Error backing up replaced version: {e}")
+            return False

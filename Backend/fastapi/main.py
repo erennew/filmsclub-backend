@@ -511,6 +511,64 @@ async def clear_video_cache():
         }
 
 
+@app.get("/admin/queue-health")
+async def queue_health():
+    """
+    Monitor queue health and performance.
+    Returns queue size, workers, stats, estimated time, TMDB cache, and status.
+    """
+    try:
+        # Import queue stats from start.py (circular import handled at runtime)
+        from Backend.pyrofork.plugins.start import file_queue, queue_stats, QueueConfig
+        from Backend.helper.pyro import get_tmdb_cache_stats
+        
+        pending = file_queue.qsize()
+        
+        # Calculate estimated time
+        if pending <= 0:
+            est_time = "0m 0s"
+        else:
+            est_time_per_file = QueueConfig.FILE_QUEUE_DELAY + 10  # 8s delay + 10s processing
+            est_batch_gap = (pending // QueueConfig.BATCH_SIZE) * QueueConfig.BATCH_GAP_SECONDS
+            est_total_seconds = (pending * est_time_per_file) + est_batch_gap
+            est_minutes = est_total_seconds // 60
+            est_seconds = est_total_seconds % 60
+            est_time = f"{est_minutes}m {est_seconds}s"
+        
+        # Get TMDB cache stats
+        tmdb_stats = get_tmdb_cache_stats()
+        
+        # Determine status
+        status = "healthy" if pending < 1000 else "backlogged"
+        
+        return {
+            "queue_size": pending,
+            "workers": QueueConfig.QUEUE_WORKERS,
+            "stats": queue_stats,
+            "estimated_time_minutes": est_time,
+            "tmdb_cache_size": tmdb_stats["cache_size"],
+            "tmdb_cache_hit_rate": tmdb_stats["hit_rate"],
+            "status": status,
+            "settings": {
+                "file_delay": QueueConfig.FILE_QUEUE_DELAY,
+                "batch_size": QueueConfig.BATCH_SIZE,
+                "batch_gap": QueueConfig.BATCH_GAP_SECONDS,
+                "max_retry_count": QueueConfig.MAX_RETRY_COUNT,
+                "rate_limit": f"{QueueConfig.MAX_MESSAGES_PER_MINUTE}/min"
+            }
+        }
+    except ImportError as e:
+        # If start.py hasn't been loaded yet (circular import)
+        LOGGER.warning(f"Queue health check failed (start.py not loaded): {e}")
+        return {
+            "error": "Queue system not yet initialized",
+            "status": "initializing"
+        }
+    except Exception as e:
+        LOGGER.error(f"Error getting queue health: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get queue health: {str(e)}")
+
+
 @app.get('/dl/{id}/{name}')
 async def stream_handler(
     request: Request,

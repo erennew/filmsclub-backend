@@ -8,6 +8,7 @@ from Backend.helper.pyro import restart_notification
 from Backend.pyrofork import StreamBot
 from Backend.pyrofork.clients import initialize_clients
 from Backend.config import Telegram
+from Backend.pyrofork.plugins.start import start_background_tasks
 
 loop = get_event_loop()
 
@@ -34,6 +35,9 @@ async def start_services():
         LOGGER.info('Initializing Project-S Web Server...')
         await restart_notification()
         loop.create_task(server.serve())
+
+        # Start enhanced queue system background tasks
+        await start_background_tasks()
 
         LOGGER.info("Project-S Started Successfully!")
         await idle()
