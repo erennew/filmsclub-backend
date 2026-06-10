@@ -1,5 +1,6 @@
 import asyncio
 import shutil
+import os
 from time import time
 from typing import Any, Dict, List, Optional, Union
 from Backend.helper.encrypt import decode_string
@@ -28,6 +29,10 @@ from Backend.helper.cache import get_all_cache_stats, clear_all_caches, video_ch
 from Backend.helper.redis_cache import redis_cache, cache_response, invalidate_cache_pattern
 from Backend import StartTime, __version__, db
 
+# Get absolute path for templates directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATES_DIR = os.path.join(BASE_DIR, "fastapi", "templates")
+
 
 # Helper function to add HTTP cache headers for browser caching
 def add_cache_headers(response, max_age: int = 60, etag: Optional[str] = None):
@@ -46,7 +51,7 @@ def add_cache_headers(response, max_age: int = 60, etag: Optional[str] = None):
 app = FastAPI()
 class_cache = {}
 
-templates = Jinja2Templates(directory="Backend/fastapi/templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 # Admin Panel Routes
