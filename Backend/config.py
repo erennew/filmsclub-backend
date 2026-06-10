@@ -62,6 +62,8 @@ class Telegram:
         ).split(",")
         if admin_id.strip().isdigit()
     ]
+    ADMIN_WEB_USERNAME = getenv("ADMIN_WEB_USERNAME", "admin")
+    ADMIN_WEB_PASSWORD = getenv("ADMIN_WEB_PASSWORD", "admin123")
     UPDATE_CHANNEL = getenv("UPDATE_CHANNEL", "")
     TG_USERNAME = getenv("TG_USERNAME", "")
     WEBSITE_URL = getenv("WEBSITE_URL", "https://teluguflix-two.vercel.app/").rstrip('/')
@@ -75,21 +77,21 @@ class Cache:
     ENABLE_REDIS = getenv("ENABLE_REDIS", "false").lower() == "true"
     
     # Cache TTL settings (in seconds)
-    TRENDING_CACHE_TTL = int(getenv("TRENDING_CACHE_TTL", "60"))  # 1 minute
-    SEARCH_CACHE_TTL = int(getenv("SEARCH_CACHE_TTL", "30"))  # 30 seconds
-    MEDIA_INFO_CACHE_TTL = int(getenv("MEDIA_INFO_CACHE_TTL", "86400"))  # 24 hours
-    MOVIE_DETAIL_CACHE_TTL = int(getenv("MOVIE_DETAIL_CACHE_TTL", "300"))  # 5 minutes
-    TV_DETAIL_CACHE_TTL = int(getenv("TV_DETAIL_CACHE_TTL", "300"))  # 5 minutes
+    TRENDING_CACHE_TTL = int(getenv("TRENDING_CACHE_TTL", "160"))  # 1 minute
+    SEARCH_CACHE_TTL = int(getenv("SEARCH_CACHE_TTL", "3000"))  # 30 seconds
+    MEDIA_INFO_CACHE_TTL = int(getenv("MEDIA_INFO_CACHE_TTL", "864000"))  # 24 hours
+    MOVIE_DETAIL_CACHE_TTL = int(getenv("MOVIE_DETAIL_CACHE_TTL", "30000"))  # 5 minutes
+    TV_DETAIL_CACHE_TTL = int(getenv("TV_DETAIL_CACHE_TTL", "30000"))  # 5 minutes
     
     # In-memory cache sizes
-    FILE_METADATA_CACHE_SIZE = int(getenv("FILE_METADATA_CACHE_SIZE", "1000"))
-    HOT_MOVIES_CACHE_SIZE = int(getenv("HOT_MOVIES_CACHE_SIZE", "500"))
+    FILE_METADATA_CACHE_SIZE = int(getenv("FILE_METADATA_CACHE_SIZE", "10000"))
+    HOT_MOVIES_CACHE_SIZE = int(getenv("HOT_MOVIES_CACHE_SIZE", "1500"))
     
     # Video chunk cache configuration
     ENABLE_VIDEO_CACHE = getenv("ENABLE_VIDEO_CACHE", "true").lower() == "true"
-    VIDEO_CACHE_HOT_START_SLOTS = int(getenv("VIDEO_CACHE_HOT_START_SLOTS", "100"))
+    VIDEO_CACHE_HOT_START_SLOTS = int(getenv("VIDEO_CACHE_HOT_START_SLOTS", "1000"))
     VIDEO_CACHE_HOT_START_SIZE_MB = int(getenv("VIDEO_CACHE_HOT_START_SIZE_MB", "1"))
-    VIDEO_CACHE_LRU_SIZE_MB = int(getenv("VIDEO_CACHE_LRU_SIZE_MB", "500"))
+    VIDEO_CACHE_LRU_SIZE_MB = int(getenv("VIDEO_CACHE_LRU_SIZE_MB", "1500"))
     VIDEO_CACHE_CHUNK_SIZE = int(getenv("VIDEO_CACHE_CHUNK_SIZE", "65536"))
     
     # Browser/HTTP cache headers (in seconds)

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FilmsClub Admin</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070707;--card:#111;--card2:#171717;--line:#282828;--txt:#f5f5f5;--muted:#a2a2a2;--accent:#a873ff;--accent2:#66d9ff;--danger:#ff4d5e;--good:#3ddc97;--warn:#ffd166;--radius:16px;font-family:ui-rounded,"SF Pro Rounded","Segoe UI",Roboto,Arial,sans-serif}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 12% 0,rgba(168,115,255,.25),transparent 32%),radial-gradient(circle at 95% 10%,rgba(102,217,255,.12),transparent 28%),var(--bg);color:var(--txt);font-family:ui-rounded,"SF Pro Rounded","Segoe UI",Roboto,Arial,sans-serif}button,input,textarea,select{font:inherit}.app{max-width:440px;margin:0 auto;min-height:100vh;padding:16px 14px 110px}.top{position:sticky;top:0;z-index:20;margin:-16px -14px 14px;padding:14px;background:rgba(7,7,7,.86);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.07)}.row{display:flex;align-items:center;gap:10px}.brand{font-size:22px;font-weight:950;letter-spacing:.4px}.spacer{flex:1}.icon,.btn,.chip{border:1px solid var(--line);background:rgba(255,255,255,.055);color:var(--txt);min-height:42px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 13px;font-weight:850;text-decoration:none}.icon{width:44px;padding:0;font-size:21px}.btn{cursor:pointer}.btn.primary{background:#fff;color:#111;border-color:#fff}.btn.purple{border:0;background:linear-gradient(135deg,#7a4dff,#03bdf2)}.btn.danger{background:rgba(255,77,94,.13);border-color:rgba(255,77,94,.45);color:#ffd2d7}.chip{min-height:32px;border-radius:12px;font-size:13px;white-space:nowrap}.chip.good{color:#bfffe3;border-color:rgba(61,220,151,.4)}.chip.warn{color:#ffe6a6;border-color:rgba(255,209,102,.4)}.chip.danger{color:#ffc3ca;border-color:rgba(255,77,94,.45)}.search{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px}.field,label{display:block}label{margin:12px 0 7px;color:#ddd;font-size:13px;font-weight:850}input,textarea,select{width:100%;min-height:48px;border:1px solid var(--line);background:#080808;border-radius:12px;padding:12px;color:var(--txt);font-size:15px}input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:10px 0}.section-title{display:flex;align-items:center;gap:8px;margin:0 0 12px}.section-title h3{margin:0;font-size:16px;font-weight:850}.section-title span{color:var(--muted);font-size:13px}.list-card{display:flex;gap:12px;padding:12px;border:1px solid var(--line);background:#080808;border-radius:12px;margin:8px 0;cursor:pointer;transition:border-color .2s}.list-card:hover{border-color:var(--accent)}.list-poster{width:60px;height:90px;background-size:cover;background-position:center;border-radius:8px;background-color:#1a1a1a}.itxt{flex:1;min-width:0}.itxt b{display:block;font-size:15px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.itxt small{display:block;color:var(--muted);font-size:12px;line-height:1.3}.hidden{display:none}.tabs{display:flex;gap:8px;margin:16px 0;overflow-x:auto;padding-bottom:4px}.tab{flex:0 0 auto;padding:8px 16px;border:1px solid var(--line);background:#080808;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}.page{display:none}.page.active{display:block}.btns{display:flex;gap:8px;margin-top:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hero{padding:0;overflow:hidden}.backdrop{min-height:200px;background-size:cover;background-position:center;position:relative}.hero-inner{display:flex;gap:16px;padding:16px;background:linear-gradient(transparent,rgba(7,7,7,.9))}.poster{width:80px;height:120px;background-size:cover;background-position:center;border-radius:10px;background-color:#1a1a1a;flex-shrink:0}.item{display:flex;gap:12px;padding:10px;border:1px solid var(--line);background:#080808;border-radius:10px;margin:6px 0}.thumb{width:36px;height:36px;background:#1a1a1a;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}.tiny{width:32px;min-height:32px;padding:0;font-size:14px}.empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}.muted{color:var(--muted)}.dangerbox{border:1px solid rgba(255,77,94,.35);background:rgba(255,77,94,.08);border-radius:12px;padding:16px}.dangerbox h3{margin:0 0 8px;color:#ffd2d7}.dangerbox p{margin:0 0 12px;color:#ffc3ca;font-size:13px;line-height:1.4}.dangertext{color:#ffd2d7}.kbd{background:#1a1a1a;padding:8px 12px;border-radius:8px;font-family:monospace;font-size:12px;margin:8px 0;word-break:break-all}.delete-note{border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:12px;padding:10px;color:#ffe7ac;font-size:13px;line-height:1.4;margin:10px 0}.bottom{position:fixed;bottom:0;left:0;right:0;padding:12px 14px;background:rgba(7,7,7,.95);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.07);display:flex;gap:8px;z-index:30}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:12px 24px;border-radius:20px;font-weight:700;font-size:14px;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}.toast.show{opacity:1}.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.sheet{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto}.backbtn{min-width:78px}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="row">
+        <button class="icon backbtn" onclick="goBack()" title="Back">←</button>
+        <div class="brand">FILMSCLUB</div><span class="chip good">Admin Panel</span><div class="spacer"></div>
+        <button class="icon" onclick="reloadCurrent()">↻</button>
+        <button class="icon" onclick="toggleSecret()">⚙</button>
+      </div>
+      <div id="secretBox" class="card" style="margin:12px 0 0;padding:12px">
+        <label style="margin-top:0">Admin username</label>
+        <input id="adminUser" type="text" placeholder="ADMIN_WEB_USERNAME" autocomplete="username" />
+        <label>Admin password</label>
+        <input id="adminPass" type="password" placeholder="ADMIN_WEB_PASSWORD" autocomplete="current-password" />
+        <label style="display:flex;align-items:center;gap:9px;margin-top:10px;color:var(--muted)"><input id="rememberLogin" type="checkbox" style="width:18px;min-height:18px;padding:0"> Remember on this device</label>
+        <div class="btns"><button class="btn primary" onclick="saveSecret()">Login</button><button class="btn" onclick="clearSecret()">Clear</button></div>
+        <p class="muted" style="margin:8px 0 0;font-size:12px">Set ADMIN_WEB_USERNAME and ADMIN_WEB_PASSWORD in backend env first.</p>
+      </div>
+      <div class="search">
+        <input id="q" placeholder="Search movie / series / file name" onkeydown="if(event.key==='Enter') loadList()" />
+        <button class="btn primary" onclick="loadList()">Search</button>
+      </div>
+      <div class="chips">
+        <button id="movieBtn" class="chip good" onclick="setType('movie')">Movies</button>
+        <button id="tvBtn" class="chip" onclick="setType('tv')">Series</button>
+        <button id="animeBtn" class="chip" onclick="setType('anime')">Anime</button>
+        <button class="chip" onclick="openDirect()">Open by ID</button>
+      </div>
+    </header>
+
+    <section id="listView" class="card">
+      <div class="section-title"><h3>Saved media</h3><span id="listCount">—</span></div>
+      <div id="list"></div>
+    </section>
+
+    <section id="editView" class="hidden">
+      <button class="btn" onclick="backToList()">← Back</button>
+      <section class="card hero">
+        <div id="heroBackdrop" class="backdrop">
+          <div class="hero-inner">
+            <div id="heroPoster" class="poster"></div>
+            <div style="min-width:0;flex:1">
+              <h1 id="heroTitle">Select media</h1>
+              <p id="heroDesc">Search and open one item to edit.</p>
+              <div class="chips" id="heroChips"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="tabs">
+          <button class="tab active" data-page="details">✏ Details</button>
+          <button class="tab" data-page="files">🎞 Files</button>
+          <button class="tab" data-page="subs">💬 Subs</button>
+          <button class="tab" data-page="images">🖼 Images</button>
+          <button class="tab" data-page="cast">👥 Cast</button>
+          <button class="tab" data-page="danger">🗑 Delete</button>
+        </div>
+
+        <div id="details" class="page active">
+          <label>Title</label><input id="fTitle" />
+          <div class="grid2"><div><label>Year</label><input id="fYear" type="number" /></div><div><label>Rating</label><input id="fRating" /></div></div>
+          <div class="grid2"><div><label>Runtime / seasons</label><input id="fRuntime" /></div><div><label>Rip</label><input id="fRip" /></div></div>
+          <label>Languages</label><input id="fLanguages" placeholder="ta, hi, en" />
+          <label>Genres</label><input id="fGenres" placeholder="Action, Comedy" />
+          <label>Description</label><textarea id="fDescription"></textarea>
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save details</button><button class="btn" onclick="reloadCurrent()">Reload</button></div>
+        </div>
+
+        <div id="files" class="page">
+          <div class="section-title"><h3>Video files</h3><span id="fileCount">0</span></div>
+          <div id="fileList"></div>
+          <p class="empty">Video upload still goes through Telegram bot. When deleting, choose DB only or delete the Telegram message too.</p>
+        </div>
+
+        <div id="subs" class="page">
+          <div class="section-title"><h3>Subtitle files</h3><span id="subCount">0</span></div>
+          <div id="subList"></div>
+          <div class="card" style="padding:12px">
+            <h3 style="margin:0 0 8px">Attach subtitle manually</h3>
+            <label>Target file</label><select id="newSubTarget"></select>
+            <label>Encoded subtitle id</label><input id="newSubId" placeholder="Telegram encoded file id" />
+            <label>Subtitle name</label><input id="newSubName" placeholder="movie_tamil.srt" />
+            <div class="grid2"><div><label>Language</label><input id="newSubLang" value="Tamil" /></div><div><label>Format</label><input id="newSubFmt" value="srt" /></div></div>
+            <div class="btns"><button class="btn purple" onclick="addSub()">Add subtitle</button></div>
+          </div>
+        </div>
+
+        <div id="images" class="page">
+          <label>Poster URL</label><input id="fPoster" />
+          <label>Backdrop URL</label><input id="fBackdrop" />
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save images</button><button class="btn" onclick="applyImagePreview()">Preview images</button></div>
+        </div>
+
+        <div id="cast" class="page">
+          <p class="muted">One cast member per line: <b>Name | Role | Image URL | TMDB ID</b></p>
+          <textarea id="fCast" style="min-height:180px"></textarea>
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save cast</button></div>
+        </div>
+
+        <div id="danger" class="page">
+          <div class="dangerbox">
+            <h3>Danger zone</h3>
+            <p>Delete the full movie/series. Choose DB only to keep Telegram files, or Telegram + DB to remove saved Telegram video/subtitle messages too.</p>
+            <label>Type DELETE to confirm</label><input id="deleteConfirm" placeholder="DELETE" />
+            <div class="btns"><button class="btn danger" onclick="deleteMedia(false)">DB only</button><button class="btn danger" onclick="deleteMedia(true)">Telegram + DB</button></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="bottom"><button class="btn" onclick="loadList()">List</button><button class="btn primary" onclick="saveDetails()">Save</button></div>
+  <div id="toast" class="toast">Saved</div>
+
+  <div id="modal" class="modal" onclick="if(event.target.id==='modal') closeModal()"><div class="sheet"><div id="modalBody"></div></div></div>
+
+<script>
+const qs = new URLSearchParams(location.search);
+let state = { type: qs.get('type') || qs.get('media_type') || 'movie', page: 1, current: null, fileForSub: null };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.__t); window.__t=setTimeout(()=>t.classList.remove('show'),1900); }
+function loginStoreGet(key){ return sessionStorage.getItem(key) || localStorage.getItem(key) || ''; }
+function adminUser(){ return loginStoreGet('filmsclub_admin_username') || $('adminUser').value || ''; }
+function adminPass(){ return loginStoreGet('filmsclub_admin_password') || $('adminPass').value || ''; }
+function headers(){ return {'Content-Type':'application/json','x-admin-username':adminUser(),'x-admin-password':adminPass()}; }
+async function api(path, opts={}){ const r=await fetch(path,{...opts,headers:{...(opts.headers||{}),...headers()}}); let data; try{data=await r.json()}catch(e){data={detail:await r.text()}} if(!r.ok) throw new Error(data.detail || 'Request failed'); return data; }
+function saveSecret(){
+  const u=$('adminUser').value.trim(), p=$('adminPass').value;
+  if(!u || !p) return toast('Enter username and password');
+  const store = $('rememberLogin').checked ? localStorage : sessionStorage;
+  const other = $('rememberLogin').checked ? sessionStorage : localStorage;
+  other.removeItem('filmsclub_admin_username'); other.removeItem('filmsclub_admin_password');
+  store.setItem('filmsclub_admin_username', u); store.setItem('filmsclub_admin_password', p);
+  $('secretBox').classList.add('hidden'); toast('Admin login saved'); loadFromQueryOrList();
+}
+function clearSecret(){
+  localStorage.removeItem('filmsclub_admin_username'); localStorage.removeItem('filmsclub_admin_password');
+  sessionStorage.removeItem('filmsclub_admin_username'); sessionStorage.removeItem('filmsclub_admin_password');
+  if($('adminUser')) $('adminUser').value=''; if($('adminPass')) $('adminPass').value='';
+  $('secretBox').classList.remove('hidden'); toast('Admin login cleared');
+}
+function toggleSecret(){ $('secretBox').classList.toggle('hidden'); }
+function setType(t){ state.type=t; $('movieBtn').className='chip '+(t==='movie'?'good':''); $('tvBtn').className='chip '+(t==='tv'?'good':''); $('animeBtn').className='chip '+(t==='anime'?'good':''); loadList(); }
+function setPage(id){ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.page===id)); document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id)); }
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setPage(t.dataset.page));
+function backToList(){ $('editView').classList.add('hidden'); $('listView').classList.remove('hidden'); }
+function goBack(){ if(!$('editView').classList.contains('hidden')){ state.current=null; backToList(); history.replaceState(null,'','/admin'); return; } if(history.length>1){ history.back(); } else { location.href='/'; } }
+function showEdit(){ $('listView').classList.add('hidden'); $('editView').classList.remove('hidden'); scrollTo({top:0,behavior:'smooth'}); }
+async function loadList(){
+  try{
+    const q=encodeURIComponent($('q').value.trim());
+    const data=await api(`/admin/api/media?media_type=${state.type}&query=${q}&page=${state.page}&page_size=30`);
+    $('listCount').textContent = `${data.total_count || 0} items`;
+    $('list').innerHTML = (data.items||[]).map(item=>`
+      <div class="list-card" onclick="openMedia('${state.type}',${item.db_index},${item.tmdb_id})">
+        <div class="list-poster" style="background-image:url('${esc(item.poster||item.backdrop||'')}')"></div>
+        <div class="itxt"><b>${esc(item.title)}</b><small>${esc(item.release_year||'')} • ${esc((item.languages||[]).join(' / '))} • ${item.file_count||0} files • ${item.subtitle_count||0} subs</small></div>
+        <span class="chip">Edit</span>
+      </div>`).join('') || `<div class="empty">No results</div>`;
+  } catch(e){ toast(e.message); }
+}
+async function openMedia(type, dbIndex, tmdbId){
+  try{
+    state.type=type; state.current = await api(`/admin/api/media/${type}/${dbIndex}/${tmdbId}`);
+    fillForm(); showEdit();
+    history.replaceState(null,'',`/admin?type=${type}&db_index=${dbIndex}&tmdb_id=${tmdbId}`);
+  }catch(e){toast(e.message)}
+}
+function currentKey(){ const m=state.current; if(!m) throw new Error('No media selected'); return {type:m.type||state.type,db:m.db_index,tmdb:m.tmdb_id}; }
+function allQualities(){ const m=state.current; if(!m) return []; if((m.type||state.type)==='movie') return m.telegram||[]; let out=[]; (m.seasons||[]).forEach(s=>(s.episodes||[]).forEach(ep=>(ep.telegram||[]).forEach(q=>out.push({...q,_season:s.season_number,_episode:ep.episode_number,_episodeTitle:ep.title})))); return out; }
+function fillForm(){
+  const m=state.current, type=m.type||state.type;
+  $('heroTitle').textContent=m.title||'Untitled'; $('heroDesc').textContent=m.description||'';
+  $('heroBackdrop').style.backgroundImage=`url('${m.backdrop||m.poster||''}')`; $('heroPoster').style.backgroundImage=`url('${m.poster||m.backdrop||''}')`;
+  const qualities=allQualities(); const subs=qualities.reduce((n,q)=>n+(q.subtitles||[]).length,0);
+  $('heroChips').innerHTML = `<span class="chip good">${esc(type)}</span><span class="chip">${qualities.length} files</span><span class="chip">${subs} subs</span><span class="chip">DB ${m.db_index}</span><span class="chip">TMDb ${m.tmdb_id}</span>`;
+  $('fTitle').value=m.title||''; $('fYear').value=m.release_year||''; $('fRating').value=m.rating||''; $('fRuntime').value= type==='movie' ? (m.runtime||'') : `${m.total_seasons||0} seasons / ${m.total_episodes||0} eps`; $('fRip').value=m.rip||'';
+  $('fLanguages').value=(m.languages||[]).join(', '); $('fGenres').value=(m.genres||[]).join(', '); $('fDescription').value=m.description||''; $('fPoster').value=m.poster||''; $('fBackdrop').value=m.backdrop||'';
+  $('fCast').value=(m.cast||[]).map(c=>[c.name,c.character||c.role,c.profile_path||c.profile||c.image,c.id].filter(v=>v!==undefined&&v!==null).join(' | ')).join('\n');
+  renderFiles(); renderSubs(); applyImagePreview();
+}
+function renderFiles(){
+  const qs=allQualities(); $('fileCount').textContent=`${qs.length} files`;
+  $('fileList').innerHTML = qs.map(q=>`
+    <div class="item">
+      <div class="thumb">🎞</div><div class="itxt"><b>${esc(q.name)}</b><small>${esc(q.quality)} • ${esc(q.size)} ${q.abyss?'• Abyss':''}${q._season?` • S${q._season}E${q._episode}`:''}</small></div>
+      <button class="tiny" onclick='editFile(${JSON.stringify(q).replace(/'/g,"&#39;")})'>✎</button><button class="tiny danger" onclick='confirmDeleteFile(${JSON.stringify(q).replace(/'/g,"&#39;")})'>⌫</button>
+    </div>`).join('') || `<div class="empty">No video files</div>`;
+  $('newSubTarget').innerHTML = `<option value="all">All qualities</option>` + qs.map(q=>`<option value="${esc(q.id)}">${esc(q.quality)} • ${esc(q.name).slice(0,42)}</option>`).join('');
+}
+function renderSubs(){
+  const qs=allQualities(); let rows=[];
+  qs.forEach(q=>(q.subtitles||[]).forEach(s=>rows.push({q,s})));
+  $('subCount').textContent=`${rows.length} subs`;
+  $('subList').innerHTML = rows.map(({q,s})=>`
+    <div class="item"><div class="thumb">💬</div><div class="itxt"><b>${esc(s.name)}</b><small>${esc(s.language||'Unknown')} • ${esc((s.format||'srt').toUpperCase())} • ${esc(q.quality)}${q._season?` • S${q._season}E${q._episode}`:''}</small></div>
+      <button class="tiny" onclick='editSub(${JSON.stringify(q).replace(/'/g,"&#39;")},${JSON.stringify(s).replace(/'/g,"&#39;")})'>✎</button><button class="tiny danger" onclick='confirmDeleteSub(${JSON.stringify(q).replace(/'/g,"&#39;")},${JSON.stringify(s).replace(/'/g,"&#39;")})'>⌫</button></div>`).join('') || `<div class="empty">No subtitles</div>`;
+}
+function applyImagePreview(){ $('heroBackdrop').style.backgroundImage=`url('${$('fBackdrop').value || $('fPoster').value}')`; $('heroPoster').style.backgroundImage=`url('${$('fPoster').value || $('fBackdrop').value}')`; }
+async function saveDetails(){
+  try{ const k=currentKey(); const payload={title:$('fTitle').value,release_year:$('fYear').value,rating:$('fRating').value,rip:$('fRip').value,languages:$('fLanguages').value,genres:$('fGenres').value,description:$('fDescription').value,poster:$('fPoster').value,backdrop:$('fBackdrop').value,cast:$('fCast').value}; if(k.type==='movie') payload.runtime=$('fRuntime').value; state.current=await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}`,{method:'PATCH',body:JSON.stringify(payload)}).then(d=>d.media); fillForm(); toast('Saved'); }catch(e){toast(e.message)}
+}
+function suffixFor(q){ return q._season ? `?season_number=${q._season}&episode_number=${q._episode}` : ''; }
+function appendParam(url,key,value){ return url + (url.includes('?')?'&':'?') + encodeURIComponent(key) + '=' + encodeURIComponent(value); }
+function editFile(q){ openModal(`<h3>Edit video file</h3><p>${esc(q.id)}</p><label>Quality</label><input id="mQuality" value="${esc(q.quality)}"><label>Size</label><input id="mSize" value="${esc(q.size)}"><label>File name</label><textarea id="mName">${esc(q.name)}</textarea><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick='saveFile(${JSON.stringify(q).replace(/'/g,"&#39;")})'>Save file</button></div>`); }
+async function saveFile(q){ try{ const k=currentKey(); await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/files/${encodeURIComponent(q.id)}${suffixFor(q)}`,{method:'PATCH',body:JSON.stringify({quality:$('mQuality').value,size:$('mSize').value,name:$('mName').value})}); closeModal(); await reloadCurrent(); toast('File saved'); }catch(e){toast(e.message)} }
+function confirmDeleteFile(q){ const obj=JSON.stringify(q).replace(/'/g,"&#39;"); openModal(`<h3 class="dangertext">Delete video file?</h3><p>Choose how to delete this saved quality.</p><div class="kbd">${esc(q.name)}</div><div class="delete-note">DB only keeps the Telegram channel file. Telegram + DB tries to delete the Telegram video message and linked subtitles too, then removes the DB row.</div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick='deleteFile(${obj},false)'>DB only</button><button class="btn danger" onclick='deleteFile(${obj},true)'>Telegram + DB</button></div>`); }
+async function deleteFile(q,telegramToo=false){ try{ const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/files/${encodeURIComponent(q.id)}${suffixFor(q)}`; if(telegramToo) url=appendParam(url,'delete_telegram','true'); const res=await api(url,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `File deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'File deleted from DB only'); }catch(e){toast(e.message)} }
+function editSub(q,s){ openModal(`<h3>Edit subtitle</h3><p>${esc(s.id)}</p><label>Language</label><input id="sLang" value="${esc(s.language||'Unknown')}"><label>Format</label><input id="sFmt" value="${esc(s.format||'srt')}"><label>File name</label><textarea id="sName">${esc(s.name)}</textarea><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick='saveSub(${JSON.stringify(q).replace(/'/g,"&#39;")},${JSON.stringify(s).replace(/'/g,"&#39;")})'>Save subtitle</button></div>`); }
+async function saveSub(q,s){ try{ const k=currentKey(); const extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'PATCH',body:JSON.stringify({language:$('sLang').value,format:$('sFmt').value,name:$('sName').value,label:`${$('sLang').value} • ${$('sFmt').value.toUpperCase()}`})}); closeModal(); await reloadCurrent(); toast('Subtitle saved'); }catch(e){toast(e.message)} }
+function confirmDeleteSub(q,s){ const qObj=JSON.stringify(q).replace(/'/g,"&#39;"), sObj=JSON.stringify(s).replace(/'/g,"&#39;"); openModal(`<h3 class="dangertext">Delete subtitle?</h3><p>Choose DB only or remove the Telegram subtitle file too.</p><div class="kbd">${esc(s.name)}</div><div class="delete-note">DB only removes subtitle from FilmsClub. Telegram + DB also tries to delete the original subtitle message from Telegram.</div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},false)'>DB only</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},true)'>Telegram + DB</button></div>`); }
+async function deleteSub(q,s,telegramToo=false){ try{ const k=currentKey(); let extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; if(telegramToo) extra += '&delete_telegram=true'; const res=await api(extra,`${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `Subtitle deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Subtitle deleted from DB only'); }catch(e){toast(e.message)} }
+async function addSub(){ try{ const k=currentKey(); await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles`,{method:'POST',body:JSON.stringify({target_file_id:$('newSubTarget').value,id:$('newSubId').value,name:$('newSubName').value,language:$('newSubLang').value,format:$('newSubFmt').value})}); await reloadCurrent(); toast('Subtitle added'); }catch(e){toast(e.message)} }
+async function deleteMedia(telegramToo=false){ try{ if($('deleteConfirm').value!=='DELETE') return toast('Type DELETE first'); const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}`; if(telegramToo) url=appendParam(url,'delete_telegram','true'); const res=await api(url,{method:'DELETE'}); toast(telegramToo ? `Media deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Media deleted from DB only'); state.current=null; backToList(); history.replaceState(null,'','/admin'); await loadList(); }catch(e){toast(e.message)} }
+async function reloadCurrent(){ if(!state.current){return loadList()} const k=currentKey(); await openMedia(k.type,k.db,k.tmdb); }
+function openDirect(){ openModal(`<h3>Open media by ID</h3><label>Type</label><select id="dType"><option value="movie">movie</option><option value="tv">tv</option><option value="anime">anime</option></select><div class="grid2"><div><label>DB index</label><input id="dDb" value="1"></div><div><label>TMDb ID</label><input id="dTmdb"></div></div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="closeModal();openMedia($('dType').value,$('dDb').value,$('dTmdb').value)">Open</button></div>`); }
+function openModal(html){ $('modalBody').innerHTML=html; $('modal').classList.add('show'); }
+function closeModal(){ $('modal').classList.remove('show'); }
+async function loadFromQueryOrList(){ const u=loginStoreGet('filmsclub_admin_username'), p=loginStoreGet('filmsclub_admin_password'); if(u){ $('adminUser').value=u; } if(p){ $('adminPass').value=p; $('secretBox').classList.add('hidden'); } setType(state.type); const dbi=qs.get('db_index'), tm=qs.get('tmdb_id'); if(dbi && tm){ await openMedia(state.type,dbi,tm); } else { await loadList(); } }
+loadFromQueryOrList();
+</script>
+</body>
+</html>

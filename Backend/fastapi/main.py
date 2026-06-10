@@ -49,6 +49,600 @@ class_cache = {}
 templates = Jinja2Templates(directory="Backend/fastapi/templates")
 
 
+# Admin Panel Routes
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_panel(request: Request):
+    """Serve the admin panel HTML"""
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
+# Admin API Authentication
+def verify_admin_auth(request: Request):
+    """Verify admin authentication from headers"""
+    username = request.headers.get("x-admin-username")
+    password = request.headers.get("x-admin-password")
+    
+    if not username or not password:
+        raise HTTPException(status_code=401, detail="Missing authentication headers")
+    
+    if username != Telegram.ADMIN_WEB_USERNAME or password != Telegram.ADMIN_WEB_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid admin credentials")
+    
+    return True
+
+
+# Admin API Endpoints
+@app.get("/admin/api/media")
+async def admin_list_media(
+    request: Request,
+    media_type: str = Query("movie"),
+    query: str = Query(""),
+    page: int = Query(1),
+    page_size: int = Query(30)
+):
+    """List media with search and pagination"""
+    verify_admin_auth(request)
+    
+    try:
+        # Query database for media
+        skip = (page - 1) * page_size
+        
+        if query:
+            # Search by title
+            cursor = db.media.find({
+                "title": {"$regex": query, "$options": "i"},
+                "type": media_type
+            })
+        else:
+            # Get all media of type
+            cursor = db.media.find({"type": media_type})
+        
+        total_count = await db.media.count_documents(
+            {"title": {"$regex": query, "$options": "i"}, "type": media_type} if query else {"type": media_type}
+        )
+        
+        items = await cursor.skip(skip).limit(page_size).to_list(length=page_size)
+        
+        # Format items
+        formatted_items = []
+        for item in items:
+            formatted_items.append({
+                "db_index": item.get("db_index", 1),
+                "tmdb_id": item.get("tmdb_id", ""),
+                "title": item.get("title", ""),
+                "release_year": item.get("year", ""),
+                "poster": item.get("poster", ""),
+                "backdrop": item.get("backdrop", ""),
+                "languages": item.get("languages", []),
+                "file_count": len(item.get("telegram", [])),
+                "subtitle_count": sum(len(q.get("subtitles", [])) for q in item.get("telegram", []))
+            })
+        
+        return {
+            "items": formatted_items,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size
+        }
+    except Exception as e:
+        LOGGER.error(f"Error listing media: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/api/media/{media_type}/{db_index}/{tmdb_id}")
+async def admin_get_media(request: Request, media_type: str, db_index: int, tmdb_id: str):
+    """Get specific media details"""
+    verify_admin_auth(request)
+    
+    try:
+        media = await db.media.find_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        return media
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error getting media: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/admin/api/media/{media_type}/{db_index}/{tmdb_id}")
+async def admin_update_media(request: Request, media_type: str, db_index: int, tmdb_id: str, payload: dict):
+    """Update media details"""
+    verify_admin_auth(request)
+    
+    try:
+        update_data = {}
+        
+        if "title" in payload:
+            update_data["title"] = payload["title"]
+        if "release_year" in payload:
+            update_data["year"] = payload["release_year"]
+        if "rating" in payload:
+            update_data["rate"] = payload["rating"]
+        if "rip" in payload:
+            update_data["rip"] = payload["rip"]
+        if "languages" in payload:
+            update_data["languages"] = [lang.strip() for lang in payload["languages"].split(",")]
+        if "genres" in payload:
+            update_data["genres"] = [genre.strip() for genre in payload["genres"].split(",")]
+        if "description" in payload:
+            update_data["description"] = payload["description"]
+        if "poster" in payload:
+            update_data["poster"] = payload["poster"]
+        if "backdrop" in payload:
+            update_data["backdrop"] = payload["backdrop"]
+        if "cast" in payload:
+            # Parse cast from format: Name | Role | Image URL | TMDB ID
+            cast_list = []
+            for line in payload["cast"].strip().split("\n"):
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 1:
+                    cast_member = {"name": parts[0]}
+                    if len(parts) >= 2:
+                        cast_member["character"] = parts[1]
+                    if len(parts) >= 3:
+                        cast_member["profile_path"] = parts[2]
+                    if len(parts) >= 4:
+                        cast_member["id"] = int(parts[3])
+                    cast_list.append(cast_member)
+            update_data["cast"] = cast_list
+        if "runtime" in payload and media_type == "movie":
+            update_data["runtime"] = payload["runtime"]
+        
+        if update_data:
+            await db.media.update_one(
+                {"db_index": db_index, "tmdb_id": tmdb_id, "type": media_type},
+                {"$set": update_data}
+            )
+        
+        updated_media = await db.media.find_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        return {"media": updated_media, "updated": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error updating media: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/api/media/{media_type}/{db_index}/{tmdb_id}")
+async def admin_delete_media(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    delete_telegram: bool = Query(False)
+):
+    """Delete media"""
+    verify_admin_auth(request)
+    
+    try:
+        media = await db.media.find_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        telegram_deleted = 0
+        telegram_total = 0
+        
+        if delete_telegram:
+            # Delete Telegram messages
+            for quality in media.get("telegram", []):
+                telegram_total += 1
+                try:
+                    if "file_id" in quality:
+                        await StreamBot.delete_messages(quality.get("chat_id"), quality.get("message_id"))
+                        telegram_deleted += 1
+                except Exception as e:
+                    LOGGER.warning(f"Failed to delete Telegram message: {e}")
+        
+        # Delete from database
+        await db.media.delete_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        return {
+            "deleted": True,
+            "telegram_deleted": telegram_deleted,
+            "telegram_total": telegram_total
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error deleting media: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/admin/api/media/{media_type}/{db_index}/{tmdb_id}/files/{file_id}")
+async def admin_update_file(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    file_id: str,
+    season_number: int = Query(None),
+    episode_number: int = Query(None),
+    payload: dict = None
+):
+    """Update file details"""
+    verify_admin_auth(request)
+    
+    try:
+        media = await db.media.find_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        # Build update query
+        update_query = {}
+        if media_type == "tv":
+            # For TV series, navigate through seasons and episodes
+            season_match = {"season_number": season_number}
+            episode_match = {"episode_number": episode_number}
+            file_match = {"telegram.$[elem].file_id": file_id}
+            
+            update_query = {
+                "telegram.$[elem].quality": payload.get("quality"),
+                "telegram.$[elem].size": payload.get("size"),
+                "telegram.$[elem].name": payload.get("name")
+            }
+        else:
+            # For movies, direct file update
+            update_query = {
+                "telegram.$[elem].quality": payload.get("quality"),
+                "telegram.$[elem].size": payload.get("size"),
+                "telegram.$[elem].name": payload.get("name")
+            }
+        
+        # Update the file
+        result = await db.media.update_one(
+            {
+                "db_index": db_index,
+                "tmdb_id": tmdb_id,
+                "type": media_type,
+                "telegram.file_id": file_id
+            },
+            {"$set": update_query}
+        )
+        
+        return {"updated": result.modified_count > 0}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error updating file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/api/media/{media_type}/{db_index}/{tmdb_id}/files/{file_id}")
+async def admin_delete_file(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    file_id: str,
+    season_number: int = Query(None),
+    episode_number: int = Query(None),
+    delete_telegram: bool = Query(False)
+):
+    """Delete file"""
+    verify_admin_auth(request)
+    
+    try:
+        media = await db.media.find_one({
+            "db_index": db_index,
+            "tmdb_id": tmdb_id,
+            "type": media_type
+        })
+        
+        if not media:
+            raise HTTPException(status_code=404, detail="Media not found")
+        
+        telegram_deleted = 0
+        telegram_total = 0
+        
+        if delete_telegram:
+            # Delete Telegram message for this file
+            for quality in media.get("telegram", []):
+                if quality.get("file_id") == file_id:
+                    telegram_total += 1
+                    try:
+                        await StreamBot.delete_messages(quality.get("chat_id"), quality.get("message_id"))
+                        telegram_deleted += 1
+                    except Exception as e:
+                        LOGGER.warning(f"Failed to delete Telegram message: {e}")
+        
+        # Remove file from database
+        await db.media.update_one(
+            {
+                "db_index": db_index,
+                "tmdb_id": tmdb_id,
+                "type": media_type
+            },
+            {"$pull": {"telegram": {"file_id": file_id}}}
+        )
+        
+        return {
+            "deleted": True,
+            "telegram_deleted": telegram_deleted,
+            "telegram_total": telegram_total
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error deleting file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/api/media/{media_type}/{db_index}/{tmdb_id}/subtitles")
+async def admin_add_subtitle(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    payload: dict
+):
+    """Add subtitle to media"""
+    verify_admin_auth(request)
+    
+    try:
+        subtitle_data = {
+            "id": payload.get("id"),
+            "name": payload.get("name"),
+            "language": payload.get("language"),
+            "format": payload.get("format", "srt"),
+            "label": f"{payload.get('language')} • {payload.get('format', 'srt').upper()}"
+        }
+        
+        # Add subtitle to the target file
+        if payload.get("target_file_id") == "all":
+            # Add to all files
+            await db.media.update_one(
+                {
+                    "db_index": db_index,
+                    "tmdb_id": tmdb_id,
+                    "type": media_type
+                },
+                {"$push": {"telegram.$[].subtitles": subtitle_data}}
+            )
+        else:
+            # Add to specific file
+            await db.media.update_one(
+                {
+                    "db_index": db_index,
+                    "tmdb_id": tmdb_id,
+                    "type": media_type,
+                    "telegram.file_id": payload.get("target_file_id")
+                },
+                {"$push": {"telegram.$.subtitles": subtitle_data}}
+            )
+        
+        return {"added": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error adding subtitle: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/admin/api/media/{media_type}/{db_index}/{tmdb_id}/subtitles/{subtitle_id}")
+async def admin_update_subtitle(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    subtitle_id: str,
+    file_id: str = Query(None),
+    season_number: int = Query(None),
+    episode_number: int = Query(None),
+    payload: dict = None
+):
+    """Update subtitle details"""
+    verify_admin_auth(request)
+    
+    try:
+        update_data = {
+            "telegram.$[elem].subtitles.$[sub].language": payload.get("language"),
+            "telegram.$[elem].subtitles.$[sub].format": payload.get("format"),
+            "telegram.$[elem].subtitles.$[sub].name": payload.get("name"),
+            "telegram.$[elem].subtitles.$[sub].label": f"{payload.get('language')} • {payload.get('format', 'srt').upper()}"
+        }
+        
+        await db.media.update_one(
+            {
+                "db_index": db_index,
+                "tmdb_id": tmdb_id,
+                "type": media_type,
+                "telegram.subtitles.id": subtitle_id
+            },
+            {"$set": update_data}
+        )
+        
+        return {"updated": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error updating subtitle: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/api/media/{media_type}/{db_index}/{tmdb_id}/subtitles/{subtitle_id}")
+async def admin_delete_subtitle(
+    request: Request,
+    media_type: str,
+    db_index: int,
+    tmdb_id: str,
+    subtitle_id: str,
+    file_id: str = Query(None),
+    season_number: int = Query(None),
+    episode_number: int = Query(None),
+    delete_telegram: bool = Query(False)
+):
+    """Delete subtitle"""
+    verify_admin_auth(request)
+    
+    try:
+        telegram_deleted = 0
+        telegram_total = 0
+        
+        if delete_telegram:
+            # Delete Telegram message for subtitle
+            media = await db.media.find_one({
+                "db_index": db_index,
+                "tmdb_id": tmdb_id,
+                "type": media_type
+            })
+            
+            for quality in media.get("telegram", []):
+                for sub in quality.get("subtitles", []):
+                    if sub.get("id") == subtitle_id:
+                        telegram_total += 1
+                        try:
+                            await StreamBot.delete_messages(quality.get("chat_id"), sub.get("message_id"))
+                            telegram_deleted += 1
+                        except Exception as e:
+                            LOGGER.warning(f"Failed to delete Telegram subtitle: {e}")
+        
+        # Remove subtitle from database
+        await db.media.update_one(
+            {
+                "db_index": db_index,
+                "tmdb_id": tmdb_id,
+                "type": media_type
+            },
+            {"$pull": {"telegram.$[].subtitles": {"id": subtitle_id}}}
+        )
+        
+        return {
+            "deleted": True,
+            "telegram_deleted": telegram_deleted,
+            "telegram_total": telegram_total
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error deleting subtitle: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Admin Command Endpoints
+@app.post("/admin/api/commands/set")
+async def admin_set_default_id(request: Request, payload: dict):
+    """Set default ID for metadata fetching"""
+    verify_admin_auth(request)
+    
+    try:
+        default_id = payload.get("default_id")
+        if default_id:
+            Telegram.USE_DEFAULT_ID = default_id
+            return {"set": True, "default_id": default_id}
+        else:
+            Telegram.USE_DEFAULT_ID = None
+            return {"set": True, "default_id": None}
+    except Exception as e:
+        LOGGER.error(f"Error setting default ID: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/api/commands/rescan")
+async def admin_rescan_channel(request: Request, payload: dict):
+    """Trigger channel rescan"""
+    verify_admin_auth(request)
+    
+    try:
+        channel_index = payload.get("channel_index", 0)
+        limit = payload.get("limit", 100)
+        
+        # Import rescan function from start.py
+        from Backend.pyrofork.plugins.start import rescan_channel
+        
+        # Trigger rescan in background
+        asyncio.create_task(rescan_channel(None, channel_index, limit))
+        
+        return {"started": True, "channel_index": channel_index, "limit": limit}
+    except Exception as e:
+        LOGGER.error(f"Error triggering rescan: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/api/analytics")
+async def admin_get_analytics(request: Request):
+    """Get system analytics"""
+    verify_admin_auth(request)
+    
+    try:
+        # Get media counts
+        movie_count = await db.media.count_documents({"type": "movie"})
+        tv_count = await db.media.count_documents({"type": "tv"})
+        anime_count = await db.media.count_documents({"is_anime": True})
+        
+        # Get total files
+        total_files = 0
+        total_subtitles = 0
+        
+        async for media in db.media.find({}):
+            total_files += len(media.get("telegram", []))
+            for quality in media.get("telegram", []):
+                total_subtitles += len(quality.get("subtitles", []))
+        
+        # Get cache stats
+        cache_stats = get_all_cache_stats()
+        
+        return {
+            "media": {
+                "movies": movie_count,
+                "tv_series": tv_count,
+                "anime": anime_count,
+                "total": movie_count + tv_count
+            },
+            "files": {
+                "total": total_files,
+                "subtitles": total_subtitles
+            },
+            "cache": cache_stats,
+            "system": {
+                "version": __version__,
+                "uptime": str(get_readable_time(time() - StartTime))
+            }
+        }
+    except Exception as e:
+        LOGGER.error(f"Error getting analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/api/commands/clear-cache")
+async def admin_clear_cache(request: Request):
+    """Clear all caches"""
+    verify_admin_auth(request)
+    
+    try:
+        await clear_all_caches()
+        return {"cleared": True}
+    except Exception as e:
+        LOGGER.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
