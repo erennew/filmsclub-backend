@@ -83,6 +83,38 @@ async def fetch_anime_from_jikan(title: str) -> dict:
         return None
 
 
+def _ensure_anime_genre(genres) -> list:
+    """Return a genre list that always contains an 'Anime' tag.
+
+    AniList/Jikan sometimes tag content only as 'Animation' (or omit it), which
+    breaks the anime section's genre match. We normalise by always adding 'Anime'.
+    """
+    normalized = [g for g in (genres or []) if g]
+    if not any(str(g).strip().lower() == "anime" for g in normalized):
+        normalized.append("Anime")
+    return normalized
+
+
+async def _log_metadata_failure(title: str, reason: str) -> None:
+    """Best-effort persist of a metadata lookup failure to the failed_files log."""
+    try:
+        if getattr(Backend, "db", None) is not None:
+            await Backend.db.log_failed_file(title=title, filename=title, reason=reason)
+    except Exception as e:
+        LOGGER.debug(f"Could not log metadata failure for '{title}': {e}")
+
+
+def _jikan_poster(images) -> str:
+    """Safely pick the best available Jikan poster URL with a fallback chain."""
+    if not images:
+        return ""
+    for attr in ("jpg_large", "jpg_image", "jpg_small", "webp_large", "webp_image", "webp_small"):
+        value = getattr(images, attr, None)
+        if value:
+            return value
+    return ""
+
+
 def format_anilist_to_standard(anime_data, season_number: int, episode_number: int, episode_title: str = None, group_name: str = None, has_season: bool = False) -> dict:
     """Format AniList data to standard metadata format"""
     if not anime_data:
@@ -99,12 +131,7 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
         ratings = anime_data.ratings if hasattr(anime_data, 'ratings') else None
         rate = ratings.average if ratings else 0
         
-        genres = anime_data.genres if hasattr(anime_data, 'genres') else []
-        # Ensure "Anime" is always added as a genre tag for AniList sourced content
-        if genres and "Anime" not in genres:
-            genres.append("Anime")
-        elif not genres:
-            genres = ["Anime"]
+        genres = _ensure_anime_genre(anime_data.genres if hasattr(anime_data, 'genres') else [])
 
         # Format cast data
         cast = []
@@ -171,16 +198,8 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
 
         # Safe image field access with fallback chain
         images = anime_data.images if hasattr(anime_data, 'images') else None
-        poster = ''
-        if images:
-            poster = getattr(images, 'jpg_large', None) or getattr(images, 'jpg_image', None) or getattr(images, 'jpg', None) or getattr(images, 'webp_large', None) or getattr(images, 'webp_image', None) or ''
-
-        genres = anime_data.genres if hasattr(anime_data, 'genres') else []
-        # Ensure "Anime" is always added as a genre tag for Jikan sourced content
-        if genres and "Anime" not in genres:
-            genres.append("Anime")
-        elif not genres:
-            genres = ["Anime"]
+        poster = _jikan_poster(images)
+        mal_id = anime_data.id if hasattr(anime_data, 'id') else 0
 
         # Format cast data
         cast = []
@@ -196,7 +215,8 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
                     })
         
         return {
-            "tmdb_id": anime_data.id if hasattr(anime_data, 'id') else 0,
+            "tmdb_id": mal_id,
+            "mal_id": mal_id,
             "title": show_title,
             "year": anime_data.year if hasattr(anime_data, 'year') else 0,
             "rate": anime_data.score if hasattr(anime_data, 'score') else 0,
@@ -206,7 +226,7 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
             "poster": poster,
             "backdrop": '',
             "status": anime_data.status if hasattr(anime_data, 'status') else 'Ongoing',
-            "genres": anime_data.genres if hasattr(anime_data, 'genres') else [],
+            "genres": _ensure_anime_genre(anime_data.genres if hasattr(anime_data, 'genres') else []),
             "media_type": "tv",
             "season_number": season_number,
             "episode_number": episode_number,
@@ -735,9 +755,11 @@ async def fetch_anime_metadata(title: str, season_number: int, episode_number: i
                     use_tmdb = True
                 else:
                     LOGGER.warning(f"No results found for anime '{title}'")
+                    await _log_metadata_failure(title, "Anime not found (AniList/Jikan/TMDB all failed)")
                     return None
             except Exception as e:
                 LOGGER.error(f"TMDB search failed for anime '{title}': {e}")
+                await _log_metadata_failure(title, f"Anime TMDB search failed: {e}")
                 return None
         else:
             use_tmdb = False

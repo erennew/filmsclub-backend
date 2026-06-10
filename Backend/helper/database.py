@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 from bson import ObjectId
 from fastapi import HTTPException
@@ -19,6 +19,7 @@ class Database:
         self.tv_collection = None
         self.movie_collection = None
         self.deploy_config = None
+        self.failed_files_collection = None
         self.connection_uri = connection_uri
         self.db_name = db_name
 
@@ -43,7 +44,7 @@ class Database:
             self.deploy_config = self.db["deploy_config"]
             self.views_collection = self.db["views"]
             self.replaced_versions = self.db["replaced_versions"]  # Backup collection for replaced files
-            self.failed_files_collection = self.db["failed_files"]  # Collection for failed/skipped files
+            self.failed_files_collection = self.db["failed_files"]  # Persistent log of failed/skipped ingestions
 
             # Create index for efficient trending queries
             await self.views_collection.create_index([("date", DESCENDING), ("count", DESCENDING)])
@@ -611,7 +612,7 @@ class Database:
         skip = (page - 1) * limit
 
         anime_pipeline = [
-            {"$match": {"genres": {"$in": ["Animation", "Anime", "anime"]}}},
+            {"$match": {"genres": {"$in": ["Animation", "Anime", "anime", "animation"]}}},
             {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
@@ -642,8 +643,8 @@ class Database:
 
         kdrama_pipeline = [
             {"$match": {
-                "languages": {"$in": ["Korean", "ko", "korean"]},
-                "genres": {"$in": ["Drama", "Korean Drama"]}
+                "languages": {"$in": ["Korean", "ko", "korean", "kor"]},
+                "genres": {"$in": ["Drama", "Korean Drama", "drama", "K-Drama", "Kdrama"]}
             }},
             {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
             {"$facet": {
@@ -882,74 +883,160 @@ class Database:
             LOGGER.error(f"Error backing up replaced version: {e}")
             return False
 
-    async def log_failed_file(self, title: str, filename: str, reason: str, metadata_info: dict = None) -> bool:
-        """
-        Log a failed or skipped file to the failed_files collection.
-        """
-        try:
-            failed_entry = {
-                "title": title,
-                "filename": filename,
-                "reason": reason,
-                "timestamp": datetime.utcnow(),
-                "metadata_info": metadata_info or {}
-            }
+    # =========================================================================
+    # FAILED FILE LOGGING
+    # =========================================================================
+    async def log_failed_file(
+        self,
+        title: str,
+        filename: str,
+        reason: str,
+        metadata_info: Optional[dict] = None,
+        channel: Optional[int] = None,
+        msg_id: Optional[int] = None,
+        retry_count: int = 0,
+    ) -> Optional[ObjectId]:
+        """Persist a failed/skipped ingestion to the failed_files collection.
 
-            result = await self.failed_files_collection.insert_one(failed_entry)
-            if result.inserted_id:
-                LOGGER.info(f"📝 Logged failed file: {title} - Reason: {reason}")
-                return True
-            else:
-                LOGGER.error(f"Failed to log failed file: {title}")
-                return False
+        Returns the inserted ObjectId, or None when the DB is unavailable so
+        callers never crash the queue worker because of a logging failure.
+        """
+        if self.failed_files_collection is None:
+            LOGGER.warning("Cannot log failed file: database not connected")
+            return None
+
+        metadata_info = metadata_info or {}
+        tmdb_id = metadata_info.get("tmdb_id")
+        media_type = metadata_info.get("media_type")
+        try:
+            doc = {
+                "title": title or metadata_info.get("title") or filename or "Unknown",
+                "filename": filename or "",
+                "reason": reason or "Unknown",
+                "tmdb_id": tmdb_id,
+                "media_type": media_type,
+                "season_number": metadata_info.get("season_number"),
+                "episode_number": metadata_info.get("episode_number"),
+                "channel": channel,
+                "msg_id": msg_id,
+                "retry_count": retry_count,
+                "metadata_info": metadata_info or None,
+                "timestamp": datetime.utcnow(),
+            }
+            result = await self.failed_files_collection.insert_one(doc)
+            LOGGER.info(f"📝 Logged failed file '{doc['title'][:50]}' (reason: {reason})")
+            return result.inserted_id
         except Exception as e:
             LOGGER.error(f"Error logging failed file: {e}")
-            return False
+            return None
 
-    async def get_failed_files(self, page: int = 1, page_size: int = 50, reason_filter: str = None,
-                               date_from: datetime = None, date_to: datetime = None) -> dict:
-        """
-        Retrieve failed files with pagination and optional filtering.
-        """
+    async def get_failed_files(
+        self,
+        page: int = 1,
+        page_size: int = 30,
+        reason_filter: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> dict:
+        """Return paginated failed files, newest first, with optional filters."""
+        if self.failed_files_collection is None:
+            return {"items": [], "total_count": 0, "page": page, "page_size": page_size}
+
+        query: dict = {}
+        if reason_filter:
+            query["reason"] = reason_filter
+
+        date_query: dict = {}
+        for bound, op in ((date_from, "$gte"), (date_to, "$lte")):
+            if not bound:
+                continue
+            try:
+                date_query[op] = datetime.fromisoformat(bound)
+            except (TypeError, ValueError):
+                LOGGER.warning(f"Ignoring invalid failed-files date filter: {bound}")
+        if date_query:
+            query["timestamp"] = date_query
+
         try:
-            query = {}
-            if reason_filter:
-                query["reason"] = {"$regex": reason_filter, "$options": "i"}
-            if date_from:
-                query["timestamp"] = query.get("timestamp", {})
-                query["timestamp"]["$gte"] = date_from
-            if date_to:
-                query["timestamp"] = query.get("timestamp", {})
-                query["timestamp"]["$lte"] = date_to
-
+            page = max(page, 1)
+            page_size = max(min(page_size, 200), 1)
             skip = (page - 1) * page_size
             total_count = await self.failed_files_collection.count_documents(query)
-
-            cursor = self.failed_files_collection.find(query).sort("timestamp", DESCENDING).skip(skip).limit(page_size)
-            failed_files = []
-            async for doc in cursor:
-                doc["_id"] = str(doc["_id"])
-                failed_files.append(doc)
-
+            cursor = (
+                self.failed_files_collection.find(query)
+                .sort("timestamp", DESCENDING)
+                .skip(skip)
+                .limit(page_size)
+            )
+            items = [self._convert_object_id(doc) for doc in await cursor.to_list(length=page_size)]
             return {
-                "items": failed_files,
+                "items": items,
                 "total_count": total_count,
                 "page": page,
                 "page_size": page_size,
-                "total_pages": (total_count + page_size - 1) // page_size
             }
         except Exception as e:
-            LOGGER.error(f"Error getting failed files: {e}")
-            return {"items": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 0}
+            LOGGER.error(f"Error fetching failed files: {e}")
+            return {"items": [], "total_count": 0, "page": page, "page_size": page_size}
 
-    async def clear_failed_files(self) -> bool:
-        """
-        Clear all failed file logs from the collection.
-        """
+    async def get_failed_file(self, file_id: str) -> Optional[dict]:
+        """Return a single failed file log entry by its string ObjectId."""
+        if self.failed_files_collection is None:
+            return None
+        try:
+            doc = await self.failed_files_collection.find_one({"_id": ObjectId(file_id)})
+            return self._convert_object_id(doc) if doc else None
+        except Exception as e:
+            LOGGER.error(f"Error fetching failed file {file_id}: {e}")
+            return None
+
+    async def delete_failed_file(self, file_id: str) -> bool:
+        """Delete a single failed file log entry by its string ObjectId."""
+        if self.failed_files_collection is None:
+            return False
+        try:
+            result = await self.failed_files_collection.delete_one({"_id": ObjectId(file_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            LOGGER.error(f"Error deleting failed file {file_id}: {e}")
+            return False
+
+    async def clear_failed_files(self) -> int:
+        """Delete all failed file log entries. Returns the number removed."""
+        if self.failed_files_collection is None:
+            return 0
         try:
             result = await self.failed_files_collection.delete_many({})
-            LOGGER.info(f"🗑️ Cleared {result.deleted_count} failed file logs")
-            return True
+            LOGGER.info(f"🧹 Cleared {result.deleted_count} failed file log entries")
+            return result.deleted_count
         except Exception as e:
             LOGGER.error(f"Error clearing failed files: {e}")
-            return False
+            return 0
+
+    async def count_failed_files(self, reason_filter: Optional[str] = None) -> int:
+        """Return the number of failed file log entries (optionally by reason)."""
+        if self.failed_files_collection is None:
+            return 0
+        try:
+            query = {"reason": reason_filter} if reason_filter else {}
+            return await self.failed_files_collection.count_documents(query)
+        except Exception as e:
+            LOGGER.error(f"Error counting failed files: {e}")
+            return 0
+
+    async def prune_failed_files(self, max_age_days: int = 30) -> int:
+        """Delete failed file logs older than max_age_days. Returns count removed.
+
+        max_age_days <= 0 disables pruning (retain forever).
+        """
+        if self.failed_files_collection is None or max_age_days <= 0:
+            return 0
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=max_age_days)
+            result = await self.failed_files_collection.delete_many({"timestamp": {"$lt": cutoff}})
+            if result.deleted_count:
+                LOGGER.info(f"🧹 Pruned {result.deleted_count} failed file logs older than {max_age_days}d")
+            return result.deleted_count
+        except Exception as e:
+            LOGGER.error(f"Error pruning failed files: {e}")
+            return 0

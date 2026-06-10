@@ -54,6 +54,51 @@ class_cache = {}
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
+# ---------------------------------------------------------------------------
+# Admin collection helpers
+# Media is stored in two collections ("movie" and "tv"); anime lives in "tv".
+# The legacy `db_index` path segment is no longer used for lookups.
+# ---------------------------------------------------------------------------
+def _admin_collection(media_type: str):
+    """Return the Mongo collection for an admin media_type ('movie' | 'tv' | 'anime')."""
+    return db.movie_collection if media_type == "movie" else db.tv_collection
+
+
+def _coerce_tmdb_id(tmdb_id):
+    """tmdb_id is stored as an int for TMDB records; cast where possible."""
+    try:
+        return int(tmdb_id)
+    except (TypeError, ValueError):
+        return tmdb_id
+
+
+def _admin_query(tmdb_id):
+    """Build a lookup filter for a single media document by tmdb_id."""
+    return {"tmdb_id": _coerce_tmdb_id(tmdb_id)}
+
+
+def _all_qualities(media: dict) -> list:
+    """Flatten all telegram quality entries for a movie or TV document."""
+    if not media:
+        return []
+    if media.get("type") == "movie" or "telegram" in media:
+        out = list(media.get("telegram", []) or [])
+        if out:
+            return out
+    out = []
+    for season in media.get("seasons", []) or []:
+        for episode in season.get("episodes", []) or []:
+            out.extend(episode.get("telegram", []) or [])
+    return out
+
+
+def _stringify_object_id(doc):
+    """Convert a Mongo document's _id (and any nested ObjectId) to a string."""
+    if isinstance(doc, dict) and "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
+
+
 # Admin Panel Routes
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
@@ -89,40 +134,35 @@ async def admin_list_media(
     verify_admin_auth(request)
     
     try:
-        # Query database for media
         skip = (page - 1) * page_size
-        
+        collection = _admin_collection(media_type)
+
+        mongo_query: dict = {}
         if query:
-            # Search by title
-            cursor = db.media.find({
-                "title": {"$regex": query, "$options": "i"},
-                "type": media_type
-            })
-        else:
-            # Get all media of type
-            cursor = db.media.find({"type": media_type})
-        
-        total_count = await db.media.count_documents(
-            {"title": {"$regex": query, "$options": "i"}, "type": media_type} if query else {"type": media_type}
-        )
-        
-        items = await cursor.skip(skip).limit(page_size).to_list(length=page_size)
-        
-        # Format items
+            mongo_query["title"] = {"$regex": query, "$options": "i"}
+        if media_type == "anime":
+            mongo_query["genres"] = {"$in": ["Animation", "Anime", "anime", "animation"]}
+
+        total_count = await collection.count_documents(mongo_query)
+        cursor = collection.find(mongo_query).sort("release_year", -1).skip(skip).limit(page_size)
+        items = await cursor.to_list(length=page_size)
+
         formatted_items = []
         for item in items:
+            qualities = _all_qualities(item)
             formatted_items.append({
                 "db_index": item.get("db_index", 1),
                 "tmdb_id": item.get("tmdb_id", ""),
                 "title": item.get("title", ""),
-                "release_year": item.get("year", ""),
+                "release_year": item.get("release_year") or item.get("year", ""),
                 "poster": item.get("poster", ""),
                 "backdrop": item.get("backdrop", ""),
                 "languages": item.get("languages", []),
-                "file_count": len(item.get("telegram", [])),
-                "subtitle_count": sum(len(q.get("subtitles", [])) for q in item.get("telegram", []))
+                "media_type": item.get("type", media_type),
+                "file_count": len(qualities),
+                "subtitle_count": sum(len(q.get("subtitles", [])) for q in qualities),
             })
-        
+
         return {
             "items": formatted_items,
             "total_count": total_count,
@@ -140,16 +180,12 @@ async def admin_get_media(request: Request, media_type: str, db_index: int, tmdb
     verify_admin_auth(request)
     
     try:
-        media = await db.media.find_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        media = await _admin_collection(media_type).find_one(_admin_query(tmdb_id))
         
         if not media:
             raise HTTPException(status_code=404, detail="Media not found")
         
-        return media
+        return _stringify_object_id(media)
     except HTTPException:
         raise
     except Exception as e:
@@ -201,19 +237,13 @@ async def admin_update_media(request: Request, media_type: str, db_index: int, t
         if "runtime" in payload and media_type == "movie":
             update_data["runtime"] = payload["runtime"]
         
+        collection = _admin_collection(media_type)
         if update_data:
-            await db.media.update_one(
-                {"db_index": db_index, "tmdb_id": tmdb_id, "type": media_type},
-                {"$set": update_data}
-            )
+            await collection.update_one(_admin_query(tmdb_id), {"$set": update_data})
         
-        updated_media = await db.media.find_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        updated_media = await collection.find_one(_admin_query(tmdb_id))
         
-        return {"media": updated_media, "updated": True}
+        return {"media": _stringify_object_id(updated_media), "updated": True}
     except HTTPException:
         raise
     except Exception as e:
@@ -233,11 +263,8 @@ async def admin_delete_media(
     verify_admin_auth(request)
     
     try:
-        media = await db.media.find_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        collection = _admin_collection(media_type)
+        media = await collection.find_one(_admin_query(tmdb_id))
         
         if not media:
             raise HTTPException(status_code=404, detail="Media not found")
@@ -247,7 +274,7 @@ async def admin_delete_media(
         
         if delete_telegram:
             # Delete Telegram messages
-            for quality in media.get("telegram", []):
+            for quality in _all_qualities(media):
                 telegram_total += 1
                 try:
                     if "file_id" in quality:
@@ -257,11 +284,7 @@ async def admin_delete_media(
                     LOGGER.warning(f"Failed to delete Telegram message: {e}")
         
         # Delete from database
-        await db.media.delete_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        await collection.delete_one(_admin_query(tmdb_id))
         
         return {
             "deleted": True,
@@ -290,11 +313,8 @@ async def admin_update_file(
     verify_admin_auth(request)
     
     try:
-        media = await db.media.find_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        collection = _admin_collection(media_type)
+        media = await collection.find_one(_admin_query(tmdb_id))
         
         if not media:
             raise HTTPException(status_code=404, detail="Media not found")
@@ -321,13 +341,8 @@ async def admin_update_file(
             }
         
         # Update the file
-        result = await db.media.update_one(
-            {
-                "db_index": db_index,
-                "tmdb_id": tmdb_id,
-                "type": media_type,
-                "telegram.file_id": file_id
-            },
+        result = await collection.update_one(
+            {**_admin_query(tmdb_id), "telegram.file_id": file_id},
             {"$set": update_query}
         )
         
@@ -354,11 +369,8 @@ async def admin_delete_file(
     verify_admin_auth(request)
     
     try:
-        media = await db.media.find_one({
-            "db_index": db_index,
-            "tmdb_id": tmdb_id,
-            "type": media_type
-        })
+        collection = _admin_collection(media_type)
+        media = await collection.find_one(_admin_query(tmdb_id))
         
         if not media:
             raise HTTPException(status_code=404, detail="Media not found")
@@ -368,7 +380,7 @@ async def admin_delete_file(
         
         if delete_telegram:
             # Delete Telegram message for this file
-            for quality in media.get("telegram", []):
+            for quality in _all_qualities(media):
                 if quality.get("file_id") == file_id:
                     telegram_total += 1
                     try:
@@ -378,12 +390,8 @@ async def admin_delete_file(
                         LOGGER.warning(f"Failed to delete Telegram message: {e}")
         
         # Remove file from database
-        await db.media.update_one(
-            {
-                "db_index": db_index,
-                "tmdb_id": tmdb_id,
-                "type": media_type
-            },
+        await collection.update_one(
+            _admin_query(tmdb_id),
             {"$pull": {"telegram": {"file_id": file_id}}}
         )
         
@@ -420,25 +428,17 @@ async def admin_add_subtitle(
         }
         
         # Add subtitle to the target file
+        collection = _admin_collection(media_type)
         if payload.get("target_file_id") == "all":
             # Add to all files
-            await db.media.update_one(
-                {
-                    "db_index": db_index,
-                    "tmdb_id": tmdb_id,
-                    "type": media_type
-                },
+            await collection.update_one(
+                _admin_query(tmdb_id),
                 {"$push": {"telegram.$[].subtitles": subtitle_data}}
             )
         else:
             # Add to specific file
-            await db.media.update_one(
-                {
-                    "db_index": db_index,
-                    "tmdb_id": tmdb_id,
-                    "type": media_type,
-                    "telegram.file_id": payload.get("target_file_id")
-                },
+            await collection.update_one(
+                {**_admin_query(tmdb_id), "telegram.file_id": payload.get("target_file_id")},
                 {"$push": {"telegram.$.subtitles": subtitle_data}}
             )
         
@@ -473,13 +473,8 @@ async def admin_update_subtitle(
             "telegram.$[elem].subtitles.$[sub].label": f"{payload.get('language')} • {payload.get('format', 'srt').upper()}"
         }
         
-        await db.media.update_one(
-            {
-                "db_index": db_index,
-                "tmdb_id": tmdb_id,
-                "type": media_type,
-                "telegram.subtitles.id": subtitle_id
-            },
+        await _admin_collection(media_type).update_one(
+            {**_admin_query(tmdb_id), "telegram.subtitles.id": subtitle_id},
             {"$set": update_data}
         )
         
@@ -510,15 +505,12 @@ async def admin_delete_subtitle(
         telegram_deleted = 0
         telegram_total = 0
         
+        collection = _admin_collection(media_type)
         if delete_telegram:
             # Delete Telegram message for subtitle
-            media = await db.media.find_one({
-                "db_index": db_index,
-                "tmdb_id": tmdb_id,
-                "type": media_type
-            })
+            media = await collection.find_one(_admin_query(tmdb_id))
             
-            for quality in media.get("telegram", []):
+            for quality in _all_qualities(media or {}):
                 for sub in quality.get("subtitles", []):
                     if sub.get("id") == subtitle_id:
                         telegram_total += 1
@@ -529,12 +521,8 @@ async def admin_delete_subtitle(
                             LOGGER.warning(f"Failed to delete Telegram subtitle: {e}")
         
         # Remove subtitle from database
-        await db.media.update_one(
-            {
-                "db_index": db_index,
-                "tmdb_id": tmdb_id,
-                "type": media_type
-            },
+        await collection.update_one(
+            _admin_query(tmdb_id),
             {"$pull": {"telegram.$[].subtitles": {"id": subtitle_id}}}
         )
         
@@ -596,20 +584,27 @@ async def admin_get_analytics(request: Request):
     verify_admin_auth(request)
     
     try:
-        # Get media counts
-        movie_count = await db.media.count_documents({"type": "movie"})
-        tv_count = await db.media.count_documents({"type": "tv"})
-        anime_count = await db.media.count_documents({"is_anime": True})
-        
-        # Get total files
+        anime_genres = ["Animation", "Anime", "anime", "animation"]
+        # Get media counts from the real movie / tv collections
+        movie_count = await db.movie_collection.count_documents({})
+        tv_count = await db.tv_collection.count_documents({})
+        anime_count = (
+            await db.movie_collection.count_documents({"genres": {"$in": anime_genres}})
+            + await db.tv_collection.count_documents({"genres": {"$in": anime_genres}})
+        )
+
+        # Get total files + subtitles across both collections
         total_files = 0
         total_subtitles = 0
-        
-        async for media in db.media.find({}):
-            total_files += len(media.get("telegram", []))
-            for quality in media.get("telegram", []):
-                total_subtitles += len(quality.get("subtitles", []))
-        
+        for collection in (db.movie_collection, db.tv_collection):
+            async for media in collection.find({}):
+                for quality in _all_qualities(media):
+                    total_files += 1
+                    total_subtitles += len(quality.get("subtitles", []))
+
+        # Failed file log count
+        failed_count = await db.count_failed_files()
+
         # Get cache stats
         cache_stats = get_all_cache_stats()
         
@@ -624,6 +619,7 @@ async def admin_get_analytics(request: Request):
                 "total": total_files,
                 "subtitles": total_subtitles
             },
+            "failed_files": failed_count,
             "cache": cache_stats,
             "system": {
                 "version": __version__,
@@ -648,60 +644,41 @@ async def admin_clear_cache(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# Failed Files Endpoints
+# ---------------------------------------------------------------------------
+# Failed Files (failure log) endpoints
+# ---------------------------------------------------------------------------
 @app.get("/admin/api/failed-files")
-async def admin_get_failed_files(
+async def admin_list_failed_files(
     request: Request,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    reason_filter: str = Query(None),
-    date_from: str = Query(None),
-    date_to: str = Query(None)
+    page_size: int = Query(30, ge=1, le=200),
+    reason: str = Query(""),
+    date_from: str = Query(""),
+    date_to: str = Query(""),
 ):
-    """Get failed files with pagination and optional filtering"""
+    """List failed/skipped ingestions (newest first), filterable by reason and date range."""
     verify_admin_auth(request)
-    
     try:
-        from datetime import datetime
-        
-        # Parse date filters if provided
-        date_from_dt = None
-        date_to_dt = None
-        if date_from:
-            try:
-                date_from_dt = datetime.fromisoformat(date_from)
-            except ValueError:
-                pass
-        if date_to:
-            try:
-                date_to_dt = datetime.fromisoformat(date_to)
-            except ValueError:
-                pass
-        
-        result = await db.get_failed_files(
+        return await db.get_failed_files(
             page=page,
             page_size=page_size,
-            reason_filter=reason_filter,
-            date_from=date_from_dt,
-            date_to=date_to_dt
+            reason_filter=reason or None,
+            date_from=date_from or None,
+            date_to=date_to or None,
         )
-        
-        return result
     except Exception as e:
-        LOGGER.error(f"Error getting failed files: {e}")
+        LOGGER.error(f"Error listing failed files: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/admin/api/failed-files/{id}")
-async def admin_delete_failed_file(request: Request, id: str):
-    """Delete a specific failed file entry"""
+@app.delete("/admin/api/failed-files/{file_id}")
+async def admin_delete_failed_file(request: Request, file_id: str):
+    """Delete a single failed-file log entry."""
     verify_admin_auth(request)
-    
     try:
-        result = await db.failed_files_collection.delete_one({"_id": id})
-        if result.deleted_count == 0:
+        deleted = await db.delete_failed_file(file_id)
+        if not deleted:
             raise HTTPException(status_code=404, detail="Failed file entry not found")
-        
         return {"deleted": True}
     except HTTPException:
         raise
@@ -712,40 +689,45 @@ async def admin_delete_failed_file(request: Request, id: str):
 
 @app.delete("/admin/api/failed-files")
 async def admin_clear_failed_files(request: Request):
-    """Clear all failed file logs"""
+    """Clear all failed-file log entries."""
     verify_admin_auth(request)
-    
     try:
-        result = await db.clear_failed_files()
-        return {"cleared": result}
+        removed = await db.clear_failed_files()
+        return {"cleared": True, "removed": removed}
     except Exception as e:
         LOGGER.error(f"Error clearing failed files: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/admin/api/failed-files/{id}/retry")
-async def admin_retry_failed_file(request: Request, id: str):
-    """Retry a failed file by re-adding it to the queue"""
+@app.post("/admin/api/failed-files/{file_id}/retry")
+async def admin_retry_failed_file(request: Request, file_id: str):
+    """Re-queue a failed file for processing using its stored channel + msg_id."""
     verify_admin_auth(request)
-    
     try:
-        # Get the failed file entry
-        failed_file = await db.failed_files_collection.find_one({"_id": id})
-        if not failed_file:
+        entry = await db.get_failed_file(file_id)
+        if not entry:
             raise HTTPException(status_code=404, detail="Failed file entry not found")
-        
-        # Extract metadata info
-        metadata_info = failed_file.get("metadata_info", {})
-        title = failed_file.get("title", "")
-        filename = failed_file.get("filename", "")
-        
-        # For now, just delete the entry and log that retry was attempted
-        # In a full implementation, you would re-queue the file for processing
-        await db.failed_files_collection.delete_one({"_id": id})
-        
-        LOGGER.info(f"Retry requested for failed file: {title} (filename: {filename})")
-        
-        return {"retry": True, "message": "Retry logged - file removed from failed list"}
+
+        channel = entry.get("channel")
+        msg_id = entry.get("msg_id")
+        if not channel or not msg_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot retry: no source channel/message recorded for this entry",
+            )
+
+        # Import the live parser lazily to avoid circular imports at module load.
+        from Backend.pyrofork.plugins.start import parse_and_queue_file
+
+        channel_str = str(channel).replace("-100", "")
+        message = await StreamBot.get_messages(int(f"-100{channel_str}"), int(msg_id))
+        if not message or message.empty:
+            raise HTTPException(status_code=410, detail="Source Telegram message no longer exists")
+
+        queued = await parse_and_queue_file(message, channel_str, is_rescan=True)
+        if queued:
+            await db.delete_failed_file(file_id)
+        return {"requeued": bool(queued)}
     except HTTPException:
         raise
     except Exception as e:
