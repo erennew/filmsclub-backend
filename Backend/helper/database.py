@@ -19,7 +19,7 @@ class Database:
         self.tv_collection = None
         self.movie_collection = None
         self.deploy_config = None
-        self.failed_files = None
+        self.failed_files_collection = None
         self.connection_uri = connection_uri
         self.db_name = db_name
 
@@ -44,7 +44,7 @@ class Database:
             self.deploy_config = self.db["deploy_config"]
             self.views_collection = self.db["views"]
             self.replaced_versions = self.db["replaced_versions"]  # Backup collection for replaced files
-            self.failed_files = self.db["failed_files"]  # Persistent log of failed/skipped ingestions
+            self.failed_files_collection = self.db["failed_files"]  # Persistent log of failed/skipped ingestions
 
             # Create index for efficient trending queries
             await self.views_collection.create_index([("date", DESCENDING), ("count", DESCENDING)])
@@ -55,8 +55,9 @@ class Database:
             await self.replaced_versions.create_index([("replaced_at", DESCENDING)])
 
             # Create indexes for failed_files collection
-            await self.failed_files.create_index([("timestamp", DESCENDING)])
-            await self.failed_files.create_index([("reason", ASCENDING)])
+            await self.failed_files_collection.create_index([("timestamp", DESCENDING)])
+            await self.failed_files_collection.create_index([("reason", ASCENDING)])
+            await self.failed_files_collection.create_index([("tmdb_id", ASCENDING)])
 
             LOGGER.info("Database connection established")
         
@@ -870,7 +871,7 @@ class Database:
                 "replaced_at": datetime.utcnow(),
                 "backup_status": "success"
             }
-            
+
             result = await self.replaced_versions.insert_one(backup_data)
             if result.inserted_id:
                 LOGGER.info(f"💾 Backed up replaced version for TMDB ID {metadata_info.get('tmdb_id')}")
@@ -900,7 +901,7 @@ class Database:
         Returns the inserted ObjectId, or None when the DB is unavailable so
         callers never crash the queue worker because of a logging failure.
         """
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             LOGGER.warning("Cannot log failed file: database not connected")
             return None
 
@@ -922,7 +923,7 @@ class Database:
                 "metadata_info": metadata_info or None,
                 "timestamp": datetime.utcnow(),
             }
-            result = await self.failed_files.insert_one(doc)
+            result = await self.failed_files_collection.insert_one(doc)
             LOGGER.info(f"📝 Logged failed file '{doc['title'][:50]}' (reason: {reason})")
             return result.inserted_id
         except Exception as e:
@@ -938,7 +939,7 @@ class Database:
         date_to: Optional[str] = None,
     ) -> dict:
         """Return paginated failed files, newest first, with optional filters."""
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             return {"items": [], "total_count": 0, "page": page, "page_size": page_size}
 
         query: dict = {}
@@ -960,9 +961,9 @@ class Database:
             page = max(page, 1)
             page_size = max(min(page_size, 200), 1)
             skip = (page - 1) * page_size
-            total_count = await self.failed_files.count_documents(query)
+            total_count = await self.failed_files_collection.count_documents(query)
             cursor = (
-                self.failed_files.find(query)
+                self.failed_files_collection.find(query)
                 .sort("timestamp", DESCENDING)
                 .skip(skip)
                 .limit(page_size)
@@ -980,10 +981,10 @@ class Database:
 
     async def get_failed_file(self, file_id: str) -> Optional[dict]:
         """Return a single failed file log entry by its string ObjectId."""
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             return None
         try:
-            doc = await self.failed_files.find_one({"_id": ObjectId(file_id)})
+            doc = await self.failed_files_collection.find_one({"_id": ObjectId(file_id)})
             return self._convert_object_id(doc) if doc else None
         except Exception as e:
             LOGGER.error(f"Error fetching failed file {file_id}: {e}")
@@ -991,10 +992,10 @@ class Database:
 
     async def delete_failed_file(self, file_id: str) -> bool:
         """Delete a single failed file log entry by its string ObjectId."""
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             return False
         try:
-            result = await self.failed_files.delete_one({"_id": ObjectId(file_id)})
+            result = await self.failed_files_collection.delete_one({"_id": ObjectId(file_id)})
             return result.deleted_count > 0
         except Exception as e:
             LOGGER.error(f"Error deleting failed file {file_id}: {e}")
@@ -1002,10 +1003,10 @@ class Database:
 
     async def clear_failed_files(self) -> int:
         """Delete all failed file log entries. Returns the number removed."""
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             return 0
         try:
-            result = await self.failed_files.delete_many({})
+            result = await self.failed_files_collection.delete_many({})
             LOGGER.info(f"🧹 Cleared {result.deleted_count} failed file log entries")
             return result.deleted_count
         except Exception as e:
@@ -1014,11 +1015,11 @@ class Database:
 
     async def count_failed_files(self, reason_filter: Optional[str] = None) -> int:
         """Return the number of failed file log entries (optionally by reason)."""
-        if self.failed_files is None:
+        if self.failed_files_collection is None:
             return 0
         try:
             query = {"reason": reason_filter} if reason_filter else {}
-            return await self.failed_files.count_documents(query)
+            return await self.failed_files_collection.count_documents(query)
         except Exception as e:
             LOGGER.error(f"Error counting failed files: {e}")
             return 0
@@ -1028,11 +1029,11 @@ class Database:
 
         max_age_days <= 0 disables pruning (retain forever).
         """
-        if self.failed_files is None or max_age_days <= 0:
+        if self.failed_files_collection is None or max_age_days <= 0:
             return 0
         try:
             cutoff = datetime.utcnow() - timedelta(days=max_age_days)
-            result = await self.failed_files.delete_many({"timestamp": {"$lt": cutoff}})
+            result = await self.failed_files_collection.delete_many({"timestamp": {"$lt": cutoff}})
             if result.deleted_count:
                 LOGGER.info(f"🧹 Pruned {result.deleted_count} failed file logs older than {max_age_days}d")
             return result.deleted_count

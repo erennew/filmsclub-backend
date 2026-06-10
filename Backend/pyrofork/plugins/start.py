@@ -854,6 +854,13 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             exists = await db.is_file_exists(channel_int, msg_id, hash_val)
             if exists:
                 queue_stats["skipped"] += 1
+                # Log skipped file to DB
+                await db.log_failed_file(
+                    title=title,
+                    filename=file.file_name or file.file_id,
+                    reason="File already exists in database - skipped",
+                    metadata_info={"title": title, "channel": channel, "msg_id": msg_id, "hash": hash_val}
+                )
                 LOGGER.info(f"File already in DB, skipping: {title}")
                 return True
 

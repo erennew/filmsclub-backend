@@ -132,8 +132,7 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
         rate = ratings.average if ratings else 0
         
         genres = _ensure_anime_genre(anime_data.genres if hasattr(anime_data, 'genres') else [])
-        anilist_id = anime_data.id if hasattr(anime_data, 'id') else 0
-        
+
         # Format cast data
         cast = []
         if hasattr(anime_data, 'characters') and anime_data.characters:
@@ -148,8 +147,12 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
                         "tmdb_id": character.id if hasattr(character, 'id') else 0
                     })
         
+        # Use prefixed AniList ID to avoid polluting TMDB ID space
+        anilist_id = anime_data.id if hasattr(anime_data, 'id') else 0
+        tmdb_id = f"al_{anilist_id}" if anilist_id else 0
+
         return {
-            "tmdb_id": anilist_id,
+            "tmdb_id": tmdb_id,
             "anilist_id": anilist_id,
             "title": show_title,
             "year": anime_data.season_year if hasattr(anime_data, 'season_year') else 0,
@@ -171,7 +174,7 @@ def format_anilist_to_standard(anime_data, season_number: int, episode_number: i
             "rip": 'Blu-ray',
             "source": "AniList",
             "imdb_url": None,
-            "tmdb_url": f"https://anilist.co/anime/{anime_data.id}" if hasattr(anime_data, 'id') else None,
+            "tmdb_url": f"https://anilist.co/anime/{anilist_id}" if anilist_id else None,
             "is_anime": True,
             "group": group_name,
             "release_group": group_name,
@@ -192,11 +195,12 @@ def format_jikan_to_standard(anime_data, season_number: int, episode_number: int
     
     try:
         show_title = anime_data.title_english if anime_data.title_english else anime_data.title
-        
+
+        # Safe image field access with fallback chain
         images = anime_data.images if hasattr(anime_data, 'images') else None
         poster = _jikan_poster(images)
         mal_id = anime_data.id if hasattr(anime_data, 'id') else 0
-        
+
         # Format cast data
         cast = []
         if hasattr(anime_data, 'characters') and anime_data.characters:
