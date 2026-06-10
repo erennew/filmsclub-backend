@@ -43,6 +43,7 @@ class Database:
             self.deploy_config = self.db["deploy_config"]
             self.views_collection = self.db["views"]
             self.replaced_versions = self.db["replaced_versions"]  # Backup collection for replaced files
+            self.failed_files_collection = self.db["failed_files"]  # Collection for failed/skipped files
 
             # Create index for efficient trending queries
             await self.views_collection.create_index([("date", DESCENDING), ("count", DESCENDING)])
@@ -51,6 +52,11 @@ class Database:
             # Create index for replaced_versions collection
             await self.replaced_versions.create_index([("tmdb_id", ASCENDING)])
             await self.replaced_versions.create_index([("replaced_at", DESCENDING)])
+
+            # Create indexes for failed_files collection
+            await self.failed_files_collection.create_index([("timestamp", DESCENDING)])
+            await self.failed_files_collection.create_index([("reason", ASCENDING)])
+            await self.failed_files_collection.create_index([("tmdb_id", ASCENDING)])
 
             LOGGER.info("Database connection established")
         
@@ -605,7 +611,7 @@ class Database:
         skip = (page - 1) * limit
 
         anime_pipeline = [
-            {"$match": {"genres": {"$in": ["Animation", "Anime"]}}},
+            {"$match": {"genres": {"$in": ["Animation", "Anime", "anime"]}}},
             {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
             {"$facet": {
                 "metadata": [{"$count": "total_count"}],
@@ -637,7 +643,7 @@ class Database:
         kdrama_pipeline = [
             {"$match": {
                 "languages": {"$in": ["Korean", "ko", "korean"]},
-                "genres": {"$in": ["Drama"]}
+                "genres": {"$in": ["Drama", "Korean Drama"]}
             }},
             {"$sort": {"rating": DESCENDING, "release_year": DESCENDING}},
             {"$facet": {
@@ -864,7 +870,7 @@ class Database:
                 "replaced_at": datetime.utcnow(),
                 "backup_status": "success"
             }
-            
+
             result = await self.replaced_versions.insert_one(backup_data)
             if result.inserted_id:
                 LOGGER.info(f"💾 Backed up replaced version for TMDB ID {metadata_info.get('tmdb_id')}")
@@ -874,4 +880,76 @@ class Database:
                 return False
         except Exception as e:
             LOGGER.error(f"Error backing up replaced version: {e}")
+            return False
+
+    async def log_failed_file(self, title: str, filename: str, reason: str, metadata_info: dict = None) -> bool:
+        """
+        Log a failed or skipped file to the failed_files collection.
+        """
+        try:
+            failed_entry = {
+                "title": title,
+                "filename": filename,
+                "reason": reason,
+                "timestamp": datetime.utcnow(),
+                "metadata_info": metadata_info or {}
+            }
+
+            result = await self.failed_files_collection.insert_one(failed_entry)
+            if result.inserted_id:
+                LOGGER.info(f"📝 Logged failed file: {title} - Reason: {reason}")
+                return True
+            else:
+                LOGGER.error(f"Failed to log failed file: {title}")
+                return False
+        except Exception as e:
+            LOGGER.error(f"Error logging failed file: {e}")
+            return False
+
+    async def get_failed_files(self, page: int = 1, page_size: int = 50, reason_filter: str = None,
+                               date_from: datetime = None, date_to: datetime = None) -> dict:
+        """
+        Retrieve failed files with pagination and optional filtering.
+        """
+        try:
+            query = {}
+            if reason_filter:
+                query["reason"] = {"$regex": reason_filter, "$options": "i"}
+            if date_from:
+                query["timestamp"] = query.get("timestamp", {})
+                query["timestamp"]["$gte"] = date_from
+            if date_to:
+                query["timestamp"] = query.get("timestamp", {})
+                query["timestamp"]["$lte"] = date_to
+
+            skip = (page - 1) * page_size
+            total_count = await self.failed_files_collection.count_documents(query)
+
+            cursor = self.failed_files_collection.find(query).sort("timestamp", DESCENDING).skip(skip).limit(page_size)
+            failed_files = []
+            async for doc in cursor:
+                doc["_id"] = str(doc["_id"])
+                failed_files.append(doc)
+
+            return {
+                "items": failed_files,
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total_count + page_size - 1) // page_size
+            }
+        except Exception as e:
+            LOGGER.error(f"Error getting failed files: {e}")
+            return {"items": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 0}
+
+    async def clear_failed_files(self) -> bool:
+        """
+        Clear all failed file logs from the collection.
+        """
+        try:
+            result = await self.failed_files_collection.delete_many({})
+            LOGGER.info(f"🗑️ Cleared {result.deleted_count} failed file logs")
+            return True
+        except Exception as e:
+            LOGGER.error(f"Error clearing failed files: {e}")
             return False

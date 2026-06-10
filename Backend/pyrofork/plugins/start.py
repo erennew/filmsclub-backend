@@ -627,22 +627,38 @@ async def start_background_tasks():
 async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool = False):
     """Parse a message's video/document and add to queue. Returns True if queued/skipped, False if error."""
     try:
-        if not (message.video or (message.document and message.document.mime_type and message.document.mime_type.startswith("video/"))):
-            return False
-
+        # Relaxed mime-type check: accept video/* OR common video extensions
         file = message.video or message.document
         if not file:
             return False
 
-        # Extract title from caption or filename
+        # Check if it's a video by mime-type or extension
+        is_video = False
+        if message.video:
+            is_video = True
+        elif message.document:
+            if message.document.mime_type and message.document.mime_type.startswith("video/"):
+                is_video = True
+            elif message.document.file_name:
+                # Check common video extensions
+                ext = message.document.file_name.lower().split('.')[-1]
+                is_video = ext in ['mkv', 'mp4', 'avi', 'mov', 'ts', 'wmv', 'm4v', 'webm', 'flv', '3gp']
+
+        if not is_video:
+            return False
+
+        # Extract title from caption or filename with improved parsing
         if message.caption:
             title = None
             for line in message.caption.split("\n"):
                 stripped = line.strip()
                 if not stripped:
                     continue
-                if re.search(r'\.(mkv|mp4|avi|mov)\b', stripped, re.IGNORECASE):
-                    title = stripped
+                # Remove leading emojis and special characters
+                cleaned_line = re.sub(r'^[\W_]+', '', stripped)
+                # Check for video extensions
+                if re.search(r'\.(mkv|mp4|avi|mov|ts|wmv|m4v|webm|flv|3gp)\b', cleaned_line, re.IGNORECASE):
+                    title = cleaned_line
                     break
             if not title:
                 title = file.file_name or file.file_id
@@ -670,6 +686,13 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             metadata_info['languages'] = detected_langs
             
         if metadata_info is None:
+            # Log failure to DB
+            await db.log_failed_file(
+                title=title,
+                filename=file.file_name or file.file_id,
+                reason="Metadata fetch failed - no metadata found from any source",
+                metadata_info={"title": title, "channel": channel, "msg_id": msg_id}
+            )
             if not is_rescan:
                 await message.reply_text("> Not added — check log")
             return False
@@ -749,6 +772,13 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             exists = await db.is_file_exists(channel_int, msg_id, hash_val)
             if exists:
                 queue_stats["skipped"] += 1
+                # Log skipped file to DB
+                await db.log_failed_file(
+                    title=title,
+                    filename=file.file_name or file.file_id,
+                    reason="File already exists in database - skipped",
+                    metadata_info={"title": title, "channel": channel, "msg_id": msg_id, "hash": hash_val}
+                )
                 LOGGER.info(f"File already in DB, skipping: {title}")
                 return True
 
@@ -1079,14 +1109,27 @@ async def rescan_channel(bot: Client, message: Message):
         async for msg in bot.get_chat_history(channel_id, limit=limit if limit > 0 else None):
             total_checked += 1
 
-            # Only process video/document messages
-            if not (msg.video or (msg.document and msg.document.mime_type and msg.document.mime_type.startswith("video/"))):
+            # Only process video/document messages with relaxed mime-type check
+            file = msg.video or msg.document
+            if not file:
+                continue
+
+            # Check if it's a video by mime-type or extension
+            is_video = False
+            if msg.video:
+                is_video = True
+            elif msg.document:
+                if msg.document.mime_type and msg.document.mime_type.startswith("video/"):
+                    is_video = True
+                elif msg.document.file_name:
+                    # Check common video extensions
+                    ext = msg.document.file_name.lower().split('.')[-1]
+                    is_video = ext in ['mkv', 'mp4', 'avi', 'mov', 'ts', 'wmv', 'm4v', 'webm', 'flv', '3gp']
+
+            if not is_video:
                 continue
 
             try:
-                file = msg.video or msg.document
-                if not file:
-                    continue
                 hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
                 exists = await db.is_file_exists(int(channel_clean), msg.id, hash_val)
                 if exists:

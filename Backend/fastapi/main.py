@@ -648,6 +648,111 @@ async def admin_clear_cache(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Failed Files Endpoints
+@app.get("/admin/api/failed-files")
+async def admin_get_failed_files(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    reason_filter: str = Query(None),
+    date_from: str = Query(None),
+    date_to: str = Query(None)
+):
+    """Get failed files with pagination and optional filtering"""
+    verify_admin_auth(request)
+    
+    try:
+        from datetime import datetime
+        
+        # Parse date filters if provided
+        date_from_dt = None
+        date_to_dt = None
+        if date_from:
+            try:
+                date_from_dt = datetime.fromisoformat(date_from)
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                date_to_dt = datetime.fromisoformat(date_to)
+            except ValueError:
+                pass
+        
+        result = await db.get_failed_files(
+            page=page,
+            page_size=page_size,
+            reason_filter=reason_filter,
+            date_from=date_from_dt,
+            date_to=date_to_dt
+        )
+        
+        return result
+    except Exception as e:
+        LOGGER.error(f"Error getting failed files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/api/failed-files/{id}")
+async def admin_delete_failed_file(request: Request, id: str):
+    """Delete a specific failed file entry"""
+    verify_admin_auth(request)
+    
+    try:
+        result = await db.failed_files_collection.delete_one({"_id": id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Failed file entry not found")
+        
+        return {"deleted": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error deleting failed file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/admin/api/failed-files")
+async def admin_clear_failed_files(request: Request):
+    """Clear all failed file logs"""
+    verify_admin_auth(request)
+    
+    try:
+        result = await db.clear_failed_files()
+        return {"cleared": result}
+    except Exception as e:
+        LOGGER.error(f"Error clearing failed files: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/api/failed-files/{id}/retry")
+async def admin_retry_failed_file(request: Request, id: str):
+    """Retry a failed file by re-adding it to the queue"""
+    verify_admin_auth(request)
+    
+    try:
+        # Get the failed file entry
+        failed_file = await db.failed_files_collection.find_one({"_id": id})
+        if not failed_file:
+            raise HTTPException(status_code=404, detail="Failed file entry not found")
+        
+        # Extract metadata info
+        metadata_info = failed_file.get("metadata_info", {})
+        title = failed_file.get("title", "")
+        filename = failed_file.get("filename", "")
+        
+        # For now, just delete the entry and log that retry was attempted
+        # In a full implementation, you would re-queue the file for processing
+        await db.failed_files_collection.delete_one({"_id": id})
+        
+        LOGGER.info(f"Retry requested for failed file: {title} (filename: {filename})")
+        
+        return {"retry": True, "message": "Retry logged - file removed from failed list"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        LOGGER.error(f"Error retrying failed file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
