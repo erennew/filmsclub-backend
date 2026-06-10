@@ -38,6 +38,63 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 
 # =============================================================================
+# FILE ACCEPTANCE HELPERS
+# =============================================================================
+# Common video container extensions we accept even when Telegram reports a
+# non-standard / missing mime type (some clients send .mkv as application/octet-stream).
+VIDEO_EXTENSIONS = ('.mkv', '.mp4', '.avi', '.mov', '.ts', '.wmv', '.m4v', '.webm', '.flv', '.mpg', '.mpeg', '.m2ts')
+
+# Match a video filename anywhere in a caption line, allowing for trailing junk.
+_VIDEO_NAME_RE = re.compile(
+    r'([^\n]*?\.(?:mkv|mp4|avi|mov|ts|wmv|m4v|webm|flv|mpg|mpeg|m2ts))\b',
+    re.IGNORECASE,
+)
+
+
+def is_video_message(message: Message) -> bool:
+    """Return True if the message carries an acceptable video file.
+
+    Accepts native Telegram videos, documents with a video/* mime type, OR
+    documents whose filename ends in a known video container extension. This is
+    deliberately more permissive than a strict mime check so non-standard
+    uploads (e.g. .mkv sent as application/octet-stream) are not silently dropped.
+    """
+    if message.video:
+        return True
+    doc = message.document
+    if not doc:
+        return False
+    mime = (doc.mime_type or "").lower()
+    if mime.startswith("video/"):
+        return True
+    name = (doc.file_name or "").lower()
+    return name.endswith(VIDEO_EXTENSIONS)
+
+
+def extract_title_from_caption(caption: str, fallback: str) -> str:
+    """Extract the most likely filename/title from a (possibly messy) caption.
+
+    Handles multi-line captions, leading emojis/brackets, and bold markers by
+    first looking for a line containing a video filename, then falling back to
+    the first non-empty line, then to the provided fallback.
+    """
+    if not caption:
+        return fallback
+    lines = [ln.strip() for ln in caption.splitlines() if ln.strip()]
+    # 1) Prefer a line that actually contains a video filename.
+    for line in lines:
+        match = _VIDEO_NAME_RE.search(line)
+        if match:
+            return match.group(1).strip().strip('[](){}<>*_`"\'').strip()
+    # 2) Otherwise, fall back to the first meaningful line (strip leading emojis/symbols).
+    for line in lines:
+        cleaned = re.sub(r'^[^\w\[(]+', '', line).strip()
+        if cleaned:
+            return cleaned
+    return fallback
+
+
+# =============================================================================
 # ENHANCED QUEUE SYSTEM - SLOW & THOROUGH MODE
 # =============================================================================
 
@@ -275,10 +332,14 @@ async def start(bot: Client, message: Message):
 # (Queue configuration moved to top of file - see above)
 
 
-async def validate_file_before_insert(item: QueueItem) -> bool:
+async def validate_file_before_insert(item: QueueItem) -> tuple:
     """
     Thorough validation with TMDB checks.
     This is SLOW but ensures data quality.
+
+    Returns:
+        (True, None) when all validations pass.
+        (False, reason) with a short human-readable reason on failure.
     """
     try:
         LOGGER.info(f"🔍 Starting thorough validation for: {item.title[:50]}...")
@@ -290,23 +351,23 @@ async def validate_file_before_insert(item: QueueItem) -> bool:
             message = await StreamBot.get_messages(int(channel_id), item.msg_id)
             if message.empty:
                 LOGGER.warning(f"❌ File {item.msg_id} no longer exists")
-                return False
+                return False, "File no longer exists"
         except Exception as e:
             LOGGER.warning(f"❌ Could not verify message: {e}")
-            return False
+            return False, f"Could not verify file: {e}"
         
         # Step 2: Verify file size (quick check)
         file = message.video or message.document
         if not file or file.file_size == 0:
             LOGGER.warning(f"❌ File has zero size")
-            return False
+            return False, "File has zero size"
         
         LOGGER.info(f"✅ File exists: {get_readable_file_size(file.file_size)}")
         
         # Step 3: Validate metadata structure
         if not item.metadata_info:
             LOGGER.warning(f"❌ Invalid metadata")
-            return False
+            return False, "Invalid metadata"
         
         # Step 4: THOROUGH TMDB VALIDATION (5-10 seconds)
         tmdb_id = item.metadata_info.get('tmdb_id')
@@ -320,7 +381,7 @@ async def validate_file_before_insert(item: QueueItem) -> bool:
             
             if not tmdb_valid:
                 LOGGER.error(f"❌ TMDB validation FAILED for ID {tmdb_id}")
-                return False
+                return False, f"TMDB ID {tmdb_id} invalid"
             
             # For TV shows, validate episode exists
             if media_type == "tv":
@@ -331,17 +392,17 @@ async def validate_file_before_insert(item: QueueItem) -> bool:
                     episode_valid = await validate_episode_exists(tmdb_id, season, episode)
                     if not episode_valid:
                         LOGGER.error(f"❌ Episode S{season}E{episode} does not exist in TMDB")
-                        return False
+                        return False, f"Episode S{season}E{episode} does not exist in TMDB"
         
         # Step 5: Additional delay for safety
         await asyncio.sleep(QueueConfig.FILE_VALIDATION_DELAY)
         
         LOGGER.info(f"✅ ALL VALIDATIONS PASSED for: {item.title[:50]}")
-        return True
+        return True, None
         
     except Exception as e:
         LOGGER.error(f"❌ Validation error: {e}")
-        return False
+        return False, f"Validation error: {e}"
 
 
 async def smart_replace_or_skip(metadata_info: dict) -> tuple:
@@ -494,7 +555,7 @@ async def process_file(worker_id: int):
             LOGGER.info(f"[Worker {worker_id}] Processing ({item.retry_count + 1}/{QueueConfig.MAX_RETRY_COUNT}): {item.title[:50]}...")
             
             # Thorough validation (includes TMDB checks - 5-10 seconds)
-            validation_passed = await validate_file_before_insert(item)
+            validation_passed, validation_reason = await validate_file_before_insert(item)
             
             if not validation_passed:
                 if item.retry_count < QueueConfig.MAX_RETRY_COUNT:
@@ -506,6 +567,15 @@ async def process_file(worker_id: int):
                 else:
                     queue_stats["failed"] += 1
                     LOGGER.error(f"❌ Max retries reached, giving up: {item.title[:50]}")
+                    await db.log_failed_file(
+                        title=item.title,
+                        filename=item.title,
+                        reason=f"Max retries reached ({validation_reason or 'validation failed'})",
+                        metadata_info=item.metadata_info,
+                        channel=item.channel,
+                        msg_id=item.msg_id,
+                        retry_count=item.retry_count,
+                    )
                 continue
             
             # Smart replacement decision
@@ -526,6 +596,15 @@ async def process_file(worker_id: int):
                         LOGGER.info(f"✅ ADDED: {item.metadata_info.get('quality')} - {item.title[:50]}")
                     else:
                         queue_stats["failed"] += 1
+                        await db.log_failed_file(
+                            title=item.title,
+                            filename=item.title,
+                            reason="Database insert failed",
+                            metadata_info=item.metadata_info,
+                            channel=item.channel,
+                            msg_id=item.msg_id,
+                            retry_count=item.retry_count,
+                        )
                 
                 elif action == 'REPLACE':
                     # Backup old version before replacing
@@ -572,10 +651,28 @@ async def process_file(worker_id: int):
                         LOGGER.info(f"🔄 REPLACED: {item.metadata_info.get('quality')} - {item.title[:50]}")
                     else:
                         queue_stats["failed"] += 1
+                        await db.log_failed_file(
+                            title=item.title,
+                            filename=item.title,
+                            reason="Database insert failed (replace)",
+                            metadata_info=item.metadata_info,
+                            channel=item.channel,
+                            msg_id=item.msg_id,
+                            retry_count=item.retry_count,
+                        )
                 
                 else:  # SKIP
                     queue_stats["skipped"] += 1
                     LOGGER.info(f"⏭️ SKIPPED: {item.title[:50]} - {old_version}")
+                    await db.log_failed_file(
+                        title=item.title,
+                        filename=item.title,
+                        reason=f"Skipped ({old_version})" if old_version else "Skipped",
+                        metadata_info=item.metadata_info,
+                        channel=item.channel,
+                        msg_id=item.msg_id,
+                        retry_count=item.retry_count,
+                    )
             
             # Extra delay after successful processing
             await asyncio.sleep(1)
@@ -588,6 +685,18 @@ async def process_file(worker_id: int):
         except Exception as e:
             queue_stats["failed"] += 1
             LOGGER.error(f"❌ Error processing: {e}")
+            try:
+                await db.log_failed_file(
+                    title=getattr(item, "title", "Unknown"),
+                    filename=getattr(item, "title", "Unknown"),
+                    reason=f"Processing error: {e}",
+                    metadata_info=getattr(item, "metadata_info", None),
+                    channel=getattr(item, "channel", None),
+                    msg_id=getattr(item, "msg_id", None),
+                    retry_count=getattr(item, "retry_count", 0),
+                )
+            except Exception as log_err:
+                LOGGER.error(f"Failed to log processing error: {log_err}")
         finally:
             cache_key = (item.channel, item.msg_id)
             queued_files.pop(cache_key, None)
@@ -627,27 +736,16 @@ async def start_background_tasks():
 async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool = False):
     """Parse a message's video/document and add to queue. Returns True if queued/skipped, False if error."""
     try:
-        if not (message.video or (message.document and message.document.mime_type and message.document.mime_type.startswith("video/"))):
+        if not is_video_message(message):
             return False
 
         file = message.video or message.document
         if not file:
             return False
 
-        # Extract title from caption or filename
-        if message.caption:
-            title = None
-            for line in message.caption.split("\n"):
-                stripped = line.strip()
-                if not stripped:
-                    continue
-                if re.search(r'\.(mkv|mp4|avi|mov)\b', stripped, re.IGNORECASE):
-                    title = stripped
-                    break
-            if not title:
-                title = file.file_name or file.file_id
-        else:
-            title = file.file_name or file.file_id
+        # Extract title from caption (robust to emojis/brackets/multi-line) or filename
+        fallback_name = file.file_name or file.file_id
+        title = extract_title_from_caption(message.caption, fallback_name) if message.caption else fallback_name
 
         msg_id = message.id
         hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
@@ -670,6 +768,13 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             metadata_info['languages'] = detected_langs
             
         if metadata_info is None:
+            await db.log_failed_file(
+                title=title,
+                filename=fallback_name,
+                reason="Metadata not found",
+                channel=channel_int,
+                msg_id=msg_id,
+            )
             if not is_rescan:
                 await message.reply_text("> Not added — check log")
             return False
@@ -1080,7 +1185,7 @@ async def rescan_channel(bot: Client, message: Message):
             total_checked += 1
 
             # Only process video/document messages
-            if not (msg.video or (msg.document and msg.document.mime_type and msg.document.mime_type.startswith("video/"))):
+            if not is_video_message(msg):
                 continue
 
             try:
