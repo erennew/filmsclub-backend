@@ -1030,6 +1030,42 @@ async def get_kdrama_endpoint(
         raise HTTPException(status_code=500, detail="Failed to fetch K-Drama data")
 
 
+@app.get("/api/genre/{genre}", response_model=dict)
+@cache_response(ttl=CacheConfig.TRENDING_CACHE_TTL, key_prefix="genre")
+async def get_media_by_genre_endpoint(
+    genre: str,
+    media_type: str = Query(default="all", pattern="^(all|movie|tv)$", description="Media type filter"),
+    page: int = Query(default=1, ge=1, description="Page number to return"),
+    page_size: int = Query(default=20, ge=1, description="Number of items per page")
+):
+    """
+    Get movies and/or TV shows by specific genre.
+    """
+    try:
+        media = await db.get_media_by_genre(genre=genre, media_type=media_type, limit=page_size, page=page)
+        return media
+    except Exception as e:
+        LOGGER.error(f"Error fetching media by genre '{genre}': {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch {genre} media data")
+
+
+@app.get("/api/new-episodes", response_model=dict)
+@cache_response(ttl=CacheConfig.TRENDING_CACHE_TTL, key_prefix="new_episodes")
+async def get_new_episodes_endpoint(
+    page: int = Query(default=1, ge=1, description="Page number to return"),
+    page_size: int = Query(default=20, ge=1, description="Number of episodes per page")
+):
+    """
+    Get recently added TV episodes based on updated_on timestamp.
+    """
+    try:
+        new_episodes = await db.get_new_episodes(limit=page_size, page=page)
+        return new_episodes
+    except Exception as e:
+        LOGGER.error(f"Error fetching new episodes: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch new episodes data")
+
+
 @app.get("/api/media-info/{file_id}")
 @cache_response(ttl=CacheConfig.MEDIA_INFO_CACHE_TTL, key_prefix="media_info")
 async def get_media_info(

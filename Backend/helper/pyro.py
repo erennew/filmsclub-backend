@@ -208,7 +208,10 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
 
 def normalize_filename(filename: str) -> str:
     """Normalize filename before PTN.parse to handle edge cases."""
-    # 1. Fix malformed extensions (missing closing bracket/paren before ext)
+    # 1. Replace dots and underscores with spaces for better metadata detection
+    filename = filename.replace('.', ' ').replace('_', ' ')
+    
+    # 2. Fix malformed extensions (missing closing bracket/paren before ext)
     ext = os.path.splitext(filename)[1]
     if ext:
         base = filename[: -len(ext)]
@@ -221,16 +224,16 @@ def normalize_filename(filename: str) -> str:
             base += ')'
         filename = base + ext
 
-    # 2. Normalize "S01 - EP07" / "S01 - E07" / "S01 EP07" -> "S01E07"
+    # 3. Normalize "S01 - EP07" / "S01 - E07" / "S01 EP07" -> "S01E07"
     filename = re.sub(r'S(\d{1,3})\s*[-_]?\s*EP?(\d{1,4})\b', r'S\1E\2', filename, flags=re.IGNORECASE)
 
-    # 3. Remove trailing dash/space before extension
+    # 4. Remove trailing dash/space before extension
     filename = re.sub(r'[\s\-]+(?=\.(mkv|mp4|avi|mov)$)', '', filename, flags=re.IGNORECASE)
 
-    # 4. Remove leading dashes/spaces
+    # 5. Remove leading dashes/spaces
     filename = re.sub(r'^[\s\-]+', '', filename)
 
-    # 5. Fix double dots and spaces around dots
+    # 6. Fix double dots and spaces around dots
     filename = re.sub(r'\s+\.', '.', filename)
     filename = re.sub(r'\.\s+', '.', filename)
     filename = re.sub(r'\.+', '.', filename)
