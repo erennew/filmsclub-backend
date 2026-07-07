@@ -5,6 +5,7 @@ from Backend.helper.imdb import get_detail, get_season, search_title
 from Backend.helper.pyro import extract_tmdb_id, normalize_languages
 from Backend.helper.anilist import anilist_service
 from Backend.helper.jikan import jikan_api_service
+from Backend.helper.tv_validation import validate_tv_series, refresh_tmdb_id
 from themoviedb import aioTMDb
 from Backend.config import Config
 import Backend
@@ -911,7 +912,128 @@ async def get_available_seasons(tv_id: int) -> list:
 
 async def fetch_tv_metadata(title: str, season: int, episode: int, year=None, quality=None, default_id=None, languages=None, rip=None, group_name=None) -> dict:
     """
-    Enhanced TV metadata fetcher with improved default ID handling and English episode titles
+    Enhanced TV metadata fetcher with improved validation flow
+    Uses the recommended validation flow with fallbacks and retry logic
+    """
+    try:
+        # Store original values to preserve them in the final result
+        original_season = season
+        original_episode = episode
+        
+        # Step 1: Use the new validation flow
+        LOGGER.info(f"Starting validation flow for: {title} S{season}E{episode}")
+        validation_result = await validate_tv_series(f"{title}.mkv", default_id)
+        
+        if not validation_result['success']:
+            LOGGER.error(f"Validation failed for '{title}': {validation_result['errors']}")
+            return None
+        
+        # Log any warnings
+        for warning in validation_result['warnings']:
+            LOGGER.warning(f"Validation warning: {warning}")
+        
+        # Use the validated TMDB ID if available
+        tmdb_tv_id = validation_result.get('tmdb_id')
+        if tmdb_tv_id:
+            LOGGER.info(f"Using validated TMDB ID: {tmdb_tv_id}")
+        else:
+            # Fall back to original logic if no TMDB ID from validation
+            LOGGER.info("No TMDB ID from validation, using original search logic")
+            return await fetch_tv_metadata_original(title, season, episode, year, quality, default_id, languages, rip, group_name)
+        
+        # Fetch TMDB details using validated ID
+        try:
+            await asyncio.sleep(DELAY)
+            tv_details = await tmdb.tv(tmdb_tv_id).details()
+            use_tmdb = True
+            LOGGER.info(f"Successfully fetched TMDB data for {title} using validated ID")
+        except Exception as e:
+            LOGGER.warning(f"TMDB fetch failed for validated ID {tmdb_tv_id}: {e}")
+            # Try refreshing the TMDB ID
+            new_tmdb_id = await refresh_tmdb_id(tmdb_tv_id, title)
+            if new_tmdb_id:
+                try:
+                    await asyncio.sleep(DELAY)
+                    tv_details = await tmdb.tv(new_tmdb_id).details()
+                    use_tmdb = True
+                    tmdb_tv_id = new_tmdb_id
+                    LOGGER.info(f"Successfully fetched TMDB data using refreshed ID")
+                except Exception as e2:
+                    LOGGER.error(f"TMDB fetch failed even with refreshed ID: {e2}")
+                    return await fetch_tv_metadata_original(title, season, episode, year, quality, default_id, languages, rip, group_name)
+            else:
+                return await fetch_tv_metadata_original(title, season, episode, year, quality, default_id, languages, rip, group_name)
+        
+        # Generate URLs
+        tmdb_url = f"https://www.themoviedb.org/tv/{tmdb_tv_id}"
+        show_title = tv_details.name
+        show_year = tv_details.first_air_date.year if tv_details.first_air_date else 0
+        rate = tv_details.vote_average or 0
+        description = tv_details.overview or ''
+        total_seasons = tv_details.number_of_seasons or season
+        total_episodes = tv_details.number_of_episodes or episode
+        poster = f"https://image.tmdb.org/t/p/w500{tv_details.poster_path}" if tv_details.poster_path else ''
+        backdrop = f"https://image.tmdb.org/t/p/original{tv_details.backdrop_path}" if tv_details.backdrop_path else ''
+        genres = [genre.name for genre in tv_details.genres] if tv_details.genres else []
+        status = tv_details.status if hasattr(tv_details, 'status') else 'Ongoing'
+        
+        # Get English episode title
+        ep_title = await get_english_episode_title(tmdb_tv_id, season, episode, None, show_title)
+        
+        # Get cast and schedule info
+        compact_info = await get_tmdb_people_and_schedule(tmdb_tv_id, "tv")
+        
+        # Use provided quality/languages/rip if available, otherwise use defaults
+        final_quality = quality or "1080p"
+        final_languages = languages or [tv_details.original_language] if hasattr(tv_details, 'original_language') else ['en']
+        final_rip = rip or 'Blu-ray'
+        
+        result = {
+            "tmdb_id": tmdb_tv_id,
+            "title": show_title,
+            "year": show_year,
+            "rate": rate,
+            "description": description,
+            "total_seasons": total_seasons,
+            "total_episodes": total_episodes,
+            "poster": poster,
+            "backdrop": backdrop,
+            "status": status,
+            "genres": genres,
+            "media_type": "tv",
+            "season_number": season,
+            "episode_number": episode,
+            "episode_title": ep_title,
+            "episode_backdrop": backdrop,
+            "quality": final_quality,
+            "languages": final_languages,
+            "rip": final_rip,
+            "source": "TMDb",
+            "imdb_url": None,
+            "tmdb_url": tmdb_url,
+            "is_anime": False,
+            "group": group_name,
+            "release_group": group_name,
+            "cast": compact_info.get("cast", []),
+            "next_episode_to_air": compact_info.get("next_episode_to_air"),
+            "last_episode_to_air": compact_info.get("last_episode_to_air"),
+        }
+        
+        group_info = f" by {group_name}" if group_name else ""
+        LOGGER.info(f"✅ TV metadata fetched from TMDB for '{show_title}' S{season}E{episode:03d}{group_info} - Episode: '{ep_title}'")
+        
+        return result
+        
+    except Exception as e:
+        LOGGER.error(f"Error in enhanced TV metadata fetch for '{title}' S{season}E{episode}: {e}")
+        LOGGER.debug(f"Full traceback: {traceback.format_exc()}")
+        # Fall back to original logic on error
+        return await fetch_tv_metadata_original(title, season, episode, year, quality, default_id, languages, rip, group_name)
+
+
+async def fetch_tv_metadata_original(title: str, season: int, episode: int, year=None, quality=None, default_id=None, languages=None, rip=None, group_name=None) -> dict:
+    """
+    Original TV metadata fetcher as fallback
     """
     try:
         # Store original values to preserve them in the final result
