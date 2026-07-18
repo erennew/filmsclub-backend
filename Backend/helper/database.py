@@ -369,8 +369,8 @@ class Database:
         match_conditions = {}
         
         if genre:
-            # Use $in for flexible genre matching (case-insensitive partial match)
-            match_conditions["genres"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
+            # Use $in for strict genre matching against the PRIMARY genre (first element) to avoid messy overlaps
+            match_conditions["genres.0"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
         
         if language:
             match_conditions["languages"] = {"$in": [language, language.lower(), language.upper()]}
@@ -412,8 +412,8 @@ class Database:
         match_conditions = {}
         
         if genre:
-            # Use $in for flexible genre matching (case-insensitive partial match)
-            match_conditions["genres"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
+            # Use $in for strict genre matching against the PRIMARY genre (first element) to avoid messy overlaps
+            match_conditions["genres.0"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
         
         if language:
             match_conditions["languages"] = {"$in": [language, language.lower(), language.upper()]}
