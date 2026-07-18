@@ -837,11 +837,14 @@ async def watch(
 async def get_sorted_tv_shows(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page")
+    page_size: int = Query(default=10, ge=1, description="Number of TV shows per page"),
+    genre: Optional[str] = Query(None, description="Filter by genre name (e.g., 'Action', 'Comedy')"),
+    language: Optional[str] = Query(None, description="Filter by language code (e.g., 'en', 'hi', 'ko')"),
+    min_rating: Optional[float] = Query(None, ge=0, le=10, description="Minimum rating filter")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size)
+        sorted_tv_shows = await db.sort_tv_shows(sort_params, page, page_size, genre=genre, language=language, min_rating=min_rating)
         return sorted_tv_shows
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -850,11 +853,14 @@ async def get_sorted_tv_shows(
 async def get_sorted_movies(
     sort_by: List[str] = Query(default=["rating:desc"], description="List of fields to sort by. Format: field:direction"),
     page: int = Query(default=1, ge=1, description="Page number to return"),
-    page_size: int = Query(default=10, ge=1, description="Number of movies per page")
+    page_size: int = Query(default=10, ge=1, description="Number of movies per page"),
+    genre: Optional[str] = Query(None, description="Filter by genre name (e.g., 'Action', 'Comedy')"),
+    language: Optional[str] = Query(None, description="Filter by language code (e.g., 'en', 'hi', 'ko')"),
+    min_rating: Optional[float] = Query(None, ge=0, le=10, description="Minimum rating filter")
 ):
     try:
         sort_params = [tuple(param.split(":")) for param in sort_by]
-        sorted_movies = await db.sort_movies(sort_params, page, page_size)
+        sorted_movies = await db.sort_movies(sort_params, page, page_size, genre=genre, language=language, min_rating=min_rating)
         return sorted_movies
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -866,6 +872,8 @@ async def get_sorted_movies(
 
 #Movies:----------
 # latest movies = http://localhost:8000/api/movies?sort_by=updated_on:desc&page=1&page_size=40
+# action movies = http://localhost:8000/api/movies?genre=Action&sort_by=rating:desc&page=1&page_size=20
+# comedy movies = http://localhost:8000/api/movies?genre=Comedy&sort_by=rating:desc&page=1&page_size=20
 
 #Tvshow:----------
 # latest tvshows = http://localhost:8000/api/tvshows?sort_by=updated_on:desc&page=1&page_size=40

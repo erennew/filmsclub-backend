@@ -1617,7 +1617,9 @@ async def clear_mongodb_queue(bot: Client, message: Message):
         "This will <b>DELETE ALL ITEMS</b> from the MongoDB queue:\n"
         "• All pending files will be lost\n"
         "• All failed items will be lost\n"
-        "• Queue will be reset to empty\n\n"
+        "• All processed files will be lost\n"
+        "• All checkpoints will be lost\n"
+        "• Queue will be completely emptied\n\n"
         "Type <code>/confirmmongodb</code> to proceed\n"
         "Type <code>/cancel</code> to abort\n\n"
         "⏱️ You have 60 seconds to confirm.",
@@ -1649,8 +1651,11 @@ async def confirm_clear_mongodb(bot: Client, message: Message):
     clear_mongodb_state['waiting_for_confirmation'] = False
     
     await message.reply_text(
-        f"✅ <b>MongoDB Queue Cleared Successfully</b>\n\n"
-        f"• Cleared {cleared_count} items from MongoDB queue\n\n"
+        f"✅ <b>MongoDB Queue Completely Cleared</b>\n\n"
+        f"• Total items cleared: {cleared_count}\n"
+        f"• Queue collection: emptied\n"
+        f"• Processed files: cleared\n"
+        f"• Checkpoints: cleared\n\n"
         f"Bot will start fresh from now.",
         parse_mode=enums.ParseMode.HTML
     )

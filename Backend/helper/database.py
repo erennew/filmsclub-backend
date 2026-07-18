@@ -241,6 +241,9 @@ class Database:
             existing_media["updated_on"] = datetime.utcnow()
             existing_media["languages"] = movie_dict["languages"]
             existing_media["rip"] = movie_dict["rip"]
+            # Update cast data if available
+            if movie_dict.get("cast"):
+                existing_media["cast"] = movie_dict["cast"]
             await self.movie_collection.replace_one(
                 {"tmdb_id": movie_dict["tmdb_id"]}, existing_media)
             return existing_media["_id"]
@@ -353,19 +356,39 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int
+        page_size: int,
+        genre: Optional[str] = None,
+        language: Optional[str] = None,
+        min_rating: Optional[float] = None
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = [
-            {"$sort": dict(sort_criteria)},
-            {"$facet": {
-                "metadata": [{"$count": "total_count"}],
-                "data": [{"$skip": skip}, {"$limit": page_size}]
-            }}
-        ]
+        # Build match conditions for filtering
+        match_conditions = {}
+        
+        if genre:
+            # Use $in for flexible genre matching (case-insensitive partial match)
+            match_conditions["genres"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
+        
+        if language:
+            match_conditions["languages"] = {"$in": [language, language.lower(), language.upper()]}
+        
+        if min_rating is not None:
+            match_conditions["rating"] = {"$gte": min_rating}
+        
+        pipeline = []
+        
+        # Add match stage if we have filters
+        if match_conditions:
+            pipeline.append({"$match": match_conditions})
+        
+        pipeline.append({"$sort": dict(sort_criteria)})
+        pipeline.append({"$facet": {
+            "metadata": [{"$count": "total_count"}],
+            "data": [{"$skip": skip}, {"$limit": page_size}]
+        }})
         
         result = await self.tv_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0
@@ -376,19 +399,39 @@ class Database:
         self, 
         sort_params: List[Tuple[str, str]], 
         page: int, 
-        page_size: int
+        page_size: int,
+        genre: Optional[str] = None,
+        language: Optional[str] = None,
+        min_rating: Optional[float] = None
     ) -> dict:
         skip = (page - 1) * page_size
         sort_criteria = [(field, ASCENDING if direction == "asc" else DESCENDING) 
                         for field, direction in sort_params]
         
-        pipeline = [
-            {"$sort": dict(sort_criteria)},
-            {"$facet": {
-                "metadata": [{"$count": "total_count"}],
-                "data": [{"$skip": skip}, {"$limit": page_size}]
-            }}
-        ]
+        # Build match conditions for filtering
+        match_conditions = {}
+        
+        if genre:
+            # Use $in for flexible genre matching (case-insensitive partial match)
+            match_conditions["genres"] = {"$in": [genre, genre.lower(), genre.title(), genre.upper()]}
+        
+        if language:
+            match_conditions["languages"] = {"$in": [language, language.lower(), language.upper()]}
+        
+        if min_rating is not None:
+            match_conditions["rating"] = {"$gte": min_rating}
+        
+        pipeline = []
+        
+        # Add match stage if we have filters
+        if match_conditions:
+            pipeline.append({"$match": match_conditions})
+        
+        pipeline.append({"$sort": dict(sort_criteria)})
+        pipeline.append({"$facet": {
+            "metadata": [{"$count": "total_count"}],
+            "data": [{"$skip": skip}, {"$limit": page_size}]
+        }})
         
         result = await self.movie_collection.aggregate(pipeline).to_list(1)
         total_count = result[0]["metadata"][0]["total_count"] if result[0]["metadata"] else 0
@@ -1125,11 +1168,23 @@ class Database:
             return 0
 
     async def clear_queue(self):
-        """Clear all queue items (admin function)."""
+        """Clear all queue items including processed files and checkpoints (admin function)."""
         try:
-            result = await self.queue_collection.delete_many({})
-            LOGGER.info(f"Cleared {result.deleted_count} queue items")
-            return result.deleted_count
+            # Clear queue collection
+            queue_result = await self.queue_collection.delete_many({})
+            LOGGER.info(f"Cleared {queue_result.deleted_count} queue items")
+            
+            # Clear processed collection
+            processed_result = await self.processed_collection.delete_many({})
+            LOGGER.info(f"Cleared {processed_result.deleted_count} processed files")
+            
+            # Clear checkpoint collection
+            checkpoint_result = await self.checkpoint_collection.delete_many({})
+            LOGGER.info(f"Cleared {checkpoint_result.deleted_count} checkpoints")
+            
+            total_cleared = queue_result.deleted_count + processed_result.deleted_count + checkpoint_result.deleted_count
+            LOGGER.info(f"Total MongoDB queue cleared: {total_cleared} items")
+            return total_cleared
         except Exception as e:
             LOGGER.error(f"Failed to clear queue: {e}")
             return 0

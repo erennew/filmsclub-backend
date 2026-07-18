@@ -50,6 +50,7 @@ class TVShowSchema(BaseModel):
     rip: str = Field(..., description="Media rip of the file")
     seasons: List[Season] = Field(..., description="List of seasons in the TV show")
     external_subtitles: Optional[List[ExternalSubtitle]] = Field(None, description="List of external subtitle files for the TV show")
+    cast: Optional[List[Dict]] = Field(None, description="List of cast members with name, character, profile")
 
 
 
@@ -69,3 +70,4 @@ class MovieSchema(BaseModel):
     rip: str = Field(..., description="Media rip of the file")
     telegram: Optional[List[QualityDetail]] = Field(None, description="List of available quality details")
     external_subtitles: Optional[List[ExternalSubtitle]] = Field(None, description="List of external subtitle files for the movie")
+    cast: Optional[List[Dict]] = Field(None, description="List of cast members with name, character, profile")

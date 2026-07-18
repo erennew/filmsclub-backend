@@ -58,7 +58,7 @@ class Telegram:
     ADMIN_IDS = [
         int(admin_id.strip())
         for admin_id in (
-            (getenv("ADMIN_IDS") or str(OWNER_ID)) + ",1047253913"
+            (getenv("ADMIN_IDS") or str(OWNER_ID))
         ).split(",")
         if admin_id.strip().isdigit()
     ]
