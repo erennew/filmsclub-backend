@@ -1,5 +1,6 @@
 import re
 import asyncio
+from typing import Dict
 from asyncio import create_task, sleep as asleep, Lock
 from urllib.parse import urlparse
 from Backend.logger import LOGGER
