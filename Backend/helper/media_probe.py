@@ -118,6 +118,28 @@ def get_video_format(codec: str, hdr: str = '', bit_depth: str = '') -> Optional
     return ' '.join(parts)
 
 
+@lru_cache(maxsize=128)
+def get_codec_name(codec: str) -> Optional[str]:
+    """Get standardized codec name for preference sorting."""
+    if not codec:
+        return None
+    
+    codec = codec.lower()
+    
+    if any(x in codec for x in ('avc', 'avc1', 'h.264', 'h264')):
+        return 'h264'
+    elif 'vp9' in codec:
+        return 'vp9'
+    elif any(x in codec for x in ('hevc', 'h.265', 'h265')):
+        return 'h265'
+    elif 'av1' in codec:
+        return 'av1'
+    elif any(x in codec for x in ('mpeg4', 'xvid')):
+        return 'mpeg4'
+    else:
+        return 'other'
+
+
 def parse_duration(value: Any) -> float:
     """Parse duration from various formats."""
     try:

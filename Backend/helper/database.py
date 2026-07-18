@@ -1,15 +1,27 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Union
 from bson import ObjectId
 from fastapi import HTTPException
 import motor.motor_asyncio
 from pydantic import ValidationError
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING, IndexModel
+from pymongo.errors import DuplicateKeyError
 
 from Backend.logger import LOGGER
-from Backend.config import Telegram
+from Backend.config import Telegram, QueueConfig
 from Backend.helper.encrypt import encode_string
 from Backend.helper.modal import Episode, MovieSchema, QualityDetail, Season, TVShowSchema
+
+
+# Codec preference order: h264 > vp9 > h265 > others
+CODEC_PRIORITY = {
+    'h264': 1,
+    'vp9': 2,
+    'h265': 3,
+    'av1': 4,
+    'mpeg4': 5,
+    'other': 6
+}
 
 
 class Database:
@@ -21,6 +33,10 @@ class Database:
         self.deploy_config = None
         self.connection_uri = connection_uri
         self.db_name = db_name
+        # MongoDB Queue collections
+        self.queue_collection = None
+        self.processed_collection = None
+        self.checkpoint_collection = None
 
     async def connect(self):
         """Establish a connection to the database."""
@@ -36,6 +52,18 @@ class Database:
 
             self._conn = motor.motor_asyncio.AsyncIOMotorClient(self.connection_uri)
             self.db = self._conn[self.db_name]
+            
+            # Initialize collections
+            self.tv_collection = self.db["tv"]
+            self.movie_collection = self.db["movie"]
+            self.deploy_config = self.db["deploy_config"]
+            
+            # Initialize queue collections if enabled
+            if QueueConfig.ENABLE_MONGODB_QUEUE:
+                self.queue_collection = self.db["file_queue"]
+                self.processed_collection = self.db["processed_files"]
+                self.checkpoint_collection = self.db["queue_checkpoints"]
+                await self._init_queue_indexes()
 
             # Ensure collections are assigned
             self.tv_collection = self.db["tv"]
@@ -87,6 +115,15 @@ class Database:
             document["_id"] = str(document["_id"])
         return document
 
+    @staticmethod
+    def sort_by_codec_preference(quality_details: List[Dict]) -> List[Dict]:
+        """Sort quality details by codec preference (h264 > vp9 > h265 > others)."""
+        def get_codec_priority(item: Dict) -> int:
+            codec = item.get('codec', 'other').lower()
+            return CODEC_PRIORITY.get(codec, 6)  # Default to lowest priority
+        
+        return sorted(quality_details, key=get_codec_priority)
+
     
     async def update_tv_show(self, tv_show_data: TVShowSchema) -> Optional[ObjectId]:
         try:
@@ -120,6 +157,15 @@ class Database:
                     
                     if existing_episode:
                         for quality in episode["telegram"]:
+                            # Check if this exact file (chat_id, msg_id) already exists in any quality
+                            existing_file = next(
+                                (q for q in existing_episode["telegram"] 
+                                 if q["id"] == quality["id"]), None)
+                            
+                            if existing_file:
+                                LOGGER.debug(f"File with id {quality['id']} already exists in TV show {tv_show_dict['tmdb_id']} S{season['season_number']}E{episode['episode_number']}")
+                                continue  # Skip duplicate file
+                            
                             existing_quality = next(
                                 (q for q in existing_episode["telegram"] 
                                  if q["quality"] == quality["quality"]), None)
@@ -171,6 +217,15 @@ class Database:
 
         updated = False
         for quality in movie_dict["telegram"]:
+            # Check if this exact file (chat_id, msg_id) already exists in any quality
+            existing_file = next(
+                (q for q in existing_media["telegram"] 
+                 if q["id"] == quality["id"]), None)
+            
+            if existing_file:
+                LOGGER.debug(f"File with id {quality['id']} already exists in movie {movie_dict['tmdb_id']}")
+                continue  # Skip duplicate file
+            
             existing_quality = next(
                 (q for q in existing_media["telegram"] 
                  if q["quality"] == quality["quality"]), None)
@@ -200,7 +255,8 @@ class Database:
         channel: int,
         msg_id: int,
         size: str,
-        name: str
+        name: str,
+        codec: Optional[str] = None
     ) -> Optional[ObjectId]:
         data = {"chat_id": channel, "msg_id": msg_id, "hash": hash}
         encoded_string = await encode_string(data)
@@ -224,7 +280,8 @@ class Database:
                         quality=metadata_info['quality'],
                         id=encoded_string,
                         name=name,
-                        size=size
+                        size=size,
+                        codec=codec
                     )]
             )
             return await self.update_movie(media)
@@ -257,7 +314,8 @@ class Database:
                                         quality=metadata_info['quality'],
                                         id=encoded_string,
                                         name=name,
-                                        size=size
+                                        size=size,
+                                        codec=codec
                                     )
                                 ]
                             )
@@ -864,6 +922,217 @@ class Database:
         except Exception as e:
             LOGGER.error(f"Error updating TV episode subtitle tracks: {e}")
             return False
+
+    # ============= MONGODB QUEUE MANAGEMENT =============
+    
+    async def _init_queue_indexes(self):
+        """Initialize MongoDB indexes for queue collections."""
+        try:
+            # Create indexes for queue collection
+            await self.queue_collection.create_indexes([
+                IndexModel([("channel_id", ASCENDING), ("status", ASCENDING), ("created_at", ASCENDING)]),
+                IndexModel([("status", ASCENDING), ("retry_count", ASCENDING), ("created_at", ASCENDING)]),
+                IndexModel([("channel_id", ASCENDING), ("message_id", ASCENDING)], unique=True),
+                IndexModel([("created_at", ASCENDING)], expireAfterSeconds=QueueConfig.QUEUE_TTL_DAYS * 86400)
+            ])
+            
+            # Create indexes for processed collection
+            await self.processed_collection.create_indexes([
+                IndexModel([("channel_id", ASCENDING), ("message_id", ASCENDING)], unique=True),
+                IndexModel([("processed_at", ASCENDING)], expireAfterSeconds=QueueConfig.PROCESSED_TTL_DAYS * 86400)
+            ])
+            
+            # Create indexes for checkpoints
+            await self.checkpoint_collection.create_indexes([
+                IndexModel([("channel_id", ASCENDING)], unique=True),
+                IndexModel([("updated_at", ASCENDING)])
+            ])
+            
+            LOGGER.info("MongoDB queue indexes created successfully")
+        except Exception as e:
+            LOGGER.error(f"Failed to create MongoDB queue indexes: {e}")
+
+    async def add_to_queue(self, channel_id: int, message_id: int, metadata_info: dict, hash_val: str, channel: str, msg_id: int, size: str, title: str, probe_result: dict = None) -> bool:
+        """Add file to processing queue."""
+        try:
+            # Check if file is already in processed collection to prevent duplicates
+            processed = await self.processed_collection.find_one({
+                "channel_id": channel_id,
+                "message_id": message_id
+            })
+            if processed:
+                LOGGER.debug(f"Message {message_id} already processed, skipping queue")
+                return False
+            
+            await self.queue_collection.insert_one({
+                "channel_id": channel_id,
+                "message_id": message_id,
+                "metadata_info": metadata_info,
+                "hash": hash_val,
+                "channel": channel,
+                "msg_id": msg_id,
+                "size": size,
+                "title": title,
+                "probe_result": probe_result,
+                "status": "pending",
+                "retry_count": 0,
+                "error": None,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            })
+            return True
+        except DuplicateKeyError:
+            LOGGER.debug(f"Message {message_id} already in queue")
+            return False
+        except Exception as e:
+            LOGGER.error(f"Failed to add to queue: {e}")
+            return False
+
+    async def get_next_batch(self, channel_id: int = None, batch_size: int = QueueConfig.BATCH_SIZE) -> List[Dict]:
+        """Get next batch of pending files for processing."""
+        try:
+            query = {"status": "pending", "retry_count": {"$lt": QueueConfig.MAX_RETRY_COUNT}}
+            if channel_id:
+                query["channel_id"] = channel_id
+            
+            cursor = self.queue_collection.find(query).sort("created_at", ASCENDING).limit(batch_size)
+            return await cursor.to_list(length=batch_size)
+        except Exception as e:
+            LOGGER.error(f"Failed to get next batch: {e}")
+            return []
+
+    async def mark_completed(self, queue_id: str, channel_id: int, message_id: int):
+        """Mark file as completed and move to processed collection."""
+        try:
+            # Remove from queue
+            await self.queue_collection.delete_one({"_id": ObjectId(queue_id)})
+            
+            # Add to processed collection
+            await self.processed_collection.update_one(
+                {"channel_id": channel_id, "message_id": message_id},
+                {"$set": {"processed_at": datetime.utcnow()}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            LOGGER.error(f"Failed to mark completed: {e}")
+            return False
+
+    async def mark_failed(self, queue_id: str, error: str):
+        """Mark file as failed with retry tracking."""
+        try:
+            result = await self.queue_collection.update_one(
+                {"_id": ObjectId(queue_id)},
+                {
+                    "$inc": {"retry_count": 1},
+                    "$set": {
+                        "status": "failed",
+                        "error": str(error)[:500],
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            LOGGER.error(f"Failed to mark failed: {e}")
+            return False
+
+    async def reset_failed_messages(self, channel_id: int = None):
+        """Reset failed messages for retry."""
+        query = {"status": "failed", "retry_count": {"$lt": QueueConfig.MAX_RETRY_COUNT}}
+        if channel_id:
+            query["channel_id"] = channel_id
+        
+        try:
+            result = await self.queue_collection.update_many(
+                query,
+                {"$set": {"status": "pending", "error": None, "updated_at": datetime.utcnow()}}
+            )
+            LOGGER.info(f"Reset {result.modified_count} failed messages")
+            return result.modified_count
+        except Exception as e:
+            LOGGER.error(f"Failed to reset failed messages: {e}")
+            return 0
+
+    async def update_checkpoint(self, channel_id: int, message_id: int):
+        """Update last processed message checkpoint."""
+        try:
+            await self.checkpoint_collection.update_one(
+                {"channel_id": channel_id},
+                {
+                    "$set": {
+                        "last_processed_msg_id": message_id,
+                        "updated_at": datetime.utcnow()
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            LOGGER.error(f"Failed to update checkpoint: {e}")
+            return False
+
+    async def get_checkpoint(self, channel_id: int) -> Optional[int]:
+        """Get last processed message ID for channel."""
+        try:
+            doc = await self.checkpoint_collection.find_one({"channel_id": channel_id})
+            return doc["last_processed_msg_id"] if doc else None
+        except Exception as e:
+            LOGGER.error(f"Failed to get checkpoint: {e}")
+            return None
+
+    async def get_queue_stats(self, channel_id: int = None) -> Dict:
+        """Get queue statistics."""
+        try:
+            match = {"channel_id": channel_id} if channel_id else {}
+            pipeline = [
+                {"$match": match},
+                {"$group": {
+                    "_id": "$status",
+                    "count": {"$sum": 1},
+                    "total_retries": {"$sum": "$retry_count"}
+                }}
+            ]
+            cursor = self.queue_collection.aggregate(pipeline)
+            stats = {doc["_id"]: {"count": doc["count"], "retries": doc["total_retries"]} 
+                    for doc in await cursor.to_list(length=10)}
+            
+            # Get total pending
+            pending_count = await self.queue_collection.count_documents({**match, "status": "pending"})
+            
+            return {
+                "pending": pending_count,
+                "failed": stats.get("failed", {}).get("count", 0),
+                "processing": stats.get("processing", {}).get("count", 0),
+                "total_retries": stats.get("failed", {}).get("retries", 0)
+            }
+        except Exception as e:
+            LOGGER.error(f"Failed to get queue stats: {e}")
+            return {}
+
+    async def cleanup_old_queue_records(self, days: int = QueueConfig.QUEUE_TTL_DAYS):
+        """Clean up old queue records."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        try:
+            result = await self.queue_collection.delete_many({
+                "created_at": {"$lt": cutoff},
+                "status": {"$in": ["completed", "failed"]}
+            })
+            LOGGER.info(f"Cleaned up {result.deleted_count} old queue records")
+            return result.deleted_count
+        except Exception as e:
+            LOGGER.error(f"Failed to cleanup old queue records: {e}")
+            return 0
+
+    async def clear_queue(self):
+        """Clear all queue items (admin function)."""
+        try:
+            result = await self.queue_collection.delete_many({})
+            LOGGER.info(f"Cleared {result.deleted_count} queue items")
+            return result.deleted_count
+        except Exception as e:
+            LOGGER.error(f"Failed to clear queue: {e}")
+            return 0
 
     async def get_media_with_tracks(
         self,

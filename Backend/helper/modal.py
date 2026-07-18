@@ -7,6 +7,7 @@ class QualityDetail(BaseModel):
     id: str = Field(..., description="Unique hash for the video")
     name: str = Field(..., description="Original Filename of telegram file")
     size: str = Field(..., description="Size of the File")
+    codec: Optional[str] = Field(None, description="Video codec (e.g., h264, vp9, h265)")
     audio_tracks: Optional[List[Dict]] = Field(None, description="Cached audio track information from ffprobe")
     subtitle_tracks: Optional[List[Dict]] = Field(None, description="Cached embedded subtitle track information from ffprobe")
 

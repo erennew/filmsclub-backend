@@ -103,7 +103,7 @@ class Cache:
 
 
 class QueueConfig:
-    """Queue processing configuration - SLOW & THOROUGH mode."""
+    """Queue processing configuration - SLOW & THOROUGH mode with MongoDB persistence."""
     
     # Processing delays (slower = more reliable)
     FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "8"))  # 8 seconds between files
@@ -125,6 +125,16 @@ class QueueConfig:
     # TMDB Validation
     TMDB_VALIDATION_TIMEOUT = int(getenv("TMDB_VALIDATION_TIMEOUT", "10"))  # 10 sec timeout
     TMDB_CACHE_TTL = int(getenv("TMDB_CACHE_TTL", "3600"))  # Cache valid IDs for 1 hour
+    
+    # MongoDB Queue Persistence
+    ENABLE_MONGODB_QUEUE = getenv("ENABLE_MONGODB_QUEUE", "true").lower() == "true"
+    QUEUE_TTL_DAYS = int(getenv("QUEUE_TTL_DAYS", "7"))  # Auto-delete queue items after 7 days
+    PROCESSED_TTL_DAYS = int(getenv("PROCESSED_TTL_DAYS", "30"))  # Keep processed records for 30 days
+    RESUME_ON_START = getenv("RESUME_ON_START", "true").lower() == "true"  # Resume queue on restart
+    
+    # FloodWait handling
+    FLOODWAIT_MAX_RETRIES = int(getenv("FLOODWAIT_MAX_RETRIES", "5"))
+    FLOODWAIT_BASE_DELAY = int(getenv("FLOODWAIT_BASE_DELAY", "30"))  # Base delay in seconds
 
 
 class TMDBValidation:
