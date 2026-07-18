@@ -60,6 +60,7 @@ class QueueItem:
 # Enhanced queue configuration
 file_queue = Queue()
 db_lock = Lock()
+is_queue_paused = False
 
 # MongoDB Queue Processor State
 channel_processors: Dict[int, asyncio.Task] = {}
@@ -642,9 +643,13 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None) 
 
 async def process_file(worker_id: int):
     """Slow, thorough worker with batch gaps."""
-    global processed_count_in_batch, total_processing_time, processing_count
+    global processed_count_in_batch, total_processing_time, processing_count, is_queue_paused
     
     while True:
+        if is_queue_paused:
+            await asyncio.sleep(1)
+            continue
+            
         item = await file_queue.get()
         processing_start = time.time()
         
@@ -1606,6 +1611,22 @@ async def confirm_clear(bot: Client, message: Message):
     )
 
 
+@StreamBot.on_message(filters.command(["stopqueue", "pausequeue", "stop"]) & filters.private & CustomFilters.admin)
+async def stop_queue(bot: Client, message: Message):
+    """Pause the queue processors."""
+    global is_queue_paused
+    is_queue_paused = True
+    await message.reply_text("⏸️ <b>Queue Processing Paused</b>\n\nUse /startqueue or /resumequeue to resume.", parse_mode=enums.ParseMode.HTML)
+
+
+@StreamBot.on_message(filters.command(["startqueue", "resumequeue", "startq"]) & filters.private & CustomFilters.admin)
+async def resume_queue(bot: Client, message: Message):
+    """Resume the queue processors."""
+    global is_queue_paused
+    is_queue_paused = False
+    await message.reply_text("▶️ <b>Queue Processing Resumed</b>", parse_mode=enums.ParseMode.HTML)
+
+
 @StreamBot.on_message(filters.command("clearmongodb") & filters.private & CustomFilters.admin)
 async def clear_mongodb_queue(bot: Client, message: Message):
     """Clear MongoDB queue (admin only)."""
@@ -1864,63 +1885,46 @@ async def reset_database(bot: Client, message: Message):
         "⏱️ You have 60 seconds to confirm.",
         parse_mode=enums.ParseMode.HTML
     )
-    
-    # Wait for confirmation with timeout
-    try:
-        await asyncio.wait_for(
-            wait_for_reset_confirmation(),
-            timeout=60.0
-        )
-        
-        # Perform database reset
-        try:
-            # Get all collection names
-            collections = await db.db.list_collection_names()
-            
-            deleted_count = 0
-            for collection_name in collections:
-                collection = db.db[collection_name]
-                result = await collection.delete_many({})
-                deleted_count += result.deleted_count
-            
-            LOGGER.warning(f"🗑️ Database reset by owner: {deleted_count} documents deleted from {len(collections)} collections")
-            
-            await message.reply_text(
-                f"✅ <b>Database Reset Complete</b>\n\n"
-                f"Deleted <b>{deleted_count}</b> documents from <b>{len(collections)}</b> collections:\n"
-                f"{', '.join(collections)}\n\n"
-                f"Database is now empty. Use /rescan to rebuild.",
-                parse_mode=enums.ParseMode.HTML
-            )
-            
-        except Exception as e:
-            LOGGER.error(f"Error resetting database: {e}")
-            await message.reply_text(f"❌ Error resetting database: {e}")
-        
-    except asyncio.TimeoutError:
-        reset_db_state['waiting_for_confirmation'] = False
-        await message.reply_text(
-            "⏰ <b>Confirmation timed out</b>\n"
-            "Database was not reset.",
-            parse_mode=enums.ParseMode.HTML
-        )
 
-
-async def wait_for_reset_confirmation():
-    """Wait for reset database confirmation."""
-    while reset_db_state['waiting_for_confirmation']:
-        await asyncio.sleep(0.1)
 
 
 @StreamBot.on_message(filters.command("confirmreset") & filters.private & CustomFilters.admin)
 async def confirm_reset(bot: Client, message: Message):
     """Confirm database reset."""
+    global reset_db_state
     if reset_db_state['waiting_for_confirmation']:
         # Check if within timeout
         if time.time() - reset_db_state['timestamp'] <= 60:
             reset_db_state['waiting_for_confirmation'] = False
-            await message.reply_text("✅ Confirmation received. Resetting database...")
+            status_msg = await message.reply_text("✅ Confirmation received. Resetting database...")
+            
+            # Perform database reset
+            try:
+                # Get all collection names
+                collections = await db.db.list_collection_names()
+                
+                deleted_count = 0
+                for collection_name in collections:
+                    if collection_name.startswith("system."):
+                        continue
+                    collection = db.db[collection_name]
+                    result = await collection.delete_many({})
+                    deleted_count += result.deleted_count
+                
+                LOGGER.warning(f"🗑️ Database reset by owner: {deleted_count} documents deleted from {len(collections)} collections")
+                
+                await status_msg.edit_text(
+                    f"✅ <b>Database Reset Complete</b>\n\n"
+                    f"Deleted <b>{deleted_count}</b> documents from <b>{len(collections)}</b> collections:\n"
+                    f"{', '.join(collections)}\n\n"
+                    f"Database is now empty. Use /rescan to rebuild.",
+                    parse_mode=enums.ParseMode.HTML
+                )
+            except Exception as e:
+                LOGGER.error(f"Error resetting database: {e}")
+                await status_msg.edit_text(f"❌ Error resetting database: {e}")
         else:
+            reset_db_state['waiting_for_confirmation'] = False
             await message.reply_text("⏰ Confirmation expired. Please run /resetdb again.")
     else:
         await message.reply_text("No pending reset request. Use /resetdb first.")

@@ -89,7 +89,7 @@ class Cache:
     
     # Video chunk cache configuration
     ENABLE_VIDEO_CACHE = getenv("ENABLE_VIDEO_CACHE", "true").lower() == "true"
-    VIDEO_CACHE_HOT_START_SLOTS = int(getenv("VIDEO_CACHE_HOT_START_SLOTS", "1000"))
+    VIDEO_CACHE_HOT_START_SLOTS = int(getenv("VIDEO_CACHE_HOT_START_SLOTS", "10000"))
     VIDEO_CACHE_HOT_START_SIZE_MB = int(getenv("VIDEO_CACHE_HOT_START_SIZE_MB", "1"))
     VIDEO_CACHE_LRU_SIZE_MB = int(getenv("VIDEO_CACHE_LRU_SIZE_MB", "1500"))
     VIDEO_CACHE_CHUNK_SIZE = int(getenv("VIDEO_CACHE_CHUNK_SIZE", "65536"))
@@ -106,12 +106,12 @@ class QueueConfig:
     """Queue processing configuration - SLOW & THOROUGH mode with MongoDB persistence."""
     
     # Processing delays (slower = more reliable)
-    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "8"))  # 8 seconds between files
+    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "7"))  # 8 seconds between files
     VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "15"))  # 15 seconds between retries
     FILE_VALIDATION_DELAY = int(getenv("FILE_VALIDATION_DELAY", "5"))  # 5 sec after fetch
     
     # Batch gap (after every 10 files, wait 5 seconds)
-    BATCH_SIZE = int(getenv("BATCH_SIZE", "10"))  # Files per batch
+    BATCH_SIZE = int(getenv("BATCH_SIZE", "20"))  # Files per batch
     BATCH_GAP_SECONDS = int(getenv("BATCH_GAP_SECONDS", "5"))  # Gap between batches
     
     # Retry limits
