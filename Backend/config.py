@@ -106,25 +106,25 @@ class QueueConfig:
     """Queue processing configuration - SLOW & THOROUGH mode with MongoDB persistence."""
     
     # Processing delays (slower = more reliable)
-    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "3"))  # 8 seconds between files
-    VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "10"))  # 15 seconds between retries
-    FILE_VALIDATION_DELAY = int(getenv("FILE_VALIDATION_DELAY", "5"))  # 5 sec after fetch
+    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "1"))  # 8 seconds between files
+    VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "1"))  # 15 seconds between retries
+    FILE_VALIDATION_DELAY = int(getenv("FILE_VALIDATION_DELAY", "1"))  # 5 sec after fetch
     
     # Batch gap (after every 10 files, wait 5 seconds)
-    BATCH_SIZE = int(getenv("BATCH_SIZE", "50"))  # Files per batch
-    BATCH_GAP_SECONDS = int(getenv("BATCH_GAP_SECONDS", "5"))  # Gap between batches
+    BATCH_SIZE = int(getenv("BATCH_SIZE", "500"))  # Files per batch
+    BATCH_GAP_SECONDS = int(getenv("BATCH_GAP_SECONDS", "2"))  # Gap between batches
     
     # Retry limits
     MAX_RETRY_COUNT = int(getenv("MAX_RETRY_COUNT", "3"))
-    QUEUE_WORKERS = int(getenv("QUEUE_WORKERS", "1"))  # Single worker for sequential
+    QUEUE_WORKERS = int(getenv("QUEUE_WORKERS", "2"))  # Single worker for sequential
     
     # Rate limiting (per channel) - VERY conservative
-    MAX_MESSAGES_PER_MINUTE = int(getenv("MAX_MESSAGES_PER_MINUTE", "100"))  # Only 5 per minute
+    MAX_MESSAGES_PER_MINUTE = int(getenv("MAX_MESSAGES_PER_MINUTE", "300"))  # Only 5 per minute
     RATE_LIMIT_SECONDS = int(getenv("RATE_LIMIT_SECONDS", "60"))  # Over 60 seconds
     
     # TMDB Validation
-    TMDB_VALIDATION_TIMEOUT = int(getenv("TMDB_VALIDATION_TIMEOUT", "10"))  # 10 sec timeout
-    TMDB_CACHE_TTL = int(getenv("TMDB_CACHE_TTL", "3600"))  # Cache valid IDs for 1 hour
+    TMDB_VALIDATION_TIMEOUT = int(getenv("TMDB_VALIDATION_TIMEOUT", "7"))  # 10 sec timeout
+    TMDB_CACHE_TTL = int(getenv("TMDB_CACHE_TTL", "86400"))  # Cache valid IDs for 1 hour
     
     # MongoDB Queue Persistence
     ENABLE_MONGODB_QUEUE = getenv("ENABLE_MONGODB_QUEUE", "true").lower() == "true"
