@@ -1385,7 +1385,8 @@ async def database_stats(bot: Client, message: Message):
         if movie_count > 0:
             movie_sample = await db.movie_collection.find_one({})
             if movie_sample and 'telegram' in movie_sample:
-                total_movie_files = sum(len(doc.get('telegram', [])) for doc in await db.movie_collection.find({}, {'telegram': 1}))
+                docs = await db.movie_collection.find({}, {'telegram': 1}).to_list(length=None)
+                total_movie_files = sum(len(doc.get('telegram', [])) for doc in docs)
         
         if tv_count > 0:
             total_tv_files = 0
