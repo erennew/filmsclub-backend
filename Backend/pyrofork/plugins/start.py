@@ -451,7 +451,7 @@ def calculate_file_score(metadata_info: dict, probe_result: dict = None) -> dict
     breakdown['lang_score'] = lang_score
     
     # Codec preference
-    codec = metadata_info.get('codec', 'other')
+    codec = metadata_info.get('codec') or 'other'
     from Backend.helper.database import CODEC_PRIORITY
     codec_priority_score = (7 - CODEC_PRIORITY.get(codec.lower(), 6)) * 25  # Invert so lower priority = higher score
     score += codec_priority_score
