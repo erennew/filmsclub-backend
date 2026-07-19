@@ -106,12 +106,12 @@ class QueueConfig:
     """Queue processing configuration - SLOW & THOROUGH mode with MongoDB persistence."""
     
     # Processing delays (slower = more reliable)
-    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "7"))  # 8 seconds between files
-    VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "15"))  # 15 seconds between retries
+    FILE_QUEUE_DELAY = int(getenv("FILE_QUEUE_DELAY", "3"))  # 8 seconds between files
+    VALIDATION_DELAY = int(getenv("VALIDATION_DELAY", "10"))  # 15 seconds between retries
     FILE_VALIDATION_DELAY = int(getenv("FILE_VALIDATION_DELAY", "5"))  # 5 sec after fetch
     
     # Batch gap (after every 10 files, wait 5 seconds)
-    BATCH_SIZE = int(getenv("BATCH_SIZE", "20"))  # Files per batch
+    BATCH_SIZE = int(getenv("BATCH_SIZE", "50"))  # Files per batch
     BATCH_GAP_SECONDS = int(getenv("BATCH_GAP_SECONDS", "5"))  # Gap between batches
     
     # Retry limits
@@ -119,7 +119,7 @@ class QueueConfig:
     QUEUE_WORKERS = int(getenv("QUEUE_WORKERS", "1"))  # Single worker for sequential
     
     # Rate limiting (per channel) - VERY conservative
-    MAX_MESSAGES_PER_MINUTE = int(getenv("MAX_MESSAGES_PER_MINUTE", "5"))  # Only 5 per minute
+    MAX_MESSAGES_PER_MINUTE = int(getenv("MAX_MESSAGES_PER_MINUTE", "100"))  # Only 5 per minute
     RATE_LIMIT_SECONDS = int(getenv("RATE_LIMIT_SECONDS", "60"))  # Over 60 seconds
     
     # TMDB Validation
@@ -128,7 +128,7 @@ class QueueConfig:
     
     # MongoDB Queue Persistence
     ENABLE_MONGODB_QUEUE = getenv("ENABLE_MONGODB_QUEUE", "true").lower() == "true"
-    QUEUE_TTL_DAYS = int(getenv("QUEUE_TTL_DAYS", "7"))  # Auto-delete queue items after 7 days
+    QUEUE_TTL_DAYS = int(getenv("QUEUE_TTL_DAYS", "30"))  # Auto-delete queue items after 7 days
     PROCESSED_TTL_DAYS = int(getenv("PROCESSED_TTL_DAYS", "30"))  # Keep processed records for 30 days
     RESUME_ON_START = getenv("RESUME_ON_START", "true").lower() == "true"  # Resume queue on restart
     
