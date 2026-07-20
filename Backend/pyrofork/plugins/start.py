@@ -8,7 +8,7 @@ from Backend import db
 from Backend.config import Telegram
 from Backend.helper.custom_filter import CustomFilters
 from Backend.helper.encrypt import decode_string
-from Backend.helper.metadata import metadata
+from Backend.helper.metadata import extract_codec_from_filename, metadata
 from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
 from Backend.pyrofork import StreamBot
 from pyrogram import filters, Client
@@ -88,6 +88,55 @@ channel_rate_limit = defaultdict(list)
 # Processing time tracking for metrics
 total_processing_time = 0.0
 processing_count = 0
+
+# Higher values are preferred when the resolution is the same.
+CODEC_PRIORITY = {
+    'hevc': 3, 'h265': 3, 'h.265': 3, 'x265': 3,
+    'h264': 2, 'avc': 2, 'h.264': 2, 'x264': 2,
+    'vp9': 1,
+}
+
+RIP_PRIORITY = {
+    'bluray': 7, '4k': 6, 'remux': 5, 'web-dl': 4, 'webrip': 3,
+    'hdtv': 2, 'dvd': 1, 'tvrip': 0, 'hdrip': 0, 'cam': -1,
+}
+
+
+def _codec_priority(codec: str | None) -> int:
+    return CODEC_PRIORITY.get(str(codec or '').lower().replace(' ', ''), 0)
+
+
+def _audio_track_count(metadata_info: dict, probe_result: dict | None = None) -> int:
+    tracks = (probe_result or {}).get('audio_tracks') or metadata_info.get('audio_tracks') or []
+    return len(tracks) if isinstance(tracks, list) else 0
+
+
+def _size_in_bytes(size: str | int | float | None) -> int:
+    """Convert the stored human-readable Telegram file size into comparable bytes."""
+    if isinstance(size, (int, float)):
+        return int(size)
+    match = re.search(r'([0-9]+(?:\.[0-9]+)?)\s*([KMGT]?B)?', str(size or ''), re.IGNORECASE)
+    if not match:
+        return 0
+    units = {'B': 1, 'KB': 1024, 'MB': 1024 ** 2, 'GB': 1024 ** 3, 'TB': 1024 ** 4}
+    return int(float(match.group(1)) * units.get((match.group(2) or 'B').upper(), 1))
+
+
+def _compare_same_quality(current: dict, existing: dict, probe_result: dict | None, current_size: str | None) -> tuple[int, str]:
+    """Compare same-resolution releases in the requested deterministic order.
+    Priority: codec (h265 > h264 > vp9) > audio track count > file size > language count > rip source
+    """
+    comparisons = (
+        ('codec', _codec_priority(current.get('codec')), _codec_priority(existing.get('codec'))),
+        ('audio track count', _audio_track_count(current, probe_result), _audio_track_count(existing)),
+        ('file size', _size_in_bytes(current_size), _size_in_bytes(existing.get('size'))),
+        ('language count', len(current.get('languages') or []), len(existing.get('languages') or [])),
+        ('rip source', RIP_PRIORITY.get(str(current.get('rip') or '').lower(), 0), RIP_PRIORITY.get(str(existing.get('rip') or '').lower(), 0)),
+    )
+    for label, current_value, existing_value in comparisons:
+        if current_value != existing_value:
+            return (1 if current_value > existing_value else -1), label
+    return 0, 'equal metadata'
 
 # Clear queue confirmation states
 clear_queue_state = {
@@ -453,7 +502,7 @@ def calculate_file_score(metadata_info: dict, probe_result: dict = None) -> dict
     # Codec preference
     codec = metadata_info.get('codec') or 'other'
     from Backend.helper.database import CODEC_PRIORITY
-    codec_priority_score = (7 - CODEC_PRIORITY.get(codec.lower(), 6)) * 25  # Invert so lower priority = higher score
+    codec_priority_score = CODEC_PRIORITY.get(codec.lower(), 0) * 25
     score += codec_priority_score
     breakdown['codec'] = codec
     breakdown['codec_score'] = codec_priority_score
@@ -504,26 +553,11 @@ def calculate_file_score(metadata_info: dict, probe_result: dict = None) -> dict
     return breakdown
 
 
-async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None) -> tuple:
+async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None, current_size: str = None) -> tuple:
     """
-    Enhanced smart replacement decision engine with comprehensive scoring.
-    
-    Scoring factors (weighted):
-    - Audio track count: 30 points per track (HIGHEST PRIORITY)
-    - Language count: 15 points per language
-    - Codec preference: 25 points (h264 > vp9 > h265 > others)
-    - Rip source: 20 points (BluRay > WEB-DL > HDTV > etc)
-    - Remastered: 30 bonus points
-    - HDR: 15 bonus points
-    - Subtitle tracks: 5 points per track
-    
-    Rules:
-    1. Compare ONLY same quality (720p vs 720p, 1080p vs 1080p)
-    2. Calculate comprehensive score for both files
-    3. Replace if new file score is significantly higher (by 10+ points)
-    4. TV shows: Compare at episode level only
-    5. Automatic replacement with safety backups
-    6. Detailed logging for all decisions
+    Compare only files of the same resolution. The first differing attribute wins:
+    language count, codec (H265/HEVC > H264/AVC > VP9), rip source, audio
+    track count, then file size. TV episodes are compared independently.
     
     Returns:
         ('ADD', None) - No existing version of this quality
@@ -534,13 +568,6 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None) 
         tmdb_id = metadata_info.get('tmdb_id')
         media_type = metadata_info.get('media_type')
         current_quality = metadata_info.get('quality', '720p')
-        
-        # Calculate score for current file
-        current_score_breakdown = calculate_file_score(metadata_info, probe_result)
-        current_score = current_score_breakdown['total_score']
-        
-        LOGGER.info(f"📊 Current file score: {current_score}")
-        LOGGER.info(f"   Breakdown: {current_score_breakdown}")
         
         # Check movies collection
         if media_type == "movie":
@@ -554,37 +581,21 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None) 
                     if existing_quality_name != current_quality:
                         continue
                     
-                    # Calculate score for existing file
                     existing_metadata = {
-                        'title': existing_quality.get('name', ''),
-                        'languages': existing_quality.get('languages', []),
-                        'codec': existing_quality.get('codec', 'other'),
-                        'rip': existing_quality.get('rip', 'Unknown'),
-                        'audio_tracks': existing_quality.get('audio_tracks', [])
+                        **existing_quality,
+                        'languages': existing_quality.get('languages') or existing_movie.get('languages', []),
+                        'rip': existing_quality.get('rip') or existing_movie.get('rip', 'Unknown'),
                     }
-                    
-                    existing_score_breakdown = calculate_file_score(existing_metadata)
-                    existing_score = existing_score_breakdown['total_score']
-                    
-                    LOGGER.info(f"📊 Existing file score: {existing_score}")
-                    LOGGER.info(f"   Breakdown: {existing_score_breakdown}")
-                    
-                    # Compare scores with threshold
-                    score_difference = current_score - existing_score
-                    score_threshold = 10  # Minimum difference to justify replacement
-                    
-                    if score_difference > score_threshold:
-                        LOGGER.info(f"🔄 Current file is significantly better (score diff: +{score_difference}) - Will replace existing")
-                        LOGGER.info(f"   Current: {current_score_breakdown}")
-                        LOGGER.info(f"   Existing: {existing_score_breakdown}")
+                    comparison, reason = _compare_same_quality(metadata_info, existing_metadata, probe_result, current_size)
+                    if comparison > 0:
+                        LOGGER.info(f"🔄 Current movie is better by {reason} - Will replace existing")
                         return 'REPLACE', existing_quality
-                    elif score_difference < -score_threshold:
-                        LOGGER.info(f"⏭️ Existing file is significantly better (score diff: {score_difference}) - Skipping current")
-                        return 'SKIP', f"Existing is better (score diff: {score_difference})"
+                    elif comparison < 0:
+                        LOGGER.info(f"⏭️ Existing movie is better by {reason} - Skipping current")
+                        return 'SKIP', f"Existing is better by {reason}"
                     else:
-                        # Scores are similar, keep existing to avoid unnecessary replacements
-                        LOGGER.info(f"⏭️ Files have similar quality (score diff: {score_difference}) - Keeping existing")
-                        return 'SKIP', f"Similar quality (score diff: {score_difference})"
+                        LOGGER.info("⏭️ Matching movie metadata - Keeping existing")
+                        return 'SKIP', 'Matching metadata'
         
         # Similar logic for TV shows...
         elif media_type == "tv":
@@ -605,34 +616,21 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None) 
                                         if existing_quality_name != current_quality:
                                             continue
                                         
-                                        # Calculate score for existing file
                                         existing_metadata = {
-                                            'title': existing_quality.get('name', ''),
-                                            'languages': existing_quality.get('languages', []),
-                                            'codec': existing_quality.get('codec', 'other'),
-                                            'rip': existing_quality.get('rip', 'Unknown'),
-                                            'audio_tracks': existing_quality.get('audio_tracks', [])
+                                            **existing_quality,
+                                            'languages': existing_quality.get('languages') or existing_tv.get('languages', []),
+                                            'rip': existing_quality.get('rip') or existing_tv.get('rip', 'Unknown'),
                                         }
-                                        
-                                        existing_score_breakdown = calculate_file_score(existing_metadata)
-                                        existing_score = existing_score_breakdown['total_score']
-                                        
-                                        LOGGER.info(f"📊 Existing TV episode score: {existing_score}")
-                                        LOGGER.info(f"   Breakdown: {existing_score_breakdown}")
-                                        
-                                        # Compare scores with threshold
-                                        score_difference = current_score - existing_score
-                                        score_threshold = 10
-                                        
-                                        if score_difference > score_threshold:
-                                            LOGGER.info(f"🔄 Current episode is significantly better (score diff: +{score_difference}) - Will replace existing")
+                                        comparison, reason = _compare_same_quality(metadata_info, existing_metadata, probe_result, current_size)
+                                        if comparison > 0:
+                                            LOGGER.info(f"🔄 Current episode is better by {reason} - Will replace existing")
                                             return 'REPLACE', existing_quality
-                                        elif score_difference < -score_threshold:
-                                            LOGGER.info(f"⏭️ Existing episode is significantly better (score diff: {score_difference}) - Skipping current")
-                                            return 'SKIP', f"Existing is better (score diff: {score_difference})"
+                                        elif comparison < 0:
+                                            LOGGER.info(f"⏭️ Existing episode is better by {reason} - Skipping current")
+                                            return 'SKIP', f"Existing is better by {reason}"
                                         else:
-                                            LOGGER.info(f"⏭️ Episodes have similar quality (score diff: {score_difference}) - Keeping existing")
-                                            return 'SKIP', f"Similar quality (score diff: {score_difference})"
+                                            LOGGER.info("⏭️ Matching episode metadata - Keeping existing")
+                                            return 'SKIP', 'Matching metadata'
         
         LOGGER.info(f"➕ No existing version found - Adding new file")
         return 'ADD', None
@@ -685,7 +683,7 @@ async def process_file(worker_id: int):
                 continue
             
             # Smart replacement decision with probe results
-            action, old_version = await smart_replace_or_skip(item.metadata_info, item.probe_result)
+            action, old_version = await smart_replace_or_skip(item.metadata_info, item.probe_result, item.size)
             
             async with db_lock:
                 if action == 'ADD':
@@ -844,7 +842,7 @@ async def process_mongodb_queue(channel_id: int = None):
                         continue
                     
                     # Smart replacement decision
-                    action, old_version = await smart_replace_or_skip(queue_item.metadata_info, queue_item.probe_result)
+                    action, old_version = await smart_replace_or_skip(queue_item.metadata_info, queue_item.probe_result, queue_item.size)
                     
                     # Database operations with FloodWait handling
                     db_success = False
@@ -1048,6 +1046,7 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         channel_int = int(channel)
 
         # ========== UPDATED: Clean filename and extract languages ==========
+        original_filename = file.file_name or title
         cleaned_title, detected_langs = clean_filename(title)
         title = cleaned_title
         
@@ -1057,6 +1056,15 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             LOGGER.info(f"Detected languages: {detected_langs}")
         
         metadata_info = await metadata(title, file)
+
+        # ``clean_filename`` deliberately removes technical release tags before
+        # metadata parsing. Preserve codec preference data from the unmodified
+        # Telegram filename so H265/H264/VP9 comparisons remain available even
+        # when media probing is disabled or unavailable.
+        if metadata_info:
+            filename_codec = extract_codec_from_filename(original_filename)
+            if filename_codec:
+                metadata_info['codec'] = filename_codec
         
         # If metadata_info exists and we detected languages, use them
         if metadata_info and detected_langs and not metadata_info.get('languages'):
@@ -1115,6 +1123,10 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                         audio_langs = [t['language'] for t in probe_result['audio_tracks']]
                         metadata_info['languages'] = audio_langs
                         LOGGER.info(f"📢 Added audio languages from probe: {audio_langs}")
+
+                    # Persist track data so future same-quality replacements can compare it.
+                    metadata_info['audio_tracks'] = probe_result.get('audio_tracks', [])
+                    metadata_info['subtitle_tracks'] = probe_result.get('subtitle_tracks', [])
                     
                     # Add subtitle info
                     if probe_result.get('has_subtitles'):

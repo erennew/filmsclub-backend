@@ -18,6 +18,30 @@ DELAY = 2
 tmdb = aioTMDb(key=Config.TMDB_API, language="en-US", region="US")
 
 
+def extract_codec_from_filename(filename: str) -> str | None:
+    """Return a normalized video codec from common release-name tags."""
+    value = str(filename or "").lower()
+    patterns = (
+        (r'(?<![a-z0-9])(hevc|h[.\-]?265|x265)(?![a-z0-9])', 'h265'),
+        (r'(?<![a-z0-9])(h[.\-]?264|x264|avc)(?![a-z0-9])', 'h264'),
+        (r'(?<![a-z0-9])vp[.\-]?9(?![a-z0-9])', 'vp9'),
+    )
+    for pattern, codec in patterns:
+        if re.search(pattern, value, re.IGNORECASE):
+            return codec
+    return None
+
+
+def _with_filename_codec(metadata_info: dict | None, filename: str, parsed: dict | None = None) -> dict | None:
+    if not metadata_info:
+        return metadata_info
+    parsed_codec = (parsed or {}).get('codec') or (parsed or {}).get('video_codec')
+    codec = extract_codec_from_filename(str(parsed_codec or filename))
+    if codec:
+        metadata_info['codec'] = codec
+    return metadata_info
+
+
 async def fetch_anime_from_anilist(title: str) -> dict:
     """Fetch anime metadata from AniList API"""
     try:
@@ -259,12 +283,20 @@ async def get_tmdb_people_and_schedule(tmdb_id: int | str | None, media_type: st
     """Return compact cast data and next/last episode info directly from TMDB.
 
     This is intentionally small so details pages stay fast and frontend payloads stay clean.
+    Enhanced to fetch cast more reliably with better error handling and fallbacks.
     """
     if not Config.TMDB_API or not tmdb_id:
         return {"cast": [], "next_episode_to_air": None, "last_episode_to_air": None}
 
+    # Handle string TMDB IDs (e.g., from anime sources)
+    try:
+        tmdb_id_int = int(str(tmdb_id).replace("al_", "").replace("tt", ""))
+    except (ValueError, AttributeError):
+        LOGGER.debug(f"Invalid TMDB ID format: {tmdb_id}")
+        return {"cast": [], "next_episode_to_air": None, "last_episode_to_air": None}
+
     tmdb_kind = "movie" if media_type == "movie" else "tv"
-    url = f"https://api.themoviedb.org/3/{tmdb_kind}/{tmdb_id}"
+    url = f"https://api.themoviedb.org/3/{tmdb_kind}/{tmdb_id_int}"
     params = {
         "api_key": Config.TMDB_API,
         "language": "en-US",
@@ -272,7 +304,7 @@ async def get_tmdb_people_and_schedule(tmdb_id: int | str | None, media_type: st
     }
 
     try:
-        async with httpx.AsyncClient(timeout=20) as session:
+        async with httpx.AsyncClient(timeout=30) as session:
             response = await session.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -281,18 +313,36 @@ async def get_tmdb_people_and_schedule(tmdb_id: int | str | None, media_type: st
         return {"cast": [], "next_episode_to_air": None, "last_episode_to_air": None}
 
     cast = []
-    for person in (data.get("credits") or {}).get("cast", [])[:18]:
+    credits_data = data.get("credits") or {}
+    
+    # Process cast with better filtering and sorting
+    cast_list = credits_data.get("cast", [])
+    for person in cast_list[:20]:  # Increased to 20 for better coverage
         name = (person.get("name") or "").strip()
         if not name:
             continue
+        
+        # Skip people without images if we have enough cast members
+        profile_path = person.get("profile_path")
+        if not profile_path and len(cast) >= 12:
+            continue
+        
+        character = (person.get("character") or "").strip()
+        known_for = (person.get("known_for_department") or "").strip() or "Acting"
+        
         cast.append({
             "id": person.get("id"),
             "name": name,
-            "character": person.get("character") or "",
-            "profile": _tmdb_image_url(person.get("profile_path"), "w185"),
-            "known_for_department": person.get("known_for_department") or "Acting",
+            "character": character,
+            "profile": _tmdb_image_url(profile_path, "w185"),
+            "known_for_department": known_for,
             "order": person.get("order", len(cast)),
         })
+    
+    # Sort by order (TMDB's relevance ranking)
+    cast.sort(key=lambda x: x.get("order", 999))
+
+    LOGGER.debug(f"Fetched {len(cast)} cast members for {media_type} {tmdb_id}")
 
     return {
         "cast": cast,
@@ -591,7 +641,10 @@ async def metadata(filename: str, media) -> dict:
             LOGGER.info(f"Parsed anime: {title} - S{season_number}E{episode_number:03d} (Group: {group_name})")
             
             # Pass season information to the anime metadata fetcher
-            return await fetch_anime_metadata(title, season_number, episode_number, episode_title, group_name, has_season)
+            return _with_filename_codec(
+                await fetch_anime_metadata(title, season_number, episode_number, episode_title, group_name, has_season),
+                filename,
+            )
         
         # Fall back to PTN parser for regular content
         parsed = PTN.parse(filename)
@@ -606,6 +659,7 @@ async def metadata(filename: str, media) -> dict:
         quality = parsed.get('resolution')
         languages = normalize_languages(parsed.get('language'))
         rip = parsed.get('quality')
+        codec = extract_codec_from_filename(str(parsed.get('codec') or parsed.get('video_codec') or filename))
         
         # Extract group from PTN parsing if available
         group_name = None
@@ -657,10 +711,16 @@ async def metadata(filename: str, media) -> dict:
         if title:
             if season and episode:
                 LOGGER.info(f"Fetching TV metadata: {title} S{season}E{episode} (Group: {group_name}) with ID: {default_id}")
-                return await fetch_tv_metadata(title, season, episode, year, quality, default_id, languages, rip, group_name)
+                metadata_info = await fetch_tv_metadata(title, season, episode, year, quality, default_id, languages, rip, group_name)
+                if metadata_info and codec:
+                    metadata_info['codec'] = codec
+                return metadata_info
             else:
                 LOGGER.info(f"Fetching movie metadata: {title} ({year}) (Group: {group_name}) with ID: {default_id}")
-                return await fetch_movie_metadata(title, year, quality, default_id, languages, rip, group_name)
+                metadata_info = await fetch_movie_metadata(title, year, quality, default_id, languages, rip, group_name)
+                if metadata_info and codec:
+                    metadata_info['codec'] = codec
+                return metadata_info
 
         LOGGER.warning(f"No title parsed from: {filename} (parsed: {parsed})")
         return None

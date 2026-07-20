@@ -13,14 +13,11 @@ from Backend.helper.encrypt import encode_string
 from Backend.helper.modal import Episode, MovieSchema, QualityDetail, Season, TVShowSchema
 
 
-# Codec preference order: h264 > vp9 > h265 > others
+# Codec preference order: H265/HEVC > H264/AVC > VP9 > others.
 CODEC_PRIORITY = {
-    'h264': 1,
-    'vp9': 2,
-    'h265': 3,
-    'av1': 4,
-    'mpeg4': 5,
-    'other': 6
+    'hevc': 3, 'h265': 3, 'h.265': 3, 'x265': 3,
+    'h264': 2, 'avc': 2, 'h.264': 2, 'x264': 2,
+    'vp9': 1,
 }
 
 
@@ -117,12 +114,12 @@ class Database:
 
     @staticmethod
     def sort_by_codec_preference(quality_details: List[Dict]) -> List[Dict]:
-        """Sort quality details by codec preference (h264 > vp9 > h265 > others)."""
+        """Sort quality details by codec preference (H265 > H264 > VP9 > others)."""
         def get_codec_priority(item: Dict) -> int:
             codec = item.get('codec', 'other').lower()
-            return CODEC_PRIORITY.get(codec, 6)  # Default to lowest priority
+            return CODEC_PRIORITY.get(codec, 0)
         
-        return sorted(quality_details, key=get_codec_priority)
+        return sorted(quality_details, key=get_codec_priority, reverse=True)
 
     
     async def update_tv_show(self, tv_show_data: TVShowSchema) -> Optional[ObjectId]:
@@ -284,8 +281,11 @@ class Database:
                         id=encoded_string,
                         name=name,
                         size=size,
-                        codec=codec
-                    )]
+                        codec=codec,
+                        audio_tracks=metadata_info.get('audio_tracks'),
+                        subtitle_tracks=metadata_info.get('subtitle_tracks')
+                    )],
+                cast=metadata_info.get('cast')
             )
             return await self.update_movie(media)
         else:
@@ -318,7 +318,9 @@ class Database:
                                         id=encoded_string,
                                         name=name,
                                         size=size,
-                                        codec=codec
+                                        codec=codec,
+                                        audio_tracks=metadata_info.get('audio_tracks'),
+                                        subtitle_tracks=metadata_info.get('subtitle_tracks')
                                     )
                                 ]
                             )
