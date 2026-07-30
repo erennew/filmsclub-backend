@@ -53,6 +53,34 @@ class_cache = {}
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+# ── CORS ─────────────────────────────────────────────────────────────────────
+# Allow specific origins for production
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://teluguflix-two.vercel.app", "http://localhost:3000", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
+    allow_headers=["*"],
+)
+
+
+# ── Manga stub: stop VioletStream's infinite retry loop ──────────────────────
+# VioletStream hits /api/manga on port 8000 (this backend). Since this backend
+# has no manga data, we return a well-formed empty response with has_next=False
+# so VioletStream stops paginating immediately instead of looping forever.
+@app.get("/api/manga")
+async def manga_stub():
+    return {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "per_page": 24,
+        "total_pages": 0,
+        "has_next": False,
+        "has_prev": False,
+    }
+
+
 
 # Admin Panel Routes
 @app.get("/admin", response_class=HTMLResponse)
@@ -753,13 +781,6 @@ async def admin_retry_failed_file(request: Request, id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 
 

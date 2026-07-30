@@ -1022,23 +1022,95 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         if not is_video:
             return False
 
-        # Extract title from caption or filename with improved parsing
-        if message.caption:
-            title = None
-            for line in message.caption.split("\n"):
+        # ── Title extraction: caption (if USE_CAPTION) then filename fallback ──
+        # We pick the best candidate line from the caption and run it through
+        # the same clean_filename() pipeline used for filenames, so @channels,
+        # technical tags, uploader prefixes, etc. are all stripped consistently.
+        raw_title = None
+        caption_langs = []   # languages extracted from caption info lines (🔊 etc.)
+
+        if message.caption and Telegram.USE_CAPTION:
+            caption_lines = message.caption.split("\n")
+
+            # ── Scan ALL lines for language info (emoji info lines like "🔊 Telugu, Hindi") ──
+            lang_line_pattern = re.compile(
+                r'(?:Telugu|Tamil|Malayalam|Kannada|Hindi|English|Bengali|Marathi|Punjabi|Urdu)',
+                re.IGNORECASE
+            )
+            lang_name_map = {
+                'telugu': 'te', 'tamil': 'ta', 'malayalam': 'ml', 'kannada': 'kn',
+                'hindi': 'hi', 'english': 'en', 'bengali': 'bn', 'marathi': 'mr',
+                'punjabi': 'pa', 'urdu': 'ur',
+            }
+            for line in caption_lines:
+                stripped = line.strip()
+                # Target lines that are clearly language-info lines (contain 🔊 or multiple lang names)
+                found = lang_line_pattern.findall(stripped)
+                if len(found) >= 2 or (found and any(c in stripped for c in ['🔊', '🔉', '🎙', 'Audio', 'Lang'])):
+                    for lang_name in found:
+                        code = lang_name_map.get(lang_name.lower())
+                        if code and code not in caption_langs:
+                            caption_langs.append(code)
+
+            # Pass 0 – skip [@ChannelName] / channel header lines at the top
+            # e.g. "[@CloudMovieX]" or "[ChannelName]"
+            non_header_lines = [
+                l for l in caption_lines
+                if not re.match(r'^\s*\[@?[A-Za-z0-9_]+\]\s*$', l.strip())
+            ]
+
+            # Pass 1 – prefer a line that already has a video extension
+            for line in non_header_lines:
                 stripped = line.strip()
                 if not stripped:
                     continue
-                # Remove leading emojis and special characters
-                cleaned_line = re.sub(r'^[\W_]+', '', stripped)
-                # Check for video extensions
-                if re.search(r'\.(mkv|mp4|avi|mov|ts|wmv|m4v|webm|flv|3gp)\b', cleaned_line, re.IGNORECASE):
-                    title = cleaned_line
+                if re.search(r'\.(mkv|mp4|avi|mov|ts|wmv|m4v|webm|flv|3gp)\b', stripped, re.IGNORECASE):
+                    raw_title = stripped
                     break
-            if not title:
-                title = file.file_name or file.file_id
-        else:
-            title = file.file_name or file.file_id
+
+            # Pass 2 – line with year or quality marker (movie/series identifier)
+            if not raw_title:
+                for line in non_header_lines:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    if re.search(r'\(\d{4}\)|\b(1080p|720p|480p|4K|2160p|1440p|2K|4k)\b', stripped, re.IGNORECASE):
+                        raw_title = stripped
+                        break
+
+            # Pass 3 – first substantial non-hashtag, non-URL, non-emoji-info line
+            if not raw_title:
+                for line in non_header_lines:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    # Skip hashtag-only, pure URLs, emoji info lines, very short tokens
+                    if (len(stripped) > 5
+                            and not stripped.startswith('#')
+                            and not stripped.startswith('http')
+                            and not re.match(r'^[\U00010000-\U0010ffff🎬🔊💬⏳]', stripped)):
+                        raw_title = stripped
+                        break
+
+            if raw_title:
+                LOGGER.info(f"Caption candidate: {raw_title[:100]}")
+            if caption_langs:
+                LOGGER.info(f"Caption languages detected: {caption_langs}")
+
+        # Fall back to the actual filename if caption gave nothing
+        if not raw_title:
+            raw_title = file.file_name or file.file_id
+            LOGGER.info(f"Using filename as title source: {raw_title[:100] if raw_title else 'none'}")
+
+        # Ensure a video extension is present (inherit from real filename if missing)
+        if raw_title and not re.search(r'\.(mkv|mp4|avi|mov|ts|wmv|m4v|webm|flv|3gp)\b', raw_title, re.IGNORECASE):
+            if file.file_name:
+                ext_match = re.search(r'\.[a-z0-9]{3,4}$', file.file_name, re.IGNORECASE)
+                if ext_match:
+                    raw_title = raw_title + ext_match.group()
+
+        title = raw_title or file.file_id
+
 
         msg_id = message.id
         hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
@@ -1050,6 +1122,12 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         cleaned_title, detected_langs = clean_filename(title)
         title = cleaned_title
         
+        # Merge languages detected from caption emoji/info lines
+        if caption_langs:
+            for lang in caption_langs:
+                if lang not in detected_langs:
+                    detected_langs.append(lang)
+
         LOGGER.info(f"Original title: {title[:100]}...")
         LOGGER.info(f"Cleaned title: {cleaned_title[:100]}...")
         if detected_langs:
@@ -1094,7 +1172,7 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                     progress_msg = await message.reply_text("🔍 Analyzing media with ffmpeg...")
                 
                 # Stream and probe the media
-                probe_result = await stream_and_probe(file, msg_id, max_size_mb=MediaProbeConfig.MAX_PROBE_SIZE_MB)
+                probe_result = await stream_and_probe(file, msg_id, max_size_mb=MediaProbeConfig.MAX_PROBE_SIZE_MB, client=getattr(message, '_client', None))
                 
                 if progress_msg:
                     await progress_msg.delete()

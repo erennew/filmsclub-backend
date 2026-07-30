@@ -79,21 +79,20 @@ def extract_languages_from_filename(filename: str) -> List[str]:
         'ara': 'ar', 'arabic': 'ar',
     }
     
-    # Pattern 1: [Tel + Tam + Mal + Kan] or [Tel+Tam+Mal+Kan]
+    # Pattern 1: [Tel + Tam + Mal + Kan] or [#Telugu + #Tamil + #Hindi + #English]
     pattern1 = r'\[([^\]]+)\]'
-    match = re.search(pattern1, filename, re.IGNORECASE)
-    
-    if match:
-        content = match.group(1)
-        # Split by + or | or , or space
+    for m in re.finditer(pattern1, filename, re.IGNORECASE):
+        content = m.group(1)
+        # Split by + or | or , or whitespace
         parts = re.split(r'[\+\|\s,]+', content)
         languages = []
         for part in parts:
-            part_clean = part.strip().lower()
+            # Strip leading # (hashtag format like #Telugu) and lowercase
+            part_clean = part.strip().lstrip('#').lower()
             if part_clean in language_map:
                 languages.append(language_map[part_clean])
             elif len(part_clean) <= 3 and part_clean.isalpha():
-                # Try to find by 3-letter code
+                # Try to find by 3-letter prefix code
                 for key, value in language_map.items():
                     if key.startswith(part_clean):
                         languages.append(value)
@@ -144,6 +143,10 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
     unicode_symbols = r'[»«›‹•·▪▫●○■□◆◇★☆✦✧✩✪✫✬✭✮✯✰✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❄❅❆❇❈❉❊❋❌❍❎❏❐❑❒❓❔❕❖❗❘❙❚❛❜❝❞❟❠❡❢❣❤❥❦❧❨❩❪❫❬❭❮❯❰❱❲❳❴❵❶❷❸❹❺❻❼❽❾❿➀➁➂➃➄➅➆➇➈➉➊➋➌➍➎➏➐➑➒➓➔➕➖➗➘➙➚➛➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➰➱➲➳➴➵➶➷➸➹➺➻➼➽➾➿⟀⟁⟂⟃⟄⟅⟆⟇⟈⟉⟊⟋⟌⟍⟎⟏⟐⟑⟒⟓⟔⟕⟖⟗⟘⟙⟚⟛⟜⟝⟞⟟⟠⟡⟢⟣⟤⟥⟦⟧⟨⟩⟪⟫⟬⟭⟮⟯⟰⟱⟲⟳⟴⟵⟶⟷⟸⟹⟺⟻⟼⟽⟾⟿⤀⤁⤂⤃⤄⤅⤆⤇⤈⤉⤊⤋⤌⤍⤎⤏⤐⤑⤒⤓⤔⤕⤖⤗⤘⤙⤚⤛⤜⤝⤞⤟⤠⤡⤢⤣⤤⤥⤦⤧⤨⤩⤪⤫⤬⤭⤮⤯⤰⤱⤲⤳⤴⤵⤶⤷⤸⤹⤺⤻⤼⤽⤾⤿⥀⥁⥂⥃⥄⥅⥆⥇⥈⥉⥊⥋⥌⥍⥎⥏⥐⥑⥒⥓⥔⥕⥖⥗⥘⥙⥚⥛⥜⥝⥞⥟⥠⥡⥢⥣⥤⥥⥦⥧⥨⥩⥪⥫⥬⥭⥮⥯⥰⥱⥲⥳⥴⥵⥶⥷⥸⥹⥺⥻⥼⥽⥾⥿⦀⦁⦂⦃⦄⦅⦆⦇⦈⦉⦊⦋⦌⦍⦎⦏⦐⦑⦒⦓⦔⦕⦖⦗⦘⦙⦚⦛⦜⦝⦞⦟⦠⦡⦢⦣⦤⦥⦦⦧⦨⦩⦪⦫⦬⦭⦮⦯⦰⦱⦲⦳⦴⦵⦶⦷⦸⦹⦺⦻⦼⦽⦾⦿⧀⧁⧂⧃⧄⧅⧆⧇⧈⧉⧊⧋⧌⧍⧎⧏⧐⧑⧒⧓⧔⧕⧖⧗⧘⧙⧚⧛⧜⧝⧞⧟⧠⧡⧢⧣⧤⧥⧦⧧⧨⧩⧪⧫⧬⧭⧮⧯⧰⧱⧲⧳⧴⧵⧶⧷⧸⧹⧺⧻⧼⧽⧾⧿⨀⨁⨂⨃⨄⨅⨆⨇⨈⨉⨊⨋⨌⨍⨎⨏⨐⨑⨒⨓⨔⨕⨖⨗⨘⨙⨚⨛⨜⨝⨞⨟⨠⨡⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨯⨰⨱⨲⨳⨴⨵⨶⨷⨸⨹⨺⨻⨼⨽⨾⨿⩀⩁⩂⩃⩄⩅⩆⩇⩈⩉⩊⩋⩌⩍⩎⩏⩐⩑⩒⩓⩔⩕⩖⩗⩘⩙⩚⩛⩜⩝⩞⩟⩠⩡⩢⩣⩤⩥⩦⩧⩨⩩⩪⩫⩬⩭⩮⩯⩰⩱⩲⩳⩴⩵⩶⩷⩸⩹⩺⩻⩼⩽⩾⩿⪀⪁⪂⪃⪄⪅⪆⪇⪈⪉⪊⪋⪌⪍⪎⪏⪐⪑⪒⪓⪔⪕⪖⪗⪘⪙⪚⪛⪜⪝⪞⪟⪠⪡⪢⪣⪤⪥⪦⪧⪨⪩⪪⪫⪬⪭⪮⪯⪰⪱⪲⪳⪴⪵⪶⪷⪸⪹⪺⪻⪼⪽⪾⪿⫀⫁⫂⫃⫄⫅⫆⫇⫈⫉⫊⫋⫌⫍⫎⫏⫐⫑⫒⫓⫔⫕⫖⫗⫘⫙⫚⫛⫝̸⫝⫞⫟⫠⫡⫢⫣⫤⫥⫦⫧⫨⫩⫪⫫⫬⫭⫮⫯⫰⫱⫲⫳⫴⫵⫶⫷⫸⫹⫺⫻⫼⫽⫾⫿⬀⬁⬂⬃⬄⬅⬆⬇⬈⬉⬊⬋⬌⬍⬎⬏⬐⬑⬒⬓⬔⬕⬖⬗⬘⬙⬚⬛⬜⬝⬞⬟⬠⬡⬢⬣⬤⬥⬦⬧⬨⬩⬪⬫⬬⬭⬮⬯⬰⬱⬲⬳⬴⬵⬶⬷⬸⬹⬺⬻⬼⬽⬾⬿⭀⭁⭂⭃⭄⭅⭆⭇⭈⭉⭊⭋⭌⭍⭎⭏⭐⭑⭒⭓⭔⭕⭖⭗⭘⭙⭚⭛⭜⭝⭞⭟⭠⭡⭢⭣⭤⭥⭦⭧⭨⭩⭪⭫⭬⭭⭮⭯⭰⭱⭲⭳⭴⭵⭶⭷⭸⭹⭺⭻⭼⭽⭾⭿⮀⮁⮂⮃⮄⮅⮆⮇⮈⮉⮊⮋⮌⮍⮎⮏⮐⮑⮒⮓⮔⮕⮖⮗⮘⮙⮚⮛⮜⮝⮞⮟⮠⮡⮢⮣⮤⮥⮦⮧⮨⮩⮪⮫⮬⮭⮮⮯⮰⮱⮲⮳⮴⮵⮶⮷⮸⮹⮺⮻⮼⮽⮾⮿⯀⯁⯂⯃⯄⯅⯆⯇⯈⯉⯊⯋⯌⯍⯎⯏⯐⯑⯒⯓⯔⯕⯖⯗⯘⯙⯚⯛⯜⯝⯞⯟⯠⯡⯢⯣⯤⯥⯦⯧⯨⯩⯪⯫⯬⯭⯮⯯⯰⯱⯲⯳⯴⯵⯶⯷⯸⯹⯺⯻⯼⯽⯾⯿ⰀⰁⰂⰃⰄⰅⰆⰇⰈⰉⰊⰋⰌⰍⰎⰏⰐⰑⰒⰓⰔⰕⰖⰗⰘⰙⰚⰛⰜⰝⰞⰟⰠⰡⰢⰣⰤⰥⰦⰧⰨⰩⰪⰫⰬⰭⰮⰯⰰⰱⰲⰳⰴⰵⰶⰷⰸⰹⰺⰻⰼⰽⰾⰿⱀⱁⱂⱃⱄⱅⱆⱇⱈⱉⱊⱋⱌⱍⱎⱏⱐⱑⱒⱓⱔⱕⱖⱗⱘⱙⱚⱛⱜⱝⱞⱟⱠⱡⱢⱣⱤⱥⱦⱧⱨⱩⱪⱫⱬⱭⱮⱯⱰⱱⱲⱳⱴⱵⱶⱷⱸⱹⱺⱻⱼⱽⱾⱿⲀⲁⲂⲃⲄⲅⲆⲇⲈⲉⲊⲋⲌⲍⲎⲏⲐⲑⲒⲓⲔⲕⲖⲗⲘⲙⲚⲛⲜⲝⲞⲟⲠⲡⲢⲣⲤⲥⲦⲧⲨⲩⲪⲫⲬⲭⲮⲯⲰⲱⲲⲳⲴⲵⲶⲷⲸⲹⲺⲻⲼⲽⲾⲿⳀⳁⳂⳃⳄⳅⳆⳇⳈⳉⳊⳋⳌⳍⳎⳏⳐⳑⳒⳓⳔⳕⳖⳗⳘⳙⳚⳛⳜⳝⳞⳟⳠⳡⳢⳣⳤ⳥⳦⳧⳨⳩⳪ⳫⳬⳭⳮ⳯⳰⳱Ⳳⳳ⳴⳵⳶⳷⳸⳹⳺⳻⳼⳽⳾⳿ⴀⴁⴂⴃⴄⴅⴆⴇⴈⴉⴊⴋⴌⴍⴎⴏⴐⴑⴒⴓⴔⴕⴖⴗⴘⴙⴚⴛⴜⴝⴞⴟⴠⴡⴢⴣⴤⴥ⴦ⴧ⴨⴩⴪⴫⴬ⴭ⴮⴯ⴰⴱⴲⴳⴴⴵⴶⴷⴸⴹⴺⴻⴼⴽⴾⴿⵀⵁⵂⵃⵄⵅⵆⵇⵈⵉⵊⵋⵌⵍⵎⵏⵐⵑⵒⵓⵔⵕⵖⵗⵘⵙⵚⵛⵜⵝⵞⵟⵠⵡⵢⵣⵤⵥⵦⵧ⵨⵩⵪⵫⵬⵭⵮ⵯ⵰⵱⵲⵳⵴⵵⵶⵷⵸⵹⵺⵻⵼⵽⵾⵿ⶀⶁⶂⶃⶄⶅⶆⶇⶈⶉⶊⶋⶌⶍⶎⶏⶐⶑⶒⶓⶔⶕⶖ⶗⶘⶙⶚⶛⶜⶝⶞⶟ⶠⶡⶢⶣⶤⶥⶦ⶧ⶨⶩⶪⶫⶬⶭⶮ⶯ⶰⶱⶲⶳⶴⶵⶶ⶷ⶸⶹⶺⶻⶼⶽⶾ⶿ⷀⷁⷂⷃⷄⷅⷆ⷇ⷈⷉⷊⷋⷌⷍⷎ⷏ⷐⷑⷒⷓⷔⷕⷖ⷗ⷘⷙⷚⷛⷜⷝⷞ⷟ⷠⷡⷢⷣⷤⷥⷦⷧⷨⷩⷪⷫⷬⷭⷮⷯⷰⷱⷲⷳⷴⷵⷶⷷⷸⷹⷺⷻⷼⷽⷾⷿ⸀⸁⸂⸃⸄⸅⸆⸇⸈⸉⸊⸋⸌⸍⸎⸏⸐⸑⸒⸓⸔⸕⸖⸗⸘⸙⸚⸛⸜⸝⸞⸟⸠⸡⸢⸣⸤⸥⸦⸧⸨⸩⸪⸫⸬⸭⸮ⸯ⸰ⱁⱂⱃⱄⱅⱆⱇⱈⱉⱊⱋⱌⱍⱎⱏⱐⱑⱒⱓⱔⱕⱖⱗⱘⱙⱚⱛⱜⱝⱞⱟⱠⱡⱢⱣⱤⱥⱦⱧⱨⱩⱪⱫⱬⱭⱮⱯⱰⱱⱲⱳⱴⱵⱶⱷⱸⱹⱺⱻⱼⱽⱾⱿⲀⲁⲂⲃⲄⲅⲆⲇⲈⲉⲊⲋⲌⲍⲎⲏⲐⲑⲒⲓⲔⲕⲖⲗⲘⲙⲚⲛⲜⲝⲞⲟⲠⲡⲢⲣⲤⲥⲦⲧⲨⲩⲪⲫⲬⲭⲮⲯⲰⲱⲲⲳⲴⲵⲶⲷⲸⲹⲺⲻⲼⲽⲾⲿⳀⳁⳂⳃⳄⳅⳆⳇⳈⳉⳊⳋⳌⳍⳎⳏⳐⳑⳒⳓⳔⳕⳖⳗⳘⳙⳚⳛⳜⳝⳞⳟⳠⳡⳢⳣⳤ⳥⳦⳧⳨⳩⳪ⳫⳬⳭⳮ⳯⳰⳱Ⳳⳳ⳴⳵⳶⳷⳸⳹⳺⳻⳼⳽⳾⳿ⴀⴁⴂⴃⴄⴅⴆⴇⴈⴉⴊⴋⴌⴍⴎⴏⴐⴑⴒⴓⴔⴕⴖⴗⴘⴙⴚⴛⴜⴝⴞⴟⴠⴡⴢⴣⴤⴥ⴦ⴧ⴨⴩⴪⴫⴬ⴭ⴮⴯ⴰⴱⴲⴳⴴⴵⴶⴷⴸⴹⴺⴻⴼⴽⴾⴿⵀⵁⵂⵃⵄⵅⵆⵇⵈⵉⵊⵋⵌⵍⵎⵏⵐⵑⵒⵓⵔⵕᵖᵗᵘᵙᵚᵛᵜᵝᵞᵟᵠᵡᵢᵣᵤᵥᵦᵧᵨᵩᵪᵫᵬᵭᵮᵯᵰᵱᵲᵳᵴᵵᵶᵷᵸᵹᵺᵻᵼᵽᵾᵿᶀᶁᶂᶃᶄᶅᶆᶇᶈᶉᶊᶋᶌᶍᶎᶏᶐᶑᶒᶓᶔᶕᶖᶗᶘᶙᶚᶛᶜᶝᶞᶟᶠᶡᶢᶣᶤᶥᶦᶧᶨᶩᶪᶫᶬᶭᶮᶯᶰᶱᶲᶳᶴᶵᶶᶷᶸᶹᶺᶻᶼᶽᶾᶿ]'
     cleaned = re.sub(unicode_symbols, ' ', cleaned)
     
+    # Special handling: Remove @username prefix only at very start when followed by separator
+    # This handles filenames like "@THEMZNEW_Spider_Man" where @THEMZNEW is a username prefix
+    cleaned = re.sub(r'^@[A-Z0-9_]+[\s\-\:_]+', '', cleaned)
+    
     # ========== 1. REMOVE CHANNEL PROMOTIONS ==========
     # Handle [@ChannelName] - format (ENHANCED for multiple occurrences)
     cleaned = re.sub(
@@ -175,9 +178,10 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
     
     # 3. Remove Telegram usernames with underscores, dashes, brackets, spaces (ENHANCED)
     # Pattern for @username variations - handle multiple occurrences
+    # IMPORTANT: Only remove if followed by separator (space, dash, bracket) to avoid removing @ from filenames
     username_patterns = [
-        r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]_-]*',  # @username
-        r'[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]_-]*',  # @username-with-dashes
+        r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]\-_:]+',  # @username followed by separator
+        r'[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]\-_:]+',  # @username-with-dashes followed by separator
         r'[\s\[\]_-]*t\.me/[A-Za-z0-9_]+[\s\[\]_-]*',  # t.me/username
         r'[\s\[\]_-]*telegram\.me/[A-Za-z0-9_]+[\s\[\]_-]*',  # telegram.me/username
         r'[\s\[\]_-]*joinchat/[A-Za-z0-9_-]+[\s\[\]_-]*',  # joinchat/...
@@ -186,14 +190,17 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
         cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
     
     # 4. Remove common uploader prefixes and branding (ENHANCED)
+    # Only remove if the uploader name is in brackets/parentheses or has specific indicators
+    # This prevents removing parts of actual titles like "Spider-Man" -> "Man"
     uploader_patterns = [
-        r'^[A-Za-z0-9_]+\s*[-–—]\s*',  # UploaderName -
         r'^\[[A-Za-z0-9_]+\]\s*[-–—]?\s*',  # [UploaderName] -
         r'^\([A-Za-z0-9_]+\)\s*[-–—]?\s*',  # (UploaderName) -
         r'^\{[A-Za-z0-9_]+\}\s*[-–—]?\s*',  # {UploaderName} -
         r'^[A-Za-z0-9_]+:\s*',  # UploaderName:
-        r'\s*[-–—]\s*[A-Za-z0-9_]+\s*$',  # - UploaderName at end
         r'\s*[-–—]\s*\[[A-Za-z0-9_]+\]\s*$',  # - [UploaderName] at end
+        r'\s*[-–—]\s*\([A-Za-z0-9_]+\)\s*$',  # - (UploaderName) at end
+        # Only remove bare uploader names at end if they're all uppercase (common for release groups)
+        r'\s*[-–—]\s*[A-Z]{2,}\s*$',  # - UPPERCASE at end
     ]
     for pattern in uploader_patterns:
         cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
@@ -210,10 +217,25 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
     for pattern in technical_tags:
         cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
     
-    # 6. Remove language bracket patterns (preserve the content but remove brackets)
-    # Remove [Tel + Tam + Mal + Kan] but keep the text
-    cleaned = re.sub(r'\[[^\]]*(?:Tel|Tam|Mal|Kan|Hin|Eng|Tamil|Telugu|Malayalam|Kannada|Hindi|English)[^\]]*\]', '', cleaned, flags=re.IGNORECASE)
-    
+    # 6. Remove caption header like [@CloudMovieX] or [ChannelName]
+    cleaned = re.sub(r'^\s*\[@?[A-Za-z0-9_]+\]\s*', '', cleaned)
+
+    # 6b. Remove language bracket patterns like [#Telugu + #Tamil + #Hindi + #English]
+    #     or [Tel + Tam + Mal + Kan] — always strip the whole block
+    cleaned = re.sub(
+        r'\[[^\]]*(?:#?Tel|#?Tam|#?Mal|#?Kan|#?Hin|#?Eng|Tamil|Telugu|Malayalam|Kannada|Hindi|English)[^\]]*\]',
+        '', cleaned, flags=re.IGNORECASE
+    )
+
+    # 6c. Remove file-size tags like 1.8GB, 700MB, 2.1GB
+    cleaned = re.sub(r'\b\d+(?:\.\d+)?\s*(?:GB|MB|KB)\b', '', cleaned, flags=re.IGNORECASE)
+
+    # 6d. Remove audio spec blocks like (DD5.1 - 192Kbps) or (DD5.1 192Kbps) or (AAC 320Kbps)
+    cleaned = re.sub(r'\([^)]*(?:DD|DTS|AAC|EAC3|Kbps|kbps)[^)]*\)', '', cleaned, flags=re.IGNORECASE)
+
+    # 6e. Remove HQ tag and similar release quality labels
+    cleaned = re.sub(r'\bHQ\b', '', cleaned, flags=re.IGNORECASE)
+
     # 7. Remove ESubs, Subs tags (ENHANCED)
     sub_tags = r'\b(?:ESubs?|Subs?|HC|Subbed|Dubbed|Hardcoded|Softcoded|Forced)\b'
     cleaned = re.sub(sub_tags, '', cleaned, flags=re.IGNORECASE)
@@ -225,20 +247,17 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
     # 9. Remove newlines/tabs
     cleaned = re.sub(r'\\[ntr]', ' ', cleaned)
     
-    # 10. Replace dots and underscores with spaces (ENHANCED - preserve extension)
+    # 10. Separate extension if present
+    ext = ""
     ext_match = re.search(r'\.[a-z0-9]{3,4}$', cleaned, re.IGNORECASE)
     if ext_match:
         ext = ext_match.group()
-        base = cleaned[: -len(ext)]
-        # Replace dots and underscores with spaces
-        base = re.sub(r'[._]', ' ', base, flags=re.IGNORECASE)
-        # Clean up multiple spaces
-        base = re.sub(r'\s+', ' ', base)
-        cleaned = base.strip() + ext
-    else:
-        cleaned = re.sub(r'[._]', ' ', cleaned, flags=re.IGNORECASE)
-    
-    # 11. Remove common unwanted text patterns (ENHANCED for Unicode)
+        cleaned = cleaned[:-len(ext)]
+
+    # 11. Replace dots and underscores with spaces in base title
+    cleaned = re.sub(r'[._]', ' ', cleaned, flags=re.IGNORECASE)
+
+    # 12. Remove common unwanted text patterns (ENHANCED for Unicode)
     unwanted_patterns = [
         r'\s*[-–—]\s*Join\s*@\w+\s*',  # - Join @username
         r'\s*[-–—]\s*Join\s+\w+\s*',  # - Join channel (without @)
@@ -257,22 +276,24 @@ def clean_filename(filename: str) -> Tuple[str, List[str]]:
     ]
     for pattern in unwanted_patterns:
         cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
-    
-    # 12. Clean up multiple spaces and trim
+
+    # 13. Remove empty brackets () [] {} and collapse consecutive hyphens
+    cleaned = re.sub(r'\(\s*\)|\[\s*\]|\{\s*\}', ' ', cleaned)
+    cleaned = re.sub(r'(\s*[-–—]\s*){2,}', ' - ', cleaned)
+
+    # 14. Keep letters, numbers, spaces, hyphens, parentheses, brackets, apostrophes
+    cleaned = re.sub(r'[^\w\s\-\(\)\[\]\']', ' ', cleaned)
     cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    
-    # 13. Remove any remaining non-printable or special characters (ENHANCED)
-    # Keep letters, numbers, spaces, hyphens, parentheses, brackets, apostrophes
-    cleaned = re.sub(r'[^\w\s\-\(\)\[\]\.\']', ' ', cleaned)
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    
-    # 14. Remove leading/trailing special characters
+
+    # 15. Strip leading/trailing special characters and hyphens from base title
     cleaned = re.sub(r'^[\s\-\.\[\]\(\)]+', '', cleaned)
     cleaned = re.sub(r'[\s\-\.\[\]\(\)]+$', '', cleaned)
-    
-    # 15. Final cleanup of multiple spaces
-    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
-    
+    cleaned = re.sub(r'\s*[-–—]\s*$', '', cleaned).strip()
+
+    # Re-attach extension
+    if ext:
+        cleaned = f"{cleaned}{ext}"
+
     return cleaned, detected_languages
 
 

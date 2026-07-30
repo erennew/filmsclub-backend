@@ -1,3 +1,31 @@
+import sys
+import os
+
+# ── Fix Windows console encoding (emoji/unicode in log messages) ──────────────
+# Must be done BEFORE any other imports that might trigger the logger
+os.environ.setdefault("PYTHONUTF8", "1")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except AttributeError:
+    pass  # Python < 3.7 fallback
+
+# ── Port conflict pre-check ───────────────────────────────────────────────────
+import socket
+def _port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+from Backend.config import Telegram as _TelCfg
+_port = getattr(_TelCfg, "PORT", 8000)
+if _port_in_use(_port):
+    print(f"\n[ERROR] Port {_port} is already in use!")
+    print(f"        Run this to free it (PowerShell):")
+    print(f"        (netstat -ano | Select-String ':{_port}' | Where-Object {{ $_ -match 'LISTENING' }} | ForEach-Object {{ ($_ -split '\\s+')[-1] }}) | ForEach-Object {{ taskkill /F /PID $_ }}")
+    print(f"\n  Or just run:  .\\start.ps1  (handles this automatically)\n")
+    sys.exit(1)
+
 from asyncio import get_event_loop, sleep as asleep
 from traceback import format_exc
 from pyrogram import idle
@@ -23,21 +51,27 @@ async def start_services():
         await db.connect()
         await asleep(1.2)
         
-        await StreamBot.start()
-        StreamBot.username = StreamBot.me.username
-        LOGGER.info(f"Bot Client : [@{StreamBot.username}]")
-
-        await asleep(1.2)
-        LOGGER.info("Initializing Multi Clients...")
-        await initialize_clients()
-
+        # Start web server first - API endpoints work without Telegram bot
         await asleep(2)
         LOGGER.info('Initializing Project-S Web Server...')
         await restart_notification()
         loop.create_task(server.serve())
 
-        # Start enhanced queue system background tasks
-        await start_background_tasks()
+        # Try to start Telegram bot with FloodWait handling
+        try:
+            await StreamBot.start()
+            StreamBot.username = StreamBot.me.username
+            LOGGER.info(f"Bot Client : [@{StreamBot.username}]")
+
+            await asleep(1.2)
+            LOGGER.info("Initializing Multi Clients...")
+            await initialize_clients()
+
+            # Start enhanced queue system background tasks
+            await start_background_tasks()
+        except Exception as e:
+            LOGGER.warning(f"Telegram bot failed to start (API endpoints will still work): {e}")
+            LOGGER.warning("Continuing with web server only...")
 
         LOGGER.info("Project-S Started Successfully!")
         await idle()

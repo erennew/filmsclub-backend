@@ -45,7 +45,10 @@ class Database:
         
         try:
             if self._conn is not None:
-                await self._conn.close()
+                try:
+                    self._conn.close()  # motor close() is synchronous
+                except Exception:
+                    pass
 
             self._conn = motor.motor_asyncio.AsyncIOMotorClient(self.connection_uri)
             self.db = self._conn[self.db_name]
@@ -98,7 +101,10 @@ class Database:
     async def disconnect(self):
         """Close the database connection."""
         if self._conn is not None:
-            await self._conn.close()
+            try:
+                self._conn.close()  # motor close() is synchronous, not a coroutine
+            except Exception:
+                pass
             LOGGER.info("Database connection closed")
         self._conn = None
         self.db = None
@@ -566,12 +572,30 @@ class Database:
             if tv_doc:
                 tv_doc = self._convert_object_id(tv_doc)
                 tv_doc["type"] = "tv"
+                if not tv_doc.get("cast"):
+                    try:
+                        from Backend.helper.metadata import get_tmdb_people_and_schedule
+                        compact = await get_tmdb_people_and_schedule(tmdb_id, "tv")
+                        if compact.get("cast"):
+                            tv_doc["cast"] = compact["cast"]
+                            asyncio.create_task(self.tv_collection.update_one({"tmdb_id": tmdb_id}, {"$set": {"cast": compact["cast"]}}))
+                    except Exception as e:
+                        LOGGER.warning(f"Failed to fetch cast fallback for tv {tmdb_id}: {e}")
                 return tv_doc
             
             movie_doc = await self.movie_collection.find_one({"tmdb_id": tmdb_id})
             if movie_doc:
                 movie_doc = self._convert_object_id(movie_doc)
                 movie_doc["type"] = "movie"
+                if not movie_doc.get("cast"):
+                    try:
+                        from Backend.helper.metadata import get_tmdb_people_and_schedule
+                        compact = await get_tmdb_people_and_schedule(tmdb_id, "movie")
+                        if compact.get("cast"):
+                            movie_doc["cast"] = compact["cast"]
+                            asyncio.create_task(self.movie_collection.update_one({"tmdb_id": tmdb_id}, {"$set": {"cast": compact["cast"]}}))
+                    except Exception as e:
+                        LOGGER.warning(f"Failed to fetch cast fallback for movie {tmdb_id}: {e}")
                 return movie_doc
             
             return None

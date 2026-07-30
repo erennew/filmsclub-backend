@@ -317,68 +317,66 @@ async def probe_file(path: str, use_cache: bool = True) -> Dict[str, Any]:
         return {}
 
 
-async def stream_and_probe(media, message_id: int, max_size_mb: int = 50) -> Dict[str, Any]:
+async def stream_and_probe(media, message_id: int, max_size_mb: int = 50, client: Any = None) -> Dict[str, Any]:
     """
-    Stream media from Telegram and probe progressively.
+    Stream media from Telegram using Pyrogram client and probe progressively.
     Stops once we have enough data to determine media info.
     """
-    temp_file = None
+    if client is None:
+        client = getattr(media, '_client', None)
+    if client is None:
+        try:
+            from Backend.pyrofork import StreamBot
+            client = StreamBot
+        except Exception:
+            client = None
+
+    if not client:
+        logger.error("No Pyrogram client available for probing media")
+        return {}
+
+    temp_file = f"probe_{message_id}_{uuid.uuid4().hex[:8]}.bin"
+    file_size = getattr(media, 'file_size', 0) or 0
+    max_bytes = max_size_mb * 1024 * 1024
+    limit_bytes = min(file_size, max_bytes) if file_size else max_bytes
+
+    result = None
+    written = 0
+    step_index = 0
+
     try:
-        file_size = getattr(media, 'file_size', 0) or 0
-        max_bytes = max_size_mb * 1024 * 1024
-        probe_size = min(file_size, max_bytes) if file_size else max_bytes
-        
-        result = None
-        
-        for step_name, step_size in STREAM_STEPS:
-            if step_size > probe_size:
-                break
-                
-            temp_file = f"probe_{step_name}_{message_id}_{uuid.uuid4().hex[:8]}.bin"
-            
-            try:
-                # Stream chunk
-                written = 0
-                async with aiopen(temp_file, 'wb') as f:
-                    async for chunk in media.stream():
-                        if not chunk:
-                            break
-                        remaining = step_size - written
-                        if remaining <= 0:
-                            break
-                        await f.write(chunk[:remaining])
-                        written += len(chunk[:remaining])
-                        if written >= step_size:
-                            break
-                
-                # Probe this chunk
-                probe_result = await probe_file(temp_file)
-                
-                # Check if we have enough info
-                if probe_result.get('height') or probe_result.get('audio_tracks'):
-                    result = probe_result
-                    logger.info(f"Got media info from {step_name} chunk")
+        async with aiopen(temp_file, 'wb') as f:
+            async for chunk in client.stream_media(media):
+                if not chunk:
                     break
-                    
-            except Exception as e:
-                logger.debug(f"{step_name} probe failed: {e}")
-            finally:
-                if temp_file and os.path.exists(temp_file):
-                    await aioremove(temp_file)
-                    temp_file = None
-        
-        # If progressive probing failed, try full download (for small files only)
-        if not result and file_size and file_size <= 100 * 1024 * 1024:  # 100MB max
-            temp_file = f"full_{message_id}_{uuid.uuid4().hex[:8]}.bin"
-            try:
-                await media.download(temp_file)
-                result = await probe_file(temp_file)
-            finally:
-                if temp_file and os.path.exists(temp_file):
-                    await aioremove(temp_file)
-        
+
+                take = min(len(chunk), limit_bytes - written)
+                if take <= 0:
+                    break
+
+                await f.write(chunk[:take])
+                written += take
+
+                current_step_name, current_step_target = STREAM_STEPS[min(step_index, len(STREAM_STEPS) - 1)]
+                if written >= current_step_target or written >= limit_bytes:
+                    await f.flush()
+                    probe_res = await probe_file(temp_file)
+                    if probe_res.get('height') or probe_res.get('audio_tracks'):
+                        result = probe_res
+                        logger.info(f" Got media info from {current_step_name} probe ({written} bytes)")
+                        break
+                    step_index += 1
+
+                if written >= limit_bytes:
+                    break
+
+        if not result and written > 0 and os.path.exists(temp_file):
+            probe_res = await probe_file(temp_file)
+            if probe_res.get('height') or probe_res.get('audio_tracks'):
+                result = probe_res
+
         return result or {}
-        
+
     except Exception as e:
         logger.error(f"Error in stream_and_probe: {e}")
         return {}
@@ -386,7 +384,7 @@ async def stream_and_probe(media, message_id: int, max_size_mb: int = 50) -> Dic
         if temp_file and os.path.exists(temp_file):
             try:
                 await aioremove(temp_file)
-            except:
+            except Exception:
                 pass
 
 

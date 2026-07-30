@@ -304,7 +304,7 @@ async def get_tmdb_people_and_schedule(tmdb_id: int | str | None, media_type: st
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30) as session:
+        async with httpx.AsyncClient(timeout=30, verify=False) as session:
             response = await session.get(url, params=params)
             response.raise_for_status()
             data = response.json()
