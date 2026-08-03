@@ -57,7 +57,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 # Allow specific origins for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://teluguflix-two.vercel.app", "https://cloudxmovies.vercel.app", "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[ "https://cloudxmovies.vercel.app", "http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
