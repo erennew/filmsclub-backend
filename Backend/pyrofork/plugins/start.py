@@ -1343,44 +1343,53 @@ async def load_queue_state():
 # =============================================================================
 # LIVE CHANNEL HANDLER WITH RATE LIMITING
 # =============================================================================
+
+async def _background_parse_and_queue(message: Message, channel: str):
+    """Background task: parse and queue a file without blocking the event loop."""
+    try:
+        await parse_and_queue_file(message, channel, is_rescan=False)
+    except FloodWait as e:
+        LOGGER.warning(f"🚫 FloodWait in background parser: sleeping for {e.value}s")
+        await asleep(e.value)
+    except Exception as e:
+        LOGGER.error(f"Error in background parse_and_queue: {e}")
+
+
 @StreamBot.on_message(filters.channel & (filters.document | filters.video))
 async def file_receive_handler(bot: Client, message: Message):
+    """Live channel handler — NEVER blocks the event loop.
+    
+    All heavy work (TMDB lookup, ffmpeg probe, DB insert) is offloaded to a
+    background asyncio task so that even lakhs of incoming files cannot stall
+    MongoDB connections or the FastAPI server.
+    """
     if str(message.chat.id) in Telegram.AUTH_CHANNEL:
-        # Rate limiting: MAX 5 messages per minute per channel
         channel_id = message.chat.id
         now = time.time()
-        
-        # Clean old timestamps
+
+        # ── Rate-limit tracking (non-blocking) ──────────────────────────────
+        # Clean timestamps older than the rate-limit window.
         channel_rate_limit[channel_id] = [
-            t for t in channel_rate_limit[channel_id] 
+            t for t in channel_rate_limit[channel_id]
             if now - t < QueueConfig.RATE_LIMIT_SECONDS
         ]
-        
+
         if len(channel_rate_limit[channel_id]) >= QueueConfig.MAX_MESSAGES_PER_MINUTE:
-            LOGGER.warning(f"🚫 Rate limit exceeded for channel {channel_id} ({QueueConfig.MAX_MESSAGES_PER_MINUTE}/min)")
-            LOGGER.info(f"⏳ Waiting 60 seconds before accepting more messages...")
-            await asyncio.sleep(60)  # Wait a full minute
-            # Retry after wait
-            channel_rate_limit[channel_id] = []
-        
-        channel_rate_limit[channel_id].append(now)
-        
-        # Add delay between channel messages
-        await asyncio.sleep(3)  # 3 second delay between messages from same channel
-        
-        try:
-            channel = str(message.chat.id).replace("-100", "")
-            await parse_and_queue_file(message, channel, is_rescan=False)
-        except FloodWait as e:
-            LOGGER.warning(f"🚫 FloodWait: sleeping for {e.value}s")
-            await asleep(e.value)
-            await message.reply_text(
-                text=f"Got Floodwait of {e.value}s",
-                disable_web_page_preview=True,
-                parse_mode=ParseMode.MARKDOWN
+            # DO NOT sleep — just log and let the MongoDB queue absorb the burst.
+            # The queue processor applies its own pacing; sleeping here would
+            # block the entire event loop and disconnect MongoDB.
+            LOGGER.warning(
+                f"⚡ Rate limit hit for channel {channel_id} "
+                f"({len(channel_rate_limit[channel_id])}/{QueueConfig.MAX_MESSAGES_PER_MINUTE} per {QueueConfig.RATE_LIMIT_SECONDS}s) "
+                f"— queuing directly without delay"
             )
-        except Exception as e:
-            LOGGER.error(f"Error in file_receive_handler: {e}")
+            channel_rate_limit[channel_id] = []  # reset window, keep accepting
+
+        channel_rate_limit[channel_id].append(now)
+
+        # ── Fire-and-forget: never await the heavy work inline ───────────────
+        channel = str(message.chat.id).replace("-100", "")
+        create_task(_background_parse_and_queue(message, channel))
     else:
         await message.reply(text="> Channel is not in AUTH_CHANNEL")
 
@@ -2098,7 +2107,7 @@ async def set_id(bot: Client, message: Message):
 
 
 
-@Client.on_message(filters.command('delete') & filters.private & CustomFilters.admin)
+@StreamBot.on_message(filters.command('delete') & filters.private & CustomFilters.admin)
 async def delete(bot: Client, message: Message):
     """Delete media by TMDB ID with enhanced options."""
     try:
@@ -2199,7 +2208,7 @@ Type <code>/cancel</code> to abort
 pending_delete = None
 
 
-@Client.on_message(filters.command('confirmdelete') & filters.private & CustomFilters.admin)
+@StreamBot.on_message(filters.command('confirmdelete') & filters.private & CustomFilters.admin)
 async def confirm_delete(bot: Client, message: Message):
     """Confirm and execute the deletion."""
     global pending_delete
@@ -2217,25 +2226,55 @@ async def confirm_delete(bot: Client, message: Message):
         media_type = pending_delete['media_type']
         title = pending_delete['title']
         
+        LOGGER.info(f"[/confirmdelete] Attempting to delete {media_type} tmdb_id={tmdb_id} ({title})")
+        
+        # Verify the document still exists before deleting
+        collection = db.movie_collection if media_type == "movie" else db.tv_collection
+        doc = await collection.find_one({"tmdb_id": tmdb_id})
+        if not doc:
+            LOGGER.error(f"[/confirmdelete] Document not found in DB: {media_type} tmdb_id={tmdb_id}")
+            await message.reply_text(
+                f"❌ Cannot delete: <b>{title}</b> (TMDB ID {tmdb_id}) was not found in the "
+                f"<code>{media_type}</code> collection.\n"
+                f"It may have already been deleted.",
+                parse_mode=enums.ParseMode.HTML
+            )
+            pending_delete = None
+            return
+        
         # Perform deletion
         result = await db.delete_document(media_type, tmdb_id)
         
         if result:
-            LOGGER.info(f"Deleted {media_type} {tmdb_id}: {title}")
+            LOGGER.info(f"✅ Deleted {media_type} tmdb_id={tmdb_id}: {title}")
+            
+            # Invalidate caches so frontend reflects the change immediately
+            try:
+                from Backend.helper.cache import clear_all_caches
+                await asyncio.to_thread(clear_all_caches)
+            except Exception as ce:
+                LOGGER.warning(f"Cache clear after delete failed (non-fatal): {ce}")
+            
             await message.reply_text(
                 f"✅ <b>Deleted Successfully</b>\n\n"
                 f"• {title}\n"
                 f"• TMDB ID: {tmdb_id}\n"
-                f"• Type: {media_type}",
+                f"• Type: {media_type}\n\n"
+                f"<i>Frontend cache cleared — changes will reflect immediately.</i>",
                 parse_mode=enums.ParseMode.HTML
             )
         else:
-            await message.reply_text(f"❌ Failed to delete {media_type} with ID {tmdb_id}")
+            LOGGER.error(f"[/confirmdelete] delete_document returned False for {media_type} tmdb_id={tmdb_id}")
+            await message.reply_text(
+                f"❌ Delete operation returned no result for <b>{title}</b> (TMDB ID {tmdb_id}).\n"
+                f"The document exists in DB but could not be deleted. Check bot logs.",
+                parse_mode=enums.ParseMode.HTML
+            )
         
         pending_delete = None
     
     except Exception as e:
-        LOGGER.error(f"Error confirming deletion: {e}")
+        import traceback
+        LOGGER.error(f"[/confirmdelete] Error confirming deletion: {e}\n{traceback.format_exc()}")
         await message.reply_text(f"❌ Error: {str(e)}")
         pending_delete = None
-        

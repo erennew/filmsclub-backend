@@ -863,7 +863,7 @@ class Database:
         media_type: str,
         tmdb_id: int
     ) -> bool:
-        if media_type == "mov":
+        if media_type == "movie":
             result = await self.movie_collection.delete_one({"tmdb_id": tmdb_id})
         else:
             result = await self.tv_collection.delete_one({"tmdb_id": tmdb_id})
