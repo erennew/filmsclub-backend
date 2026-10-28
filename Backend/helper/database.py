@@ -2108,7 +2108,7 @@ class Database:
     # =========================================================================
     async def upsert_index_scan(self, channel_id: int, fields: dict) -> bool:
         """Create or fully reset the scan state for a channel."""
-        if not self.index_scans_collection:
+        if self.index_scans_collection is None:
             return False
         try:
             doc = dict(fields)
@@ -2125,7 +2125,7 @@ class Database:
             return False
 
     async def update_index_scan(self, channel_id: int, fields: dict) -> bool:
-        if not self.index_scans_collection:
+        if self.index_scans_collection is None:
             return False
         try:
             doc = dict(fields)
@@ -2139,7 +2139,7 @@ class Database:
             return False
 
     async def get_index_scan(self, channel_id: int) -> Optional[Dict]:
-        if not self.index_scans_collection:
+        if self.index_scans_collection is None:
             return None
         try:
             return await self.index_scans_collection.find_one({"channel_id": channel_id})
@@ -2148,7 +2148,7 @@ class Database:
             return None
 
     async def get_running_index_scans(self) -> List[Dict]:
-        if not self.index_scans_collection:
+        if self.index_scans_collection is None:
             return []
         try:
             cursor = self.index_scans_collection.find({"status": "running"}).sort("updated_at", ASCENDING)
