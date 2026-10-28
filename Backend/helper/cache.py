@@ -15,6 +15,8 @@ from functools import wraps
 from typing import Optional, Any, Callable, Dict
 from collections import OrderedDict
 
+from Backend.config import Cache as CacheConfig
+
 
 class LRUCache:
     """
@@ -213,37 +215,6 @@ def cached(
         return sync_wrapper
     
     return decorator
-
-
-# Global cache instances for use across the application
-
-# File metadata cache - stores Telegram file properties
-# High hit rate since same files are accessed repeatedly
-file_metadata_cache = LRUCache(maxsize=1000)
-
-# Hot movies/TV shows cache - stores frequently accessed media documents
-# Reduces database queries for popular content
-hot_movies_cache = LRUCache(maxsize=500)
-
-# ffprobe results cache - stores audio/subtitle track detection results
-# Very expensive operation (5+ seconds), cache for 24 hours
-ffprobe_cache = TTLCache(default_ttl=86400)
-
-# Bot workload cache - stores current workload distribution
-# Short TTL since workloads change frequently (5 seconds)
-workload_cache = TTLCache(default_ttl=5)
-
-# Search results cache - stores recent search queries
-# Medium TTL since content changes (2 minutes)
-search_cache = TTLCache(default_ttl=120)
-
-# Trending data cache - stores trending movies/TV
-# Short TTL for real-time updates (1 minute)
-trending_cache = TTLCache(default_ttl=60)
-
-# API response cache - general API responses
-# Use Redis for distributed caching, but this is local fallback
-api_cache = TTLCache(default_ttl=60)
 
 
 # Cache statistics tracking (optional - for monitoring)
@@ -460,32 +431,38 @@ class VideoChunkCache:
 # Global cache instances for use across the application
 
 # File metadata cache - stores Telegram file properties
-file_metadata_cache = LRUCache(maxsize=1000)
+# High hit rate since same files are accessed repeatedly
+file_metadata_cache = LRUCache(maxsize=CacheConfig.FILE_METADATA_CACHE_SIZE)
 
 # Hot movies/TV shows cache - stores frequently accessed media documents
-hot_movies_cache = LRUCache(maxsize=500)
+# Reduces database queries for popular content
+hot_movies_cache = LRUCache(maxsize=CacheConfig.HOT_MOVIES_CACHE_SIZE)
 
 # ffprobe results cache - stores audio/subtitle track detection results
-ffprobe_cache = TTLCache(default_ttl=86400)
+# Very expensive operation (5+ seconds), cache for 10 days
+ffprobe_cache = TTLCache(default_ttl=CacheConfig.MEDIA_INFO_CACHE_TTL)
 
 # Bot workload cache - stores current workload distribution
+# Short TTL since workloads change frequently (5 seconds)
 workload_cache = TTLCache(default_ttl=5)
 
 # Search results cache - stores recent search queries
-search_cache = TTLCache(default_ttl=120)
+search_cache = TTLCache(default_ttl=CacheConfig.SEARCH_CACHE_TTL)
 
 # Trending data cache - stores trending movies/TV
-trending_cache = TTLCache(default_ttl=60)
+trending_cache = TTLCache(default_ttl=CacheConfig.TRENDING_CACHE_TTL)
 
 # API response cache - general API responses
+# Use Redis for distributed caching, but this is local fallback
 api_cache = TTLCache(default_ttl=60)
 
 # Video chunk cache - smart chunk storage for streaming
+# Budgets come from config so memory stays bounded on small dynos.
 video_chunk_cache = VideoChunkCache(
-    hot_start_slots=100,
-    hot_start_size=1_048_576,  # 1MB
-    lru_cache_size=524_288_000,  # 500MB
-    chunk_size=65536
+    hot_start_slots=CacheConfig.VIDEO_CACHE_HOT_START_SLOTS,
+    hot_start_size=CacheConfig.VIDEO_CACHE_HOT_START_SIZE_MB * 1024 * 1024,
+    lru_cache_size=CacheConfig.VIDEO_CACHE_LRU_SIZE_MB * 1024 * 1024,
+    chunk_size=CacheConfig.VIDEO_CACHE_CHUNK_SIZE,
 )
 
 # Global stats instance

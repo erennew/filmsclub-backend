@@ -5,10 +5,10 @@ Handles sending formatted notifications to update channels when new content is a
 
 import asyncio
 from typing import Dict, Any, Optional, List
-from pyrogram import Client
-from pyrogram.errors import FloodWait, ChannelInvalid, ChatWriteForbidden, UserNotParticipant
-from pyrogram.enums import ParseMode
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from wzgram import Client
+from wzgram.errors import FloodWait, ChannelInvalid, ChatWriteForbidden, UserNotParticipant
+from wzgram.enums import ParseMode
+from wzgram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from Backend.logger import LOGGER
 from Backend.config import Config
 
@@ -331,7 +331,7 @@ async def send_update_notification(client: Client, metadata: Dict[str, Any], med
     Send update notification to the update channel.
     
     Args:
-        client: Pyrogram client instance
+        client: Wzgram client instance
         metadata: Media metadata dictionary
         media_type: Type of media ('movie', 'series', 'episode')
     
@@ -445,7 +445,7 @@ async def notify_new_content(client: Client, metadata: Dict[str, Any]) -> bool:
     Determine content type and send appropriate notification (automatic trigger).
     
     Args:
-        client: Pyrogram client instance
+        client: Wzgram client instance
         metadata: Media metadata dictionary
     
     Returns:
@@ -479,7 +479,7 @@ async def send_manual_update(client: Client, metadata: Dict[str, Any], media_typ
     Manually send update notification (manual trigger).
     
     Args:
-        client: Pyrogram client instance
+        client: Wzgram client instance
         metadata: Media metadata dictionary
         media_type: Type of media ('movie', 'series', 'episode')
     

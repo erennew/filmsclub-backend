@@ -13,9 +13,9 @@ from Backend.logger import LOGGER
 import traceback
 import httpx
 
-DELAY = 2
+ANIME_DELAY = 0.75  # AniList allows ~90 req/min; two calls per file.
 
-tmdb = aioTMDb(key=Config.TMDB_API, language="en-US", region="US")
+tmdb = aioTMDb(api_key=Config.TMDB_API, language="en-US", region="US")
 
 
 def extract_codec_from_filename(filename: str) -> str | None:
@@ -45,7 +45,7 @@ def _with_filename_codec(metadata_info: dict | None, filename: str, parsed: dict
 async def fetch_anime_from_anilist(title: str) -> dict:
     """Fetch anime metadata from AniList API"""
     try:
-        await asyncio.sleep(DELAY)
+        await asyncio.sleep(ANIME_DELAY)
         search_results = await anilist_service.search_anime(title, page=1, per_page=5)
         
         if not search_results or not search_results.get('results'):
@@ -58,7 +58,7 @@ async def fetch_anime_from_anilist(title: str) -> dict:
             return None
         
         # Get detailed information
-        await asyncio.sleep(DELAY)
+        await asyncio.sleep(ANIME_DELAY)
         detailed_anime = await anilist_service.get_anime_details(anime_data.id)
         
         if not detailed_anime:
@@ -74,7 +74,7 @@ async def fetch_anime_from_anilist(title: str) -> dict:
 async def fetch_anime_from_jikan(title: str) -> dict:
     """Fetch anime metadata from Jikan (MyAnimeList) API"""
     try:
-        await asyncio.sleep(DELAY)
+        # Jikan requests are paced by jikan_api_service's own rate limiter.
         search_results = await jikan_api_service.search_anime(title, page=1, limit=5)
         
         if not search_results or not search_results.get('results'):
@@ -87,14 +87,12 @@ async def fetch_anime_from_jikan(title: str) -> dict:
             return None
         
         # Get detailed information
-        await asyncio.sleep(DELAY)
         detailed_anime = await jikan_api_service.get_anime_by_id(anime_data.id)
         
         if not detailed_anime:
             return anime_data
         
         # Fetch characters separately
-        await asyncio.sleep(DELAY)
         characters = await jikan_api_service.get_anime_characters(anime_data.id)
         
         # Attach characters to the anime data
@@ -304,7 +302,7 @@ async def get_tmdb_people_and_schedule(tmdb_id: int | str | None, media_type: st
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30, verify=False) as session:
+        async with httpx.AsyncClient(timeout=30) as session:
             response = await session.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -495,8 +493,7 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         # Method 1: Try TMDB with English language first
         try:
             # Create English-specific TMDB client
-            tmdb_en = aioTMDb(key=Config.TMDB_API, language="en-US", region="US")
-            await asyncio.sleep(DELAY)
+            tmdb_en = aioTMDb(api_key=Config.TMDB_API, language="en-US", region="US")
             ep_details = await tmdb_en.episode(tv_id, season, episode).details()
             
             if ep_details and hasattr(ep_details, 'name') and ep_details.name and ep_details.name.strip():
@@ -512,8 +509,7 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         
         # Method 2: Try TMDB with just 'en' language code
         try:
-            tmdb_en_simple = aioTMDb(key=Config.TMDB_API, language="en", region="US")
-            await asyncio.sleep(DELAY)
+            tmdb_en_simple = aioTMDb(api_key=Config.TMDB_API, language="en", region="US")
             ep_details_en = await tmdb_en_simple.episode(tv_id, season, episode).details()
             
             if ep_details_en and hasattr(ep_details_en, 'name') and ep_details_en.name and ep_details_en.name.strip():
@@ -528,7 +524,6 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         
         # Method 3: Try original TMDB client (default language)
         try:
-            await asyncio.sleep(DELAY)
             ep_details_orig = await tmdb.episode(tv_id, season, episode).details()
             
             if ep_details_orig and hasattr(ep_details_orig, 'name') and ep_details_orig.name and ep_details_orig.name.strip():
@@ -544,7 +539,6 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         # Method 4: Try IMDb episode data if we have an IMDb ID
         if imdb_id:
             try:
-                await asyncio.sleep(DELAY)
                 ep_details_imdb = await get_season(imdb_id=imdb_id, season_id=season, episode_id=episode)
                 
                 if ep_details_imdb and isinstance(ep_details_imdb, dict):
@@ -559,7 +553,6 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         
         # Method 5: Try TMDB translations API for English titles
         try:
-            await asyncio.sleep(DELAY)
             translations = await tmdb.episode(tv_id, season, episode).translations()
             
             if translations and hasattr(translations, 'translations'):
@@ -594,7 +587,6 @@ async def get_english_episode_title(tv_id: int, season: int, episode: int, imdb_
         
         # Method 6: Try getting season details and extract episode name
         try:
-            await asyncio.sleep(DELAY)
             season_details = await tmdb.season(tv_id, season).details()
             
             if season_details and hasattr(season_details, 'episodes'):
@@ -779,7 +771,6 @@ async def fetch_anime_metadata(title: str, season_number: int, episode_number: i
         
         if imdb_id:
             try:
-                await asyncio.sleep(DELAY)
                 tv_details = await get_detail(imdb_id=imdb_id)
                 LOGGER.info(f"Successfully fetched IMDb data for {title}")
             except Exception as e:
@@ -788,7 +779,6 @@ async def fetch_anime_metadata(title: str, season_number: int, episode_number: i
         # Try TMDB as fallback
         if not tv_details:
             try:
-                await asyncio.sleep(DELAY)
                 tmdb_results = await tmdb.search().tv(query=title)
                 if tmdb_results:
                     tmdb_tv_id = tmdb_results[0].id
@@ -838,7 +828,6 @@ async def fetch_anime_metadata(title: str, season_number: int, episode_number: i
             
             # Try to get TMDB data for better images and episode title
             try:
-                await asyncio.sleep(DELAY)
                 tmdb_results = await tmdb.search().tv(query=show_title)
                 if tmdb_results:
                     tmdb_tv_id = tmdb_results[0].id
@@ -941,7 +930,6 @@ async def fetch_anime_metadata(title: str, season_number: int, episode_number: i
 async def check_episode_exists(tv_id: int, season: int, episode: int) -> bool:
     """Check if a specific episode exists in TMDB"""
     try:
-        await asyncio.sleep(DELAY)
         season_details = await tmdb.season(tv_id, season).details()
         
         if not season_details or not hasattr(season_details, 'episodes'):
@@ -958,7 +946,6 @@ async def check_episode_exists(tv_id: int, season: int, episode: int) -> bool:
 async def get_available_seasons(tv_id: int) -> list:
     """Get list of available season numbers"""
     try:
-        await asyncio.sleep(DELAY)
         tv_details = await tmdb.tv(tv_id).details()
         
         if not tv_details or not hasattr(tv_details, 'seasons'):
@@ -1003,7 +990,6 @@ async def fetch_tv_metadata(title: str, season: int, episode: int, year=None, qu
         
         # Fetch TMDB details using validated ID
         try:
-            await asyncio.sleep(DELAY)
             tv_details = await tmdb.tv(tmdb_tv_id).details()
             use_tmdb = True
             LOGGER.info(f"Successfully fetched TMDB data for {title} using validated ID")
@@ -1013,7 +999,6 @@ async def fetch_tv_metadata(title: str, season: int, episode: int, year=None, qu
             new_tmdb_id = await refresh_tmdb_id(tmdb_tv_id, title)
             if new_tmdb_id:
                 try:
-                    await asyncio.sleep(DELAY)
                     tv_details = await tmdb.tv(new_tmdb_id).details()
                     use_tmdb = True
                     tmdb_tv_id = new_tmdb_id
@@ -1121,7 +1106,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
 
         if imdb_id:
             try:
-                await asyncio.sleep(DELAY)
                 tv_details = await get_detail(imdb_id=imdb_id)
                 LOGGER.info(f"Successfully fetched IMDb data for {title} S{season}E{episode} using ID: {imdb_id}")
             except Exception as e:
@@ -1131,7 +1115,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
         # Only use TMDB if we have no data from IMDb at all
         if not tv_details:
             use_tmdb = True
-            await asyncio.sleep(DELAY)
             tmdb_results = await tmdb.search().tv(query=title)
             if not tmdb_results:
                 LOGGER.warning(f"No TMDb results found for title '{title}'")
@@ -1158,7 +1141,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
                 if not episode_exists:
                     LOGGER.warning(f"Episode {episode} not found in season {season} for '{title}' in TMDB")
                     try:
-                        await asyncio.sleep(DELAY)
                         season_details = await tmdb.season(tmdb_tv_id, season).details()
                         if season_details and hasattr(season_details, 'episodes') and season_details.episodes:
                             last_episode = max(ep.episode_number for ep in season_details.episodes if hasattr(ep, 'episode_number'))
@@ -1174,7 +1156,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
         elif not imdb_id:
             # We have TV details from IMDb but no episode details, try TMDB for episode info only
             try:
-                await asyncio.sleep(DELAY)
                 tmdb_results = await tmdb.search().tv(query=title)
                 if tmdb_results:
                     tmdb_tv_id = tmdb_results[0].id
@@ -1206,7 +1187,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
             
             # Try to get episode-specific backdrop
             try:
-                await asyncio.sleep(DELAY)
                 ep_details = await tmdb.episode(tv_details.id, season, episode).details()
                 if ep_details and hasattr(ep_details, 'still_path') and ep_details.still_path:
                     ep_backdrop = f"https://image.tmdb.org/t/p/original{ep_details.still_path}"
@@ -1232,7 +1212,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
             else:
                 # Try to get episode title from IMDb
                 try:
-                    await asyncio.sleep(DELAY)
                     ep_details = await get_season(imdb_id=imdb_id, season_id=season, episode_id=episode)
                     if ep_details and isinstance(ep_details, dict):
                         ep_title = ep_details.get('title', f"Episode {episode}")
@@ -1246,7 +1225,6 @@ async def fetch_tv_metadata_original(title: str, season: int, episode: int, year
             
             # Try to get backdrop and episode backdrop from TMDB as fallback for IMDb data
             try:
-                await asyncio.sleep(DELAY)
                 if not tmdb_tv_id:
                     fallback_results = await tmdb.search().tv(query=show_title)
                     if fallback_results:
@@ -1376,7 +1354,6 @@ async def fetch_movie_metadata(title: str, year=None, quality=None, default_id=N
             try:
                 # Do NOT remove 'tt' prefix; send full imdb_id
                 LOGGER.debug(f"Fetching IMDb details using ID: {imdb_id}")
-                await asyncio.sleep(DELAY)
                 movie_details = await get_detail(imdb_id=imdb_id)
                 LOGGER.info(f"Successfully fetched IMDb data for '{title}' using ID: {imdb_id}")
                 
@@ -1387,7 +1364,6 @@ async def fetch_movie_metadata(title: str, year=None, quality=None, default_id=N
         if not movie_details:
             use_tmdb = True
             try:
-                await asyncio.sleep(DELAY)
                 tmdb_results = await tmdb.search().movies(query=title, year=year) if year else await tmdb.search().movies(query=title)
                 if not tmdb_results:
                     LOGGER.warning(f"No TMDB results found for '{title}'")
@@ -1423,7 +1399,6 @@ async def fetch_movie_metadata(title: str, year=None, quality=None, default_id=N
             
             # Try to get supplemental TMDB data for better images
             try:
-                await asyncio.sleep(DELAY)
                 force_tmdb_results = await tmdb.search().movies(query=movie_title, year=movie_year)
                 if force_tmdb_results:
                     force_movie_id = force_tmdb_results[0].id

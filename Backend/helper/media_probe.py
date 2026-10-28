@@ -317,27 +317,37 @@ async def probe_file(path: str, use_cache: bool = True) -> Dict[str, Any]:
         return {}
 
 
-async def stream_and_probe(media, message_id: int, max_size_mb: int = 50, client: Any = None) -> Dict[str, Any]:
+async def stream_and_probe(media, message_id: int, max_size_mb: int = 50, client: Any = None,
+                           max_steps: Optional[int] = None) -> Dict[str, Any]:
     """
-    Stream media from Telegram using Pyrogram client and probe progressively.
+    Stream media from Telegram using Wzgram client and probe progressively.
     Stops once we have enough data to determine media info.
+
+    ``max_steps`` caps how many progressive steps (and therefore how many
+    bytes) the quick probe may download. ``None`` probes up to the full size.
     """
     if client is None:
         client = getattr(media, '_client', None)
     if client is None:
         try:
-            from Backend.pyrofork import StreamBot
+            from Backend.wzgram_pkg import StreamBot
             client = StreamBot
         except Exception:
             client = None
 
     if not client:
-        logger.error("No Pyrogram client available for probing media")
+        logger.error("No Wzgram client available for probing media")
         return {}
+
+    steps = STREAM_STEPS
+    if max_steps:
+        steps = STREAM_STEPS[: max(1, min(int(max_steps), len(STREAM_STEPS)))]
 
     temp_file = f"probe_{message_id}_{uuid.uuid4().hex[:8]}.bin"
     file_size = getattr(media, 'file_size', 0) or 0
     max_bytes = max_size_mb * 1024 * 1024
+    if max_steps:
+        max_bytes = min(max_bytes, steps[-1][1])
     limit_bytes = min(file_size, max_bytes) if file_size else max_bytes
 
     result = None
@@ -357,7 +367,7 @@ async def stream_and_probe(media, message_id: int, max_size_mb: int = 50, client
                 await f.write(chunk[:take])
                 written += take
 
-                current_step_name, current_step_target = STREAM_STEPS[min(step_index, len(STREAM_STEPS) - 1)]
+                current_step_name, current_step_target = steps[min(step_index, len(steps) - 1)]
                 if written >= current_step_target or written >= limit_bytes:
                     await f.flush()
                     probe_res = await probe_file(temp_file)
@@ -366,6 +376,8 @@ async def stream_and_probe(media, message_id: int, max_size_mb: int = 50, client
                         logger.info(f" Got media info from {current_step_name} probe ({written} bytes)")
                         break
                     step_index += 1
+                    if step_index >= len(steps):
+                        break
 
                 if written >= limit_bytes:
                     break

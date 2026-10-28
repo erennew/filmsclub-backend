@@ -1,8 +1,8 @@
 from asyncio import gather, create_task
-from pyrogram import Client
+from wzgram import Client
 from Backend.logger import LOGGER
 from Backend.config import Telegram
-from Backend.pyrofork import multi_clients, work_loads, StreamBot
+from Backend.wzgram_pkg import multi_clients, work_loads, StreamBot
 from os import environ
 
 class TokenParser:

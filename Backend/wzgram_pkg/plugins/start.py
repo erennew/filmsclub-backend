@@ -1,4 +1,5 @@
 import re
+import html
 import asyncio
 from typing import Dict
 from asyncio import create_task, sleep as asleep, Lock
@@ -10,11 +11,24 @@ from Backend.helper.custom_filter import CustomFilters
 from Backend.helper.encrypt import decode_string
 from Backend.helper.metadata import extract_codec_from_filename, metadata
 from Backend.helper.pyro import clean_filename, get_readable_file_size, remove_urls
-from Backend.pyrofork import StreamBot
-from pyrogram import filters, Client
-from pyrogram.types import Message
+from Backend.helper.channel_index import (
+    LINK_RE,
+    IndexBusyError,
+    IndexTargetError,
+    clean_channel_id,
+    is_auth_channel,
+    is_scan_running,
+    parse_channel_link,
+    request_index_scan,
+    resolve_link_target,
+    resume_index_scans,
+    stop_index_scan,
+)
+from Backend.wzgram_pkg import StreamBot
+from wzgram import filters, Client
+from wzgram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from os import path as ospath
-from pyrogram.errors import FloodWait
+from wzgram.errors import FloodWait
 from pyrogram.enums.parse_mode import ParseMode
 from themoviedb import aioTMDb
 from asyncio import Queue
@@ -22,8 +36,8 @@ from os import execl as osexecl
 from asyncio import create_subprocess_exec, gather
 from sys import executable
 from aiofiles import open as aiopen
-from pyrogram import enums
-from Backend.config import QueueConfig, TMDBValidation, MediaProbeConfig
+from wzgram import enums
+from Backend.config import QueueConfig, IndexConfig, TMDBValidation, MediaProbeConfig
 from Backend.helper.pyro import validate_tmdb_id_thorough, validate_episode_exists, cleanup_tmdb_cache, get_tmdb_cache_stats
 from Backend.helper.media_probe import stream_and_probe, build_media_caption
 from collections import defaultdict
@@ -31,7 +45,7 @@ import time
 import json
 
 
-tmdb = aioTMDb(key=Telegram.TMDB_API, language="en-US", region="US")
+tmdb = aioTMDb(api_key=Telegram.TMDB_API, language="en-US", region="US")
 # Initialize database connection
 import random
 import string
@@ -45,7 +59,8 @@ from datetime import datetime, timedelta
 # Enhanced queue item structure
 class QueueItem:
     def __init__(self, metadata_info, hash_val, channel, msg_id, size, title, source, 
-                 retry_count=0, probe_result=None):
+                 retry_count=0, probe_result=None, file_unique_id=None,
+                 size_bytes=None, duration=None, priority=None, needs_review=False):
         self.metadata_info = metadata_info
         self.hash = hash_val
         self.channel = channel
@@ -56,6 +71,11 @@ class QueueItem:
         self.retry_count = retry_count
         self.added_at = datetime.utcnow()
         self.probe_result = probe_result  # Store ffmpeg probe results
+        self.file_unique_id = file_unique_id
+        self.size_bytes = size_bytes
+        self.duration = duration
+        self.priority = QueueConfig.PRIORITY_LIVE if priority is None else int(priority)
+        self.needs_review = bool(needs_review)
 
 
 # Enhanced queue configuration
@@ -81,6 +101,33 @@ queue_stats = {
 # Batch processing tracking
 processed_count_in_batch = 0
 batch_lock = Lock()
+
+# Global FloodWait gate shared by every queue worker. When Telegram asks us to
+# back off, all workers wait together instead of each burning retries.
+floodwait_gate = {"until": 0.0}
+
+
+def _hold_floodwait(seconds) -> None:
+    try:
+        until = time.time() + max(float(seconds or 0), 1.0)
+    except (TypeError, ValueError):
+        until = time.time() + QueueConfig.FLOODWAIT_BASE_DELAY
+    if until > floodwait_gate["until"]:
+        floodwait_gate["until"] = until
+
+
+async def _wait_floodwait_gate() -> None:
+    while True:
+        remaining = floodwait_gate["until"] - time.time()
+        if remaining <= 0:
+            return
+        LOGGER.warning(f"⏳ Global FloodWait gate active — waiting {int(remaining)}s")
+        await asyncio.sleep(min(remaining, 30))
+
+
+def floodwait_remaining() -> int:
+    """Seconds until the shared FloodWait gate reopens (admin display)."""
+    return max(0, int(floodwait_gate["until"] - time.time()))
 
 # Rate limiting per channel
 channel_rate_limit = defaultdict(list)
@@ -137,6 +184,50 @@ def _compare_same_quality(current: dict, existing: dict, probe_result: dict | No
         if current_value != existing_value:
             return (1 if current_value > existing_value else -1), label
     return 0, 'equal metadata'
+
+# Multi-part and multi-episode archives need a human decision: ingesting them
+# as a single movie/episode silently corrupts the library.
+PACK_PATTERNS = [
+    (re.compile(r'\bcd[\s._-]*[12]\b', re.IGNORECASE), 'multi-part (CD1/CD2)'),
+    (re.compile(r'\b(?:disc|disk)[\s._-]*[1-9]\b', re.IGNORECASE), 'multi-part (disc N)'),
+    (re.compile(r'\bs\d{1,2}[\s._-]*e[\s._-]*\d{1,3}[\s._-]*[-–][\s._-]*(?:e[\s._-]*)?\d{1,3}\b', re.IGNORECASE), 'multi-episode range'),
+    (re.compile(r'\bs\d{1,2}[\s._-]*e\d{1,3}[\s._-]*e\d{1,3}\b', re.IGNORECASE), 'multi-episode concatenated'),
+    (re.compile(r'\b\d{1,2}x\d{1,3}[\s._-]*[-–][\s._-]*\d{1,2}x?\d{1,3}\b', re.IGNORECASE), 'multi-episode range'),
+    (re.compile(r'\b(?:complete|full)[\s._-]+(?:season|series|show)\b', re.IGNORECASE), 'season/series pack'),
+    (re.compile(r'\bs\d{1,2}[\s._-]*(?:complete|full)\b', re.IGNORECASE), 'season pack'),
+    (re.compile(r'\bseason[\s._-]*\d{1,2}[\s._-]*(?:complete|full)\b', re.IGNORECASE), 'season pack'),
+]
+
+# "Part 1" is ambiguous ("The Godfather Part 2" is a real title), so it only
+# flags an item for review: the worker will never replace an existing quality
+# with a possible half-file.
+PART_PATTERN = re.compile(r'\b(?:part|pt)[\s._-]*([1-9])\b', re.IGNORECASE)
+
+
+def detect_pack_or_multipart(*texts) -> str | None:
+    """Return a human-readable reason when the file looks like a pack/multi-part."""
+    for text in texts:
+        if not text:
+            continue
+        for pattern, reason in PACK_PATTERNS:
+            if pattern.search(str(text)):
+                return reason
+    return None
+
+
+def _part_numbers(text) -> set:
+    return {m.group(1) for m in PART_PATTERN.finditer(str(text or ""))}
+
+
+def detect_part_file(original_filename=None, title=None, caption=None) -> bool:
+    """True when the upload looks like one piece of a multi-part release.
+
+    A part number that is also part of the parsed title (e.g. "The Godfather
+    Part 2") is treated as the real title, not as a split file.
+    """
+    upload_parts = _part_numbers(original_filename) | _part_numbers(caption)
+    return bool(upload_parts - _part_numbers(title))
+
 
 # Clear queue confirmation states
 clear_queue_state = {
@@ -205,7 +296,7 @@ async def create_user(bot: Client, message: Message):
             await message.reply_text("❌ Expiry days must be a valid number")
             return
 
-        users_collection = db.db["auth_users"]  # Use the Tracking database
+        users_collection = db.db["auth_users"]  # ops cluster (primary)
 
         # Check if username already exists
         existing_user = await users_collection.find_one({"username": username})
@@ -376,6 +467,31 @@ async def start(bot: Client, message: Message):
 
 
 # (Queue configuration moved to top of file - see above)
+
+
+async def _deep_probe_queue_item(item: QueueItem) -> dict:
+    """Full-stream probe used only when a same-quality comparison is tied.
+
+    Quick probes stop at ~1 MB; when two releases compare equal we pay for a
+    deeper look (audio track count is the tiebreaker) instead of paying it for
+    every ingested file.
+    """
+    try:
+        channel_id = f"-100{item.channel}"
+        message = await StreamBot.get_messages(int(channel_id), item.msg_id)
+        file = message.video or message.document
+        if not file:
+            return {}
+        LOGGER.info(f"🔬 Deep probe (tie-break) for {item.title[:50]}...")
+        return await stream_and_probe(
+            file, item.msg_id, max_size_mb=MediaProbeConfig.MAX_PROBE_SIZE_MB
+        )
+    except FloodWait as e:
+        _hold_floodwait(e.value)
+        return {}
+    except Exception as e:
+        LOGGER.warning(f"Deep probe failed for message {item.msg_id}: {e}")
+        return {}
 
 
 async def validate_file_before_insert(item: QueueItem) -> bool:
@@ -568,11 +684,11 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None, 
         tmdb_id = metadata_info.get('tmdb_id')
         media_type = metadata_info.get('media_type')
         current_quality = metadata_info.get('quality', '720p')
-        
+
         # Check movies collection
         if media_type == "movie":
-            existing_movie = await db.movie_collection.find_one({"tmdb_id": tmdb_id})
-            
+            existing_movie = await db.get_movie_doc(tmdb_id)
+
             if existing_movie and existing_movie.get('telegram'):
                 for existing_quality in existing_movie['telegram']:
                     existing_quality_name = existing_quality.get('quality', '720p')
@@ -602,7 +718,7 @@ async def smart_replace_or_skip(metadata_info: dict, probe_result: dict = None, 
             season = metadata_info.get('season_number')
             episode = metadata_info.get('episode_number')
             if season and episode:
-                existing_tv = await db.tv_collection.find_one({"tmdb_id": tmdb_id})
+                existing_tv = await db.get_tv_doc(tmdb_id)
                 if existing_tv:
                     # Check for existing episode in the same season
                     for s in existing_tv.get('seasons', []):
@@ -684,6 +800,22 @@ async def process_file(worker_id: int):
             
             # Smart replacement decision with probe results
             action, old_version = await smart_replace_or_skip(item.metadata_info, item.probe_result, item.size)
+            if action == 'REPLACE' and item.needs_review:
+                LOGGER.warning(f"🛡️ Refusing to replace existing quality with part file: {item.title[:60]}")
+                await db.log_failed_file(
+                    title=item.title,
+                    filename=item.title,
+                    reason="Part file detected — replacement blocked, needs manual review",
+                    metadata_info=item.metadata_info,
+                    parse_data={
+                        "title": item.title,
+                        "original_filename": item.title,
+                        "channel": item.channel,
+                        "msg_id": item.msg_id,
+                        "file_unique_id": item.file_unique_id,
+                    },
+                )
+                action, old_version = 'SKIP', 'part file — replacement blocked'
             
             async with db_lock:
                 if action == 'ADD':
@@ -694,7 +826,10 @@ async def process_file(worker_id: int):
                         msg_id=item.msg_id, 
                         size=item.size, 
                         name=item.title,
-                        codec=item.metadata_info.get('codec')
+                        codec=item.metadata_info.get('codec'),
+                        file_unique_id=item.file_unique_id,
+                        size_bytes=item.size_bytes,
+                        duration=item.duration
                     )
                     if updated_id:
                         queue_stats["processed"] += 1
@@ -714,23 +849,9 @@ async def process_file(worker_id: int):
                     media_type = item.metadata_info.get('media_type')
                     tmdb_id = item.metadata_info.get('tmdb_id')
                     current_quality = item.metadata_info.get('quality', '720p')
-                    
-                    if media_type == "movie":
-                        await db.movie_collection.update_one(
-                            {"tmdb_id": tmdb_id},
-                            {"$pull": {"telegram": {"quality": current_quality}}}
-                        )
-                    elif media_type == "tv":
-                        season = item.metadata_info.get('season_number')
-                        episode = item.metadata_info.get('episode_number')
-                        await db.tv_collection.update_one(
-                            {"tmdb_id": tmdb_id},
-                            {"$pull": {"seasons.$[s].episodes.$[e].telegram": {"quality": current_quality}}},
-                            array_filters=[
-                                {"s.season_number": season},
-                                {"e.episode_number": episode}
-                            ]
-                        )
+                    season = item.metadata_info.get('season_number')
+                    episode = item.metadata_info.get('episode_number')
+                    await db.pull_quality(media_type, tmdb_id, current_quality, season, episode)
                     
                     # Insert new version
                     updated_id = await db.insert_media(
@@ -740,7 +861,10 @@ async def process_file(worker_id: int):
                         msg_id=item.msg_id, 
                         size=item.size, 
                         name=item.title,
-                        codec=item.metadata_info.get('codec')
+                        codec=item.metadata_info.get('codec'),
+                        file_unique_id=item.file_unique_id,
+                        size_bytes=item.size_bytes,
+                        duration=item.duration
                     )
                     if updated_id:
                         queue_stats["processed"] += 1
@@ -773,218 +897,257 @@ async def process_file(worker_id: int):
 
 # ============= MONGODB QUEUE PROCESSOR =============
 
-async def process_mongodb_queue(channel_id: int = None):
-    """Process files from MongoDB queue with FloodWait handling and persistence."""
-    global processed_count_in_batch, total_processing_time, processing_count
-    
-    from pyrogram.errors import FloodWait
-    
+async def process_mongodb_queue(worker_id: int = 1, channel_id: int = None):
+    """Worker loop over the MongoDB queue.
+
+    Each worker claims exactly one item at a time, honours the persisted pause
+    flag and the global FloodWait gate, and round-robins across channels via
+    ``db.claim_next_item``. Live uploads sort ahead of rescan backfill.
+    """
+    global processed_count_in_batch
+
+    last_housekeeping = 0.0
+    LOGGER.info(f"🗄️ MongoDB queue worker {worker_id} started")
+
     while True:
         try:
-            # Get next batch from MongoDB
-            batch = await db.get_next_batch(channel_id, QueueConfig.BATCH_SIZE)
-            if not batch:
-                # No more items, wait and check again
-                await asyncio.sleep(5)
+            if await db.is_queue_paused():
+                await asyncio.sleep(QueueConfig.QUEUE_STATE_POLL_SECONDS)
                 continue
-            
-            for item in batch:
-                try:
-                    # Apply rate limiting
-                    now = asyncio.get_event_loop().time()
-                    last = last_edit_time.get(channel_id or 0, 0)
-                    if now - last < QueueConfig.FILE_QUEUE_DELAY:
-                        await asyncio.sleep(QueueConfig.FILE_QUEUE_DELAY - (now - last))
-                    
-                    # Reconstruct QueueItem from MongoDB data
-                    queue_item = QueueItem(
-                        metadata_info=item.get('metadata_info', {}),
-                        hash_val=item.get('hash'),
-                        channel=item.get('channel'),
-                        msg_id=item.get('msg_id'),
-                        size=item.get('size'),
-                        title=item.get('title'),
-                        source='mongodb_queue',
-                        retry_count=item.get('retry_count', 0),
-                        probe_result=item.get('probe_result')
-                    )
-                    
-                    LOGGER.info(f"[MongoDB Queue] Processing ({queue_item.retry_count + 1}/{QueueConfig.MAX_RETRY_COUNT}): {queue_item.title[:50]}...")
-                    
-                    # Thorough validation with FloodWait handling
-                    validation_passed = False
-                    for attempt in range(QueueConfig.FLOODWAIT_MAX_RETRIES):
-                        try:
-                            validation_passed = await validate_file_before_insert(queue_item)
-                            break
-                        except FloodWait as e:
-                            LOGGER.warning(f"FloodWait {e.value}s during validation, attempt {attempt + 1}/{QueueConfig.FLOODWAIT_MAX_RETRIES}")
-                            if attempt < QueueConfig.FLOODWAIT_MAX_RETRIES - 1:
-                                await asyncio.sleep(e.value)
-                            else:
-                                LOGGER.error(f"Max FloodWait retries reached for validation")
-                                await db.mark_failed(str(item['_id']), f"FloodWait: {e.value}s")
-                                queue_stats["failed"] += 1
-                                break
-                        except Exception as e:
-                            LOGGER.error(f"Error during validation: {e}")
-                            break
-                    
-                    if not validation_passed:
-                        if queue_item.retry_count < QueueConfig.MAX_RETRY_COUNT:
-                            await db.mark_failed(str(item['_id']), "Validation failed")
-                            queue_stats["retried"] += 1
-                            LOGGER.warning(f"⚠️ Validation failed, will retry later")
-                        else:
-                            await db.mark_failed(str(item['_id']), "Max retries reached")
-                            queue_stats["failed"] += 1
-                            LOGGER.error(f"❌ Max retries reached: {queue_item.title[:50]}")
-                        continue
-                    
-                    # Smart replacement decision
-                    action, old_version = await smart_replace_or_skip(queue_item.metadata_info, queue_item.probe_result, queue_item.size)
-                    
-                    # Database operations with FloodWait handling
-                    db_success = False
-                    for attempt in range(QueueConfig.FLOODWAIT_MAX_RETRIES):
-                        try:
-                            async with db_lock:
-                                if action == 'ADD':
-                                    updated_id = await db.insert_media(
-                                        queue_item.metadata_info, 
-                                        hash=queue_item.hash, 
-                                        channel=queue_item.channel, 
-                                        msg_id=queue_item.msg_id, 
-                                        size=queue_item.size, 
-                                        name=queue_item.title,
-                                        codec=queue_item.metadata_info.get('codec')
-                                    )
-                                    if updated_id:
-                                        queue_stats["processed"] += 1
-                                        await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
-                                        await db.update_checkpoint(item['channel_id'], item['message_id'])
-                                        LOGGER.info(f"✅ ADDED: {queue_item.metadata_info.get('quality')} - {queue_item.title[:50]}")
-                                        db_success = True
-                                    else:
-                                        await db.mark_failed(str(item['_id']), "Insert failed")
-                                        queue_stats["failed"] += 1
-                                
-                                elif action == 'REPLACE':
-                                    # Backup old version
-                                    await db.backup_replaced_version(
-                                        queue_item.metadata_info, 
-                                        old_version, 
-                                        reason="Replaced with better version"
-                                    )
-                                    
-                                    # Remove old and add new
-                                    media_type = queue_item.metadata_info.get('media_type')
-                                    tmdb_id = queue_item.metadata_info.get('tmdb_id')
-                                    current_quality = queue_item.metadata_info.get('quality', '720p')
-                                    
-                                    if media_type == "movie":
-                                        await db.movie_collection.update_one(
-                                            {"tmdb_id": tmdb_id},
-                                            {"$pull": {"telegram": {"quality": current_quality}}}
-                                        )
-                                    elif media_type == "tv":
-                                        season = queue_item.metadata_info.get('season_number')
-                                        episode = queue_item.metadata_info.get('episode_number')
-                                        await db.tv_collection.update_one(
-                                            {"tmdb_id": tmdb_id},
-                                            {"$pull": {"seasons.$[s].episodes.$[e].telegram": {"quality": current_quality}}},
-                                            array_filters=[
-                                                {"s.season_number": season},
-                                                {"e.episode_number": episode}
-                                            ]
-                                        )
-                                    
-                                    # Insert new version
-                                    updated_id = await db.insert_media(
-                                        queue_item.metadata_info, 
-                                        hash=queue_item.hash, 
-                                        channel=queue_item.channel, 
-                                        msg_id=queue_item.msg_id, 
-                                        size=queue_item.size, 
-                                        name=queue_item.title,
-                                        codec=queue_item.metadata_info.get('codec')
-                                    )
-                                    if updated_id:
-                                        queue_stats["replaced"] += 1
-                                        queue_stats["processed"] += 1
-                                        await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
-                                        await db.update_checkpoint(item['channel_id'], item['message_id'])
-                                        LOGGER.info(f"🔄 REPLACED: {queue_item.metadata_info.get('quality')} - {queue_item.title[:50]}")
-                                        db_success = True
-                                    else:
-                                        await db.mark_failed(str(item['_id']), "Insert failed")
-                                        queue_stats["failed"] += 1
-                                
-                                elif action == 'SKIP':
-                                    queue_stats["skipped"] += 1
-                                    await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
-                                    LOGGER.info(f"⏭️ SKIPPED: {old_version if old_version else 'existing version'}")
-                                    db_success = True
-                            
-                            break  # Success, exit retry loop
-                            
-                        except FloodWait as e:
-                            LOGGER.warning(f"FloodWait {e.value}s during DB operation, attempt {attempt + 1}/{QueueConfig.FLOODWAIT_MAX_RETRIES}")
-                            if attempt < QueueConfig.FLOODWAIT_MAX_RETRIES - 1:
-                                await asyncio.sleep(e.value)
-                            else:
-                                LOGGER.error(f"Max FloodWait retries reached for DB operation")
-                                await db.mark_failed(str(item['_id']), f"FloodWait: {e.value}s")
-                                queue_stats["failed"] += 1
-                                break
-                        except Exception as e:
-                            LOGGER.error(f"Error during DB operation: {e}")
-                            await db.mark_failed(str(item['_id']), str(e))
-                            queue_stats["failed"] += 1
-                            break
-                    
-                    if db_success:
-                        # Update last edit time
-                        last_edit_time[channel_id or 0] = asyncio.get_event_loop().time()
-                        
-                        # Batch gap
-                        processed_count_in_batch += 1
-                        if processed_count_in_batch >= QueueConfig.BATCH_SIZE:
-                            LOGGER.info(f"📦 Processed {QueueConfig.BATCH_SIZE} files. Taking {QueueConfig.BATCH_GAP_SECONDS}s gap...")
-                            await asyncio.sleep(QueueConfig.BATCH_GAP_SECONDS)
-                            processed_count_in_batch = 0
-                
-                except Exception as e:
-                    LOGGER.error(f"❌ Error processing MongoDB queue item {item.get('_id')}: {e}")
-                    await db.mark_failed(str(item['_id']), str(e))
+
+            now = time.time()
+            if worker_id == 1 and now - last_housekeeping > 60:
+                await db.reset_failed_messages(channel_id)
+                last_housekeeping = now
+
+            await _wait_floodwait_gate()
+
+            item = await db.claim_next_item(
+                channel_id=channel_id, claimed_by=f"worker:{worker_id}"
+            )
+            if not item:
+                await asyncio.sleep(QueueConfig.QUEUE_STATE_POLL_SECONDS)
+                continue
+
+            await asyncio.sleep(QueueConfig.FILE_QUEUE_DELAY)
+
+            # Reconstruct QueueItem from MongoDB data
+            queue_item = QueueItem(
+                metadata_info=item.get('metadata_info', {}),
+                hash_val=item.get('hash'),
+                channel=item.get('channel'),
+                msg_id=item.get('msg_id'),
+                size=item.get('size'),
+                title=item.get('title'),
+                source='mongodb_queue',
+                retry_count=item.get('retry_count', 0),
+                probe_result=item.get('probe_result'),
+                file_unique_id=item.get('file_unique_id'),
+                size_bytes=item.get('size_bytes'),
+                duration=item.get('duration'),
+                priority=item.get('priority'),
+                needs_review=item.get('needs_review', False),
+            )
+
+            LOGGER.info(
+                f"[Queue worker {worker_id}] Processing "
+                f"({queue_item.retry_count + 1}/{QueueConfig.MAX_RETRY_COUNT}): "
+                f"{queue_item.title[:50]}..."
+            )
+
+            try:
+                validation_passed = await validate_file_before_insert(queue_item)
+            except FloodWait as e:
+                _hold_floodwait(e.value)
+                await db.mark_failed(str(item['_id']), f"FloodWait: {e.value}s")
+                queue_stats["retried"] += 1
+                continue
+            except Exception as e:
+                LOGGER.error(f"Error during validation: {e}")
+                validation_passed = False
+
+            if not validation_passed:
+                await db.mark_failed(str(item['_id']), "Validation failed")
+                if queue_item.retry_count + 1 >= QueueConfig.MAX_RETRY_COUNT:
                     queue_stats["failed"] += 1
-            
-            # Reset failed messages periodically
-            await db.reset_failed_messages(channel_id)
-            
+                    LOGGER.error(f"❌ Max retries reached: {queue_item.title[:50]}")
+                else:
+                    queue_stats["retried"] += 1
+                    LOGGER.warning("⚠️ Validation failed, will retry later")
+                continue
+
+            # Smart replacement decision
+            action, old_version = await smart_replace_or_skip(
+                queue_item.metadata_info, queue_item.probe_result, queue_item.size
+            )
+
+            # A "Part N" upload must never overwrite an existing quality —
+            # a half-file replacing a complete one is silent data loss.
+            if action == 'REPLACE' and queue_item.needs_review:
+                LOGGER.warning(
+                    f"🛡️ Refusing to replace existing quality with part file: {queue_item.title[:60]}"
+                )
+                await db.log_failed_file(
+                    title=queue_item.title,
+                    filename=queue_item.title,
+                    reason="Part file detected — replacement blocked, needs manual review",
+                    metadata_info=queue_item.metadata_info,
+                    parse_data={
+                        "title": queue_item.title,
+                        "original_filename": queue_item.title,
+                        "channel": queue_item.channel,
+                        "msg_id": queue_item.msg_id,
+                        "file_unique_id": queue_item.file_unique_id,
+                    },
+                )
+                action, old_version = 'SKIP', 'part file — replacement blocked'
+
+            # Deep probe only on an otherwise-tied same-quality comparison.
+            if (
+                action == 'SKIP'
+                and old_version == 'Matching metadata'
+                and MediaProbeConfig.DEEP_PROBE_ON_TIE
+                and not (queue_item.probe_result or {}).get('audio_tracks')
+            ):
+                deep_probe = await _deep_probe_queue_item(queue_item)
+                if deep_probe:
+                    queue_item.probe_result = deep_probe
+                    action, old_version = await smart_replace_or_skip(
+                        queue_item.metadata_info, queue_item.probe_result, queue_item.size
+                    )
+                    if action == 'REPLACE' and queue_item.needs_review:
+                        action, old_version = 'SKIP', 'part file — replacement blocked'
+
+            try:
+                async with db_lock:
+                    if action == 'ADD':
+                        updated_id = await db.insert_media(
+                            queue_item.metadata_info,
+                            hash=queue_item.hash,
+                            channel=queue_item.channel,
+                            msg_id=queue_item.msg_id,
+                            size=queue_item.size,
+                            name=queue_item.title,
+                            codec=queue_item.metadata_info.get('codec'),
+                            file_unique_id=queue_item.file_unique_id,
+                            size_bytes=queue_item.size_bytes,
+                            duration=queue_item.duration,
+                        )
+                        if updated_id:
+                            queue_stats["processed"] += 1
+                            await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
+                            await db.update_checkpoint(item['channel_id'], item['message_id'])
+                            LOGGER.info(f"✅ ADDED: {queue_item.metadata_info.get('quality')} - {queue_item.title[:50]}")
+                        else:
+                            await db.mark_failed(str(item['_id']), "Insert failed")
+                            queue_stats["failed"] += 1
+
+                    elif action == 'REPLACE':
+                        await db.backup_replaced_version(
+                            queue_item.metadata_info,
+                            old_version,
+                            reason="Replaced with better version",
+                        )
+
+                        media_type = queue_item.metadata_info.get('media_type')
+                        tmdb_id = queue_item.metadata_info.get('tmdb_id')
+                        current_quality = queue_item.metadata_info.get('quality', '720p')
+                        season = queue_item.metadata_info.get('season_number')
+                        episode = queue_item.metadata_info.get('episode_number')
+                        await db.pull_quality(media_type, tmdb_id, current_quality, season, episode)
+
+                        updated_id = await db.insert_media(
+                            queue_item.metadata_info,
+                            hash=queue_item.hash,
+                            channel=queue_item.channel,
+                            msg_id=queue_item.msg_id,
+                            size=queue_item.size,
+                            name=queue_item.title,
+                            codec=queue_item.metadata_info.get('codec'),
+                            file_unique_id=queue_item.file_unique_id,
+                            size_bytes=queue_item.size_bytes,
+                            duration=queue_item.duration,
+                        )
+                        if updated_id:
+                            queue_stats["replaced"] += 1
+                            queue_stats["processed"] += 1
+                            await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
+                            await db.update_checkpoint(item['channel_id'], item['message_id'])
+                            LOGGER.info(f"🔄 REPLACED: {queue_item.metadata_info.get('quality')} - {queue_item.title[:50]}")
+                        else:
+                            await db.mark_failed(str(item['_id']), "Insert failed")
+                            queue_stats["failed"] += 1
+
+                    elif action == 'SKIP':
+                        queue_stats["skipped"] += 1
+                        await db.mark_completed(str(item['_id']), item['channel_id'], item['message_id'])
+                        LOGGER.info(f"⏭️ SKIPPED: {old_version if old_version else 'existing version'}")
+            except FloodWait as e:
+                _hold_floodwait(e.value)
+                await db.mark_failed(str(item['_id']), f"FloodWait: {e.value}s")
+                queue_stats["retried"] += 1
+                continue
+            except Exception as e:
+                LOGGER.error(f"Error during DB operation: {e}")
+                await db.mark_failed(str(item['_id']), str(e))
+                queue_stats["failed"] += 1
+                continue
+
+            # Batch gap (global across workers)
+            async with batch_lock:
+                processed_count_in_batch += 1
+                if processed_count_in_batch >= QueueConfig.BATCH_SIZE:
+                    LOGGER.info(
+                        f"📦 Processed {QueueConfig.BATCH_SIZE} files. "
+                        f"Taking {QueueConfig.BATCH_GAP_SECONDS}s gap..."
+                    )
+                    await asyncio.sleep(QueueConfig.BATCH_GAP_SECONDS)
+                    processed_count_in_batch = 0
+
+        except asyncio.CancelledError:
+            LOGGER.info(f"🗄️ MongoDB queue worker {worker_id} stopped")
+            raise
         except Exception as e:
-            LOGGER.error(f"MongoDB queue processor error: {e}")
+            LOGGER.error(f"MongoDB queue worker {worker_id} error: {e}")
             await asyncio.sleep(10)
+
 
 # =============================================================================
 # STARTUP FUNCTION - Initialize background tasks
 # =============================================================================
+async def _index_queue_file(message: Message, channel: str) -> bool:
+    """Queue callback used by the full-channel indexer."""
+    return await parse_and_queue_file(
+        message, channel, is_rescan=True, allow_probe=IndexConfig.ENABLE_PROBE
+    )
+
+
 async def start_background_tasks():
     """Initialize all background tasks after bot starts."""
-    # Start queue workers (in-memory queue)
-    for w in range(QueueConfig.QUEUE_WORKERS):
-        create_task(process_file(w + 1))
-    LOGGER.info(f"👷 Started {QueueConfig.QUEUE_WORKERS} queue workers")
-    
-    # Start MongoDB queue processor if enabled
+    global is_queue_paused
+
     if QueueConfig.ENABLE_MONGODB_QUEUE:
-        create_task(process_mongodb_queue())
-        LOGGER.info("🗄️ MongoDB queue processor started")
-        
-        # Resume processing if enabled
+        # Exactly one queue engine runs: N MongoDB consumers, each claiming a
+        # single item. Starting the in-memory workers too would double-process.
+        try:
+            is_queue_paused = await db.is_queue_paused(max_age=0)
+        except Exception:
+            is_queue_paused = False
+        for w in range(max(1, QueueConfig.QUEUE_WORKERS)):
+            create_task(process_mongodb_queue(w + 1))
+        LOGGER.info(
+            f"🗄️ MongoDB queue: {max(1, QueueConfig.QUEUE_WORKERS)} worker(s) started"
+            f"{' (paused)' if is_queue_paused else ''}"
+        )
         if QueueConfig.RESUME_ON_START:
             LOGGER.info("🔄 Resuming queue processing from MongoDB...")
-            # The processor will automatically pick up pending items
+    else:
+        for w in range(max(1, QueueConfig.QUEUE_WORKERS)):
+            create_task(process_file(w + 1))
+        LOGGER.info(f"👷 Started {max(1, QueueConfig.QUEUE_WORKERS)} in-memory queue workers")
+
+    # Resume interrupted full-channel scans
+    create_task(resume_index_scans(StreamBot, _index_queue_file))
     
     # Start TMDB cache cleanup task
     create_task(cleanup_tmdb_cache())
@@ -999,7 +1162,8 @@ async def start_background_tasks():
 # =============================================================================
 # SHARED FILE PARSING LOGIC (used by both live handler and rescan)
 # =============================================================================
-async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool = False):
+async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool = False, allow_probe: bool = True,
+                               notify: bool = True):
     """Parse a message's video/document and add to queue. Returns True if queued/skipped, False if error."""
     try:
         # Relaxed mime-type check: accept video/* OR common video extensions
@@ -1088,7 +1252,7 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                     if (len(stripped) > 5
                             and not stripped.startswith('#')
                             and not stripped.startswith('http')
-                            and not re.match(r'^[\U00010000-\U0010ffff🎬🔊💬⏳]', stripped)):
+                            and not re.match(r'^[\U00010000-\U0010ffff🔊💬⏳]', stripped)):
                         raw_title = stripped
                         break
 
@@ -1116,6 +1280,9 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
         size = get_readable_file_size(file.file_size)
         channel_int = int(channel)
+        file_unique_id = file.file_unique_id or None
+        size_bytes = file.file_size or None
+        duration = getattr(file, "duration", None) or None
 
         # ========== UPDATED: Clean filename and extract languages ==========
         original_filename = file.file_name or title
@@ -1132,7 +1299,39 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         LOGGER.info(f"Cleaned title: {cleaned_title[:100]}...")
         if detected_langs:
             LOGGER.info(f"Detected languages: {detected_langs}")
-        
+
+        # Keep the cheap parse context so failures can be re-processed later
+        # without another Telegram download.
+        parse_data = {
+            "title": title,
+            "original_filename": original_filename,
+            "caption": (message.caption or "")[:800] or None,
+            "languages": detected_langs,
+            "file_unique_id": file_unique_id,
+            "size_bytes": size_bytes,
+            "duration": duration,
+            "channel": channel,
+            "msg_id": msg_id,
+        }
+
+        if QueueConfig.ENABLE_PACK_DETECTION:
+            pack_reason = detect_pack_or_multipart(original_filename, title, message.caption)
+            if pack_reason:
+                LOGGER.warning(f"📦 Skipping {pack_reason}: {title[:80]}")
+                await db.log_failed_file(
+                    title=title,
+                    filename=file.file_name or file.file_id,
+                    reason=f"Pack/multi-part detected ({pack_reason}) — needs manual review",
+                    metadata_info={"title": title, "channel": channel, "msg_id": msg_id},
+                    parse_data=parse_data,
+                )
+                queue_stats["skipped"] += 1
+                if notify and not is_rescan:
+                    await message.reply_text(
+                        f"> Not added automatically — {pack_reason} needs manual review"
+                    )
+                return False
+
         metadata_info = await metadata(title, file)
 
         # ``clean_filename`` deliberately removes technical release tags before
@@ -1154,16 +1353,17 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                 title=title,
                 filename=file.file_name or file.file_id,
                 reason="Metadata fetch failed - no metadata found from any source",
-                metadata_info={"title": title, "channel": channel, "msg_id": msg_id}
+                metadata_info={"title": title, "channel": channel, "msg_id": msg_id},
+                parse_data=parse_data
             )
-            if not is_rescan:
+            if notify and not is_rescan:
                 await message.reply_text("> Not added — check log")
             return False
         
         # ========== NEW: Media Probing with ffmpeg ==========
         probe_result = None
         try:
-            if MediaProbeConfig.ENABLE_MEDIA_PROBE:
+            if MediaProbeConfig.ENABLE_MEDIA_PROBE and allow_probe:
                 LOGGER.info(f"🔍 Starting media probe for: {title[:50]}...")
                 
                 # Update progress message if in private chat
@@ -1171,8 +1371,14 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                 if message.chat.type == "private":
                     progress_msg = await message.reply_text("🔍 Analyzing media with ffmpeg...")
                 
-                # Stream and probe the media
-                probe_result = await stream_and_probe(file, msg_id, max_size_mb=MediaProbeConfig.MAX_PROBE_SIZE_MB, client=getattr(message, '_client', None))
+                # Stream and probe the media (quick probe by default; a deep
+                # probe only runs later if a same-quality comparison ties).
+                probe_result = await stream_and_probe(
+                    file, msg_id,
+                    max_size_mb=MediaProbeConfig.MAX_PROBE_SIZE_MB,
+                    client=getattr(message, '_client', None),
+                    max_steps=MediaProbeConfig.QUICK_STEPS,
+                )
                 
                 if progress_msg:
                     await progress_msg.delete()
@@ -1258,8 +1464,23 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                 return True
 
         queued_files[cache_key] = datetime.utcnow()
-        
+
+        # Telegram's file_unique_id is stable across channels/re-uploads.
+        # (Mongo mode re-checks this inside add_to_queue.)
+        if (
+            not QueueConfig.ENABLE_MONGODB_QUEUE
+            and file_unique_id
+            and await db.is_file_unique_id_known(file_unique_id)
+        ):
+            queued_files.pop(cache_key, None)
+            queue_stats["skipped"] += 1
+            LOGGER.info(f"File {file_unique_id} already in library, skipping: {title[:60]}")
+            return True
+
         # Create queue item with enhanced structure including probe results
+        needs_review = detect_part_file(original_filename, title, message.caption)
+        if needs_review:
+            LOGGER.warning(f"📝 Part-file detected (will not replace existing quality): {title[:80]}")
         queue_item = QueueItem(
             metadata_info=metadata_info,
             hash_val=hash_val,
@@ -1269,7 +1490,12 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
             title=title,
             source="live" if not is_rescan else "rescan",
             retry_count=0,
-            probe_result=probe_result  # Store ffmpeg probe results
+            probe_result=probe_result,  # Store ffmpeg probe results
+            file_unique_id=file_unique_id,
+            size_bytes=size_bytes,
+            duration=duration,
+            priority=QueueConfig.PRIORITY_RESCAN if is_rescan else QueueConfig.PRIORITY_LIVE,
+            needs_review=needs_review,
         )
         
         # If MongoDB queue is enabled, only add to MongoDB (not in-memory)
@@ -1284,9 +1510,17 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
                 msg_id=msg_id,
                 size=size,
                 title=title,
-                probe_result=probe_result
+                probe_result=probe_result,
+                file_unique_id=file_unique_id,
+                size_bytes=size_bytes,
+                duration=duration,
+                priority=queue_item.priority,
+                needs_review=needs_review,
             )
             if added_to_mongodb:
+                # MongoDB's unique queue index is the dedup source of truth in
+                # this mode; keeping every entry in memory leaks on lakhs of files.
+                queued_files.pop(cache_key, None)
                 LOGGER.info(f"🗄️ Added to MongoDB queue: {title}")
             else:
                 LOGGER.info(f"⏭️ File already in MongoDB queue or processed: {title}")
@@ -1300,12 +1534,92 @@ async def parse_and_queue_file(message: Message, channel: str, is_rescan: bool =
         return True
     except Exception as e:
         LOGGER.error(f"Error parsing file: {e}")
+        # Do not leave a stale in-memory dedup marker behind if queueing blew
+        # up (e.g. DB write failure); otherwise this message is skipped forever.
+        try:
+            queued_files.pop((int(channel), message.id), None)
+        except Exception:
+            pass
         return False
 
 
 # =============================================================================
 # QUEUE PERSISTENCE FUNCTIONS
 # =============================================================================
+async def queue_message_links(raw_links: str, preview: bool = False) -> dict:
+    """Queue explicit t.me post links through the normal ingestion pipeline.
+
+    Used by the admin panel bulk-add tool. Only channels listed in
+    AUTH_CHANNEL are accepted; results are returned per link.
+    """
+    links = []
+    for token in re.split(r"[\s,]+", str(raw_links or "")):
+        token = token.strip()
+        if token and token not in links:
+            links.append(token)
+    links = links[:500]
+
+    results = []
+    queued = failed = 0
+    for link in links:
+        try:
+            chat, message_id = await resolve_link_target(StreamBot, link)
+            if not is_auth_channel(chat):
+                raise IndexTargetError("Channel is not listed in AUTH_CHANNEL")
+            message = await StreamBot.get_messages(chat.id, message_id)
+            if not message or getattr(message, "empty", False):
+                raise IndexTargetError("Post not found")
+
+            file = message.video or message.document
+            entry = {
+                "link": link,
+                "channel": clean_channel_id(chat.id),
+                "message_id": message_id,
+                "file_name": getattr(file, "file_name", None) if file else None,
+                "size": get_readable_file_size(file.file_size) if file else None,
+                "file_unique_id": getattr(file, "file_unique_id", None) if file else None,
+                "caption": (message.caption or "")[:240] or None,
+            }
+
+            if preview:
+                entry["ok"] = bool(file)
+                if not file:
+                    entry["error"] = "No video/document in this post"
+            else:
+                if not file:
+                    raise IndexTargetError("No video/document in this post")
+                ok = await parse_and_queue_file(
+                    message,
+                    clean_channel_id(chat.id),
+                    is_rescan=False,
+                    allow_probe=True,
+                    notify=False,
+                )
+                entry["ok"] = bool(ok)
+                entry["queued"] = bool(ok)
+
+            results.append(entry)
+            if entry.get("ok"):
+                queued += 1
+            else:
+                failed += 1
+        except FloodWait as e:
+            _hold_floodwait(e.value)
+            results.append({"link": link, "ok": False, "error": f"FloodWait {e.value}s"})
+            failed += 1
+        except Exception as e:
+            results.append({"link": link, "ok": False, "error": str(e)})
+            failed += 1
+
+    return {
+        "preview": preview,
+        "total": len(results),
+        "queued": queued,
+        "failed": failed,
+        "results": results,
+    }
+
+
 async def save_queue_state():
     """Save current queue to file for recovery after restart."""
     while True:
@@ -1349,7 +1663,7 @@ async def _background_parse_and_queue(message: Message, channel: str):
     try:
         await parse_and_queue_file(message, channel, is_rescan=False)
     except FloodWait as e:
-        LOGGER.warning(f"🚫 FloodWait in background parser: sleeping for {e.value}s")
+        LOGGER.warning(f"⚠️ FloodWait in background parser: sleeping for {e.value}s")
         await asleep(e.value)
     except Exception as e:
         LOGGER.error(f"Error in background parse_and_queue: {e}")
@@ -1379,7 +1693,7 @@ async def file_receive_handler(bot: Client, message: Message):
             # The queue processor applies its own pacing; sleeping here would
             # block the entire event loop and disconnect MongoDB.
             LOGGER.warning(
-                f"⚡ Rate limit hit for channel {channel_id} "
+                f"⚠️ Rate limit hit for channel {channel_id} "
                 f"({len(channel_rate_limit[channel_id])}/{QueueConfig.MAX_MESSAGES_PER_MINUTE} per {QueueConfig.RATE_LIMIT_SECONDS}s) "
                 f"— queuing directly without delay"
             )
@@ -1425,20 +1739,28 @@ async def queue_status(bot: Client, message: Message):
     mongodb_stats = ""
     if QueueConfig.ENABLE_MONGODB_QUEUE:
         mongo_queue_stats = await db.get_queue_stats()
+        paused = await db.is_queue_paused()
+        state = "⏸️ Paused" if paused else "▶️ Running"
         mongodb_stats = f"""
-🗄️ <b>MongoDB Queue:</b>
+🗄️ <b>MongoDB Queue:</b> {state}
 • ⏳ Pending: {mongo_queue_stats['pending']}
 • ❌ Failed: {mongo_queue_stats['failed']}
 • 🔧 Processing: {mongo_queue_stats['processing']}
 • 🔄 Total Retries: {mongo_queue_stats['total_retries']}
+• 👷 Workers: {QueueConfig.QUEUE_WORKERS}
 """
+        engine_line = ""
+    else:
+        engine_line = (
+            f"⏳ <b>In-Memory Queue:</b> {pending} files\n"
+            f"🔧 <b>Workers:</b> {QueueConfig.QUEUE_WORKERS} (sequential)"
+        )
     
     text = f"""
 📊 <b>QUEUE SYSTEM STATUS</b>
 ━━━━━━━━━━━━━━━━━━━━━
 
-⏳ <b>In-Memory Queue:</b> {pending} files
-🔧 <b>Workers:</b> {QueueConfig.QUEUE_WORKERS} (sequential)
+{engine_line}
 {mongodb_stats}
 📈 <b>Statistics:</b>
 • ✅ Processed: {queue_stats['processed']}
@@ -1470,40 +1792,25 @@ async def queue_status(bot: Client, message: Message):
 async def database_stats(bot: Client, message: Message):
     """Show comprehensive database statistics."""
     try:
-        # Get collection counts
-        movie_count = await db.movie_collection.count_documents({})
-        tv_count = await db.tv_collection.count_documents({})
-        views_count = await db.views_collection.count_documents({})
-        replaced_count = await db.replaced_versions.count_documents({})
-        failed_count = await db.failed_files_collection.count_documents({})
-        
-        # Get total file counts (sum of all quality versions)
-        total_movie_files = 0
-        total_tv_files = 0
-        
-        if movie_count > 0:
-            movie_sample = await db.movie_collection.find_one({})
-            if movie_sample and 'telegram' in movie_sample:
-                docs = await db.movie_collection.find({}, {'telegram': 1}).to_list(length=None)
-                total_movie_files = sum(len(doc.get('telegram', [])) for doc in docs)
-        
-        if tv_count > 0:
-            total_tv_files = 0
-            async for doc in db.tv_collection.find({}, {'seasons': 1}):
-                for season in doc.get('seasons', []):
-                    for episode in season.get('episodes', []):
-                        total_tv_files += len(episode.get('telegram', []))
-        
+        summary = await db.get_stats_summary()
+        movie_count = summary["movies"]
+        tv_count = summary["tv_shows"]
+        total_movie_files = summary["total_movie_files"]
+        total_tv_files = summary["total_tv_files"]
+        views_count = summary["views"]
+        replaced_count = summary["replaced"]
+        failed_count = summary["failed"]
+
         # Get recent activity
         from datetime import datetime, timedelta
         yesterday = datetime.utcnow() - timedelta(days=1)
         recent_views = await db.views_collection.count_documents({'date': {'$gte': yesterday.strftime('%Y-%m-%d')}})
-        
+
         text = f"""
 📊 <b>DATABASE STATISTICS</b>
 ━━━━━━━━━━━━━━━━━━━━━
 
-📁 <b>Media Collections:</b>
+📁 <b>Media Collections ({summary['clusters']} cluster(s)):</b>
 • 🎬 Movies: {movie_count} titles ({total_movie_files} files)
 • 📺 TV Shows: {tv_count} titles ({total_tv_files} files)
 • 📊 Total Media: {movie_count + tv_count} titles
@@ -1517,7 +1824,7 @@ async def database_stats(bot: Client, message: Message):
 • ❌ Failed Files: {failed_count}
 
 ⚙️ <b>Configuration:</b>
-• Database: {db.db_name}
+• Database: {db.db_name} ({summary['clusters']} cluster(s))
 • TMDB API: {'✅ Configured' if Telegram.TMDB_API else '❌ Not configured'}
 • IMDB API: {'✅ Configured' if Telegram.IMDB_API else '❌ Not configured'}
 
@@ -1529,6 +1836,64 @@ async def database_stats(bot: Client, message: Message):
     except Exception as e:
         LOGGER.error(f"Error in /stats command: {e}")
         await message.reply_text(f"❌ Error retrieving statistics: {e}")
+
+
+@StreamBot.on_message(filters.command("storage") & filters.private & CustomFilters.admin)
+async def storage_status(bot: Client, message: Message):
+    """Per-cluster quota usage and ops collection sizes."""
+    try:
+        report = await db.get_storage_report()
+        lines = ["💾 <b>STORAGE REPORT</b>", "━━━━━━━━━━━━━━━━━━━━━"]
+        for c in report.get("clusters", []):
+            if str(c.get("status", "")).startswith("error"):
+                lines.append(f"• Cluster {c.get('cluster')}: ❌ {c.get('status')}")
+                continue
+            icon = "⚠️" if c.get("status") == "alert" else "✅"
+            lines.append(
+                f"{icon} <b>Cluster {c.get('cluster')}</b>: "
+                f"{c.get('used_mb')} / {c.get('quota_mb')} MB ({c.get('used_percent')}%)\n"
+                f"   🎬 {c.get('movies')} movies · 📺 {c.get('tv')} shows · 📦 {c.get('objects')} docs\n"
+                f"   data {c.get('data_mb')} MB + index {c.get('index_mb')} MB"
+            )
+        ops = report.get("ops") or {}
+        if ops:
+            lines.append("\n🗄️ <b>Ops:</b> " + " · ".join(f"{k} {v}" for k, v in ops.items()))
+        if report.get("alerts"):
+            lines.append("\n🚨 <b>Alerts:</b>\n" + "\n".join(f"• {a}" for a in report["alerts"]))
+        lines.append("\n<i>Quota per cluster: CLUSTER_QUOTA_MB (default 512 MB).</i>")
+        await message.reply_text("\n".join(lines), parse_mode=enums.ParseMode.HTML)
+    except Exception as e:
+        LOGGER.error(f"Error in /storage command: {e}")
+        await message.reply_text(f"❌ Error retrieving storage report: {e}")
+
+
+@StreamBot.on_message(filters.command("mergeduplicates") & filters.private & CustomFilters.admin)
+async def merge_duplicates(bot: Client, message: Message):
+    """Dry-run or apply a merge of media docs duplicated across clusters."""
+    try:
+        confirm = len(message.command) > 1 and message.command[1].lower() in ("confirm", "yes", "apply")
+        summary = await db.merge_duplicate_media(apply=confirm)
+        if confirm:
+            await message.reply_text(
+                "✅ <b>Merge complete</b>\n\n"
+                f"• Duplicate titles: {summary['duplicates']}\n"
+                f"• Merged: {summary['merged']}\n"
+                f"• Deleted extra docs: {summary['deleted']}\n"
+                f"• Errors: {summary['errors']}",
+                parse_mode=enums.ParseMode.HTML,
+            )
+        else:
+            await message.reply_text(
+                "🧪 <b>Duplicate scan (dry run)</b>\n\n"
+                f"• Titles on >1 cluster: {summary['duplicates']}\n"
+                f"• Mergeable: {summary['merged']}\n"
+                f"• Errors: {summary['errors']}\n\n"
+                "Send <code>/mergeduplicates confirm</code> to write the merged rows.",
+                parse_mode=enums.ParseMode.HTML,
+            )
+    except Exception as e:
+        LOGGER.error(f"Error in /mergeduplicates command: {e}")
+        await message.reply_text(f"❌ Merge failed: {e}")
 
 
 @StreamBot.on_message(filters.command("status") & filters.private & CustomFilters.admin)
@@ -1597,10 +1962,12 @@ async def admin_help(bot: Client, message: Message):
 📚 <b>Admin Commands Help</b>
 ━━━━━━━━━━━━━━━━━━━━━
 
-📊 <b>Status & Statistics:</b>
+🔊 <b>Status & Statistics:</b>
 • <code>/status</code> - Show bot status and health
 • <code>/stats</code> - Show database statistics
+• <code>/storage</code> - Per-cluster storage quota report
 • <code>/queue</code> - Show queue processing status
+• <code>/mergeduplicates</code> - Scan/merge cross-cluster duplicate titles
 
 🗄️ <b>Database Management:</b>
 • <code>/resetdb</code> - Reset entire database (⚠️ DANGEROUS)
@@ -1613,8 +1980,10 @@ async def admin_help(bot: Client, message: Message):
 • <code>/rescan0</code> - Rescan first channel
 • <code>/rescan1</code> - Rescan second channel
 • <code>/rescan0 100</code> - Rescan with limit
+• Send a t.me post link in DM - Index that AUTH_CHANNEL's entire history
+• <code>/indexstop</code> - Stop the running full-channel index scan
 
-⚙️ <b>Queue Management:</b>
+📝 <b>Queue Management:</b>
 • <code>/clearqueue</code> - Clear pending queue
 • <code>/confirmclear</code> - Confirm queue clear
 • <code>/cancel</code> - Cancel pending operation
@@ -1714,9 +2083,11 @@ async def confirm_clear(bot: Client, message: Message):
 
 @StreamBot.on_message(filters.command(["stopqueue", "pausequeue", "stop"]) & filters.private & CustomFilters.admin)
 async def stop_queue(bot: Client, message: Message):
-    """Pause the queue processors."""
+    """Pause the queue processors (persisted across restarts)."""
     global is_queue_paused
     is_queue_paused = True
+    if QueueConfig.ENABLE_MONGODB_QUEUE:
+        await db.set_queue_paused(True)
     await message.reply_text("⏸️ <b>Queue Processing Paused</b>\n\nUse /startqueue or /resumequeue to resume.", parse_mode=enums.ParseMode.HTML)
 
 
@@ -1725,6 +2096,8 @@ async def resume_queue(bot: Client, message: Message):
     """Resume the queue processors."""
     global is_queue_paused
     is_queue_paused = False
+    if QueueConfig.ENABLE_MONGODB_QUEUE:
+        await db.set_queue_paused(False)
     await message.reply_text("▶️ <b>Queue Processing Resumed</b>", parse_mode=enums.ParseMode.HTML)
 
 
@@ -1806,6 +2179,12 @@ rescan_running = False
 async def rescan_channel(bot: Client, message: Message):
     global rescan_running
 
+    if is_scan_running():
+        await message.reply_text(
+            "A full-channel index scan is running. Stop it with /indexstop first."
+        )
+        return
+
     async with rescan_lock:
         if rescan_running:
             await message.reply_text("⚠️ A rescan is already in progress. Use /queue to check status.")
@@ -1817,7 +2196,15 @@ async def rescan_channel(bot: Client, message: Message):
         command = message.text.split()[0]  # /rescan0, /rescan1, etc.
         channel_index = int(command.replace("/rescan", ""))
 
-        # Validate channel index
+        # Parse optional limit argument
+        args = message.text.split()
+        limit = 0
+        if len(args) >= 2:
+            try:
+                limit = int(args[1])
+            except ValueError:
+                pass
+
         if not Telegram.AUTH_CHANNEL:
             await message.reply_text("❌ No AUTH_CHANNEL configured.")
             return
@@ -1829,18 +2216,8 @@ async def rescan_channel(bot: Client, message: Message):
             )
             return
 
-        # Parse optional limit argument
-        args = message.text.split()
-        limit = 0
-        if len(args) >= 2:
-            try:
-                limit = int(args[1])
-            except ValueError:
-                pass
-
         channel_id_str = Telegram.AUTH_CHANNEL[channel_index]
         channel_id = int(channel_id_str)
-        channel_clean = channel_id_str.replace("-100", "")
 
         status_msg = await message.reply_text(
             f"🔍 <b>Rescan started</b>\n"
@@ -1849,78 +2226,27 @@ async def rescan_channel(bot: Client, message: Message):
             parse_mode=enums.ParseMode.HTML
         )
 
-        total_checked = 0
-        total_new = 0
-        total_existing = 0
-        total_errors = 0
-        last_update = 0
-
-        async for msg in bot.get_chat_history(channel_id, limit=limit if limit > 0 else None):
-            total_checked += 1
-
-            # Only process video/document messages with relaxed mime-type check
-            file = msg.video or msg.document
-            if not file:
-                continue
-
-            # Check if it's a video by mime-type or extension
-            is_video = False
-            if msg.video:
-                is_video = True
-            elif msg.document:
-                if msg.document.mime_type and msg.document.mime_type.startswith("video/"):
-                    is_video = True
-                elif msg.document.file_name:
-                    # Check common video extensions
-                    ext = msg.document.file_name.lower().split('.')[-1]
-                    is_video = ext in ['mkv', 'mp4', 'avi', 'mov', 'ts', 'wmv', 'm4v', 'webm', 'flv', '3gp']
-
-            if not is_video:
-                continue
-
+        async def progress_cb(stats: dict):
             try:
-                hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
-                exists = await db.is_file_exists(int(channel_clean), msg.id, hash_val)
-                if exists:
-                    total_existing += 1
-                    continue
+                await status_msg.edit_text(
+                    f"🔍 <b>Rescanning...</b>\n"
+                    f"Checked: <code>{stats['checked']}</code>\n"
+                    f"📥 New queued: <code>{stats['new']}</code>\n"
+                    f"✅ Already in DB: <code>{stats['existing']}</code>\n"
+                    f"❌ Errors: <code>{stats['errors']}</code>",
+                    parse_mode=enums.ParseMode.HTML
+                )
+            except Exception:
+                pass
 
-                # Not in DB — parse and queue
-                success = await parse_and_queue_file(msg, channel_clean, is_rescan=True)
-                if success:
-                    total_new += 1
-                else:
-                    total_errors += 1
-            except Exception as e:
-                LOGGER.error(f"Rescan error on msg {msg.id}: {e}")
-                total_errors += 1
+        result = await perform_rescan(channel_index, limit, progress_cb)
 
-            # Update status every 50 messages
-            if total_checked % 50 == 0:
-                try:
-                    await status_msg.edit_text(
-                        f"🔍 <b>Rescanning...</b>\n"
-                        f"Checked: <code>{total_checked}</code>\n"
-                        f"📥 New queued: <code>{total_new}</code>\n"
-                        f"✅ Already in DB: <code>{total_existing}</code>\n"
-                        f"❌ Errors: <code>{total_errors}</code>",
-                        parse_mode=enums.ParseMode.HTML
-                    )
-                except Exception:
-                    pass
-
-            # Small delay to avoid flooding
-            if total_checked % 10 == 0:
-                await asleep(0.5)
-
-        # Final report
         await status_msg.edit_text(
             f"✅ <b>Rescan Complete</b>\n\n"
-            f"📁 Total checked: <code>{total_checked}</code>\n"
-            f"📥 New files queued: <code>{total_new}</code>\n"
-            f"✅ Already in DB: <code>{total_existing}</code>\n"
-            f"❌ Errors: <code>{total_errors}</code>\n"
-            f"⏳ Pending in queue: <code>{file_queue.qsize()}</code>\n\n"
+            f"📁 Total checked: <code>{result['checked']}</code>\n"
+            f"📥 New files queued: <code>{result['new']}</code>\n"
+            f"✅ Already in DB: <code>{result['existing']}</code>\n"
+            f"❌ Errors: <code>{result['errors']}</code>\n\n"
             f"Use /queue to monitor processing.",
             parse_mode=enums.ParseMode.HTML
         )
@@ -1931,6 +2257,74 @@ async def rescan_channel(bot: Client, message: Message):
     finally:
         async with rescan_lock:
             rescan_running = False
+
+
+async def perform_rescan(channel_index: int, limit: int = 0, progress_cb=None) -> dict:
+    """
+    Scan an AUTH_CHANNEL for video files and queue any not already in the DB.
+    Standalone function so both the /rescan bot command and the admin API can
+    trigger it. Returns {'checked','new','existing','errors'}.
+    """
+    if not Telegram.AUTH_CHANNEL:
+        raise ValueError("No AUTH_CHANNEL configured")
+    if channel_index < 0 or channel_index >= len(Telegram.AUTH_CHANNEL):
+        raise ValueError(f"Invalid channel index {channel_index}")
+
+    channel_id_str = Telegram.AUTH_CHANNEL[channel_index]
+    channel_id = int(channel_id_str)
+    channel_clean = channel_id_str.replace("-100", "")
+
+    stats = {"checked": 0, "new": 0, "existing": 0, "errors": 0}
+
+    async for msg in StreamBot.get_chat_history(channel_id, limit=limit if limit > 0 else None):
+        stats["checked"] += 1
+
+        # Only process video/document messages with relaxed mime-type check
+        file = msg.video or msg.document
+        if not file:
+            continue
+
+        is_video = False
+        if msg.video:
+            is_video = True
+        elif msg.document:
+            if msg.document.mime_type and msg.document.mime_type.startswith("video/"):
+                is_video = True
+            elif msg.document.file_name:
+                ext = msg.document.file_name.lower().split('.')[-1]
+                is_video = ext in ['mkv', 'mp4', 'avi', 'mov', 'ts', 'wmv', 'm4v', 'webm', 'flv', '3gp']
+
+        if not is_video:
+            continue
+
+        try:
+            hash_val = file.file_unique_id[:6] if file.file_unique_id else ""
+            exists = await db.is_file_exists(int(channel_clean), msg.id, hash_val)
+            if exists:
+                stats["existing"] += 1
+                continue
+
+            success = await parse_and_queue_file(msg, channel_clean, is_rescan=True)
+            if success:
+                stats["new"] += 1
+            else:
+                stats["errors"] += 1
+        except Exception as e:
+            LOGGER.error(f"Rescan error on msg {msg.id}: {e}")
+            stats["errors"] += 1
+
+        # Progress callback every 50 messages
+        if progress_cb and stats["checked"] % 50 == 0:
+            try:
+                await progress_cb(stats)
+            except Exception:
+                pass
+
+        # Small delay to avoid flooding
+        if stats["checked"] % 10 == 0:
+            await asleep(0.5)
+
+    return stats
 
 
 # =============================================================================
@@ -1951,9 +2345,139 @@ async def rescan_help(bot: Client, message: Message):
     text += "• <code>/rescan0</code> - Scan first channel\n"
     text += "• <code>/rescan1</code> - Scan second channel\n"
     text += "• <code>/rescan0 100</code> - Scan first channel with limit of 100 messages\n\n"
-    text += "⚠️ Only one rescan can run at a time. Use /queue to check status."
+    text += "⚠️ Only one rescan can run at a time. Use /queue to check status.\n\n"
+    text += "💡 To index an entire channel with restart-safe progress, send a t.me post link in DM."
 
     await message.reply_text(text, parse_mode=enums.ParseMode.HTML)
+
+
+# =============================================================================
+# FULL-CHANNEL INDEXING FROM A t.me POST LINK
+# =============================================================================
+def _user_is_admin(user_id: int) -> bool:
+    return user_id == Telegram.OWNER_ID or user_id in Telegram.ADMIN_IDS
+
+
+@StreamBot.on_message(filters.private & filters.text & CustomFilters.admin & filters.regex(LINK_RE.pattern))
+async def index_channel_from_link(bot: Client, message: Message):
+    """Send a t.me post link in DM to index that AUTH_CHANNEL's entire history."""
+    if not parse_channel_link(message.text):
+        return
+
+    if is_scan_running():
+        await message.reply_text("A channel scan is already running. Stop it with /indexstop first.")
+        return
+
+    if rescan_running:
+        await message.reply_text("A /rescan is running. Wait for it to finish first.")
+        return
+
+    try:
+        chat, linked_message_id = await resolve_link_target(bot, message.text)
+    except IndexTargetError as e:
+        await message.reply_text(f"Cannot index this link: {e}")
+        return
+
+    if not is_auth_channel(chat):
+        await message.reply_text(
+            "This channel is not listed in AUTH_CHANNEL, so it cannot be indexed.\n"
+            "Add its ID to AUTH_CHANNEL and restart the bot."
+        )
+        return
+
+    previous = await db.get_index_scan(chat.id)
+    previous_note = ""
+    if previous and previous.get("status") not in (None, "completed"):
+        cursor = previous.get("next_offset_id")
+        previous_note = (
+            f"\n\nPrevious scan: {previous.get('status')} at "
+            f"message #{cursor if cursor else 'newest'}. Starting again begins from the "
+            "newest message; files already in the database are skipped."
+        )
+
+    title = chat.title or str(chat.id)
+    await message.reply_text(
+        f"<b>Index this entire channel?</b>\n\n"
+        f"Channel: {html.escape(title)}\n"
+        f"ID: <code>{chat.id}</code>\n"
+        f"Linked post: #{linked_message_id}\n\n"
+        f"All history is scanned newest to oldest at "
+        f"{IndexConfig.SCAN_BATCH_SIZE} messages every {IndexConfig.SCAN_BATCH_DELAY}s. "
+        f"Existing files are skipped and the scan continues automatically after a restart."
+        f"{previous_note}",
+        parse_mode=enums.ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("Start indexing", callback_data=f"idx:go:{chat.id}")],
+            [InlineKeyboardButton("Cancel", callback_data="idx:no")],
+        ]),
+    )
+
+
+@StreamBot.on_callback_query(filters.regex(r"^idx:go:-?\d+$"))
+async def index_start_callback(bot: Client, query):
+    if not _user_is_admin(query.from_user.id):
+        return await query.answer("Admins only.", show_alert=True)
+    if rescan_running:
+        return await query.answer("A /rescan is running. Try again after it finishes.", show_alert=True)
+    if is_scan_running():
+        return await query.answer("A channel scan is already running.", show_alert=True)
+
+    try:
+        channel_id = int(query.data.rsplit(":", 1)[1])
+    except (IndexError, ValueError):
+        return await query.answer("Invalid request.", show_alert=True)
+
+    try:
+        chat = await bot.get_chat(channel_id)
+    except Exception as e:
+        return await query.answer(f"Cannot open channel: {e}", show_alert=True)
+
+    if not is_auth_channel(chat):
+        return await query.answer("This channel is not in AUTH_CHANNEL.", show_alert=True)
+
+    await query.answer("Starting...")
+    try:
+        await request_index_scan(
+            bot, chat, query.from_user.id, _index_queue_file, status_message_id=query.message.id
+        )
+    except IndexBusyError:
+        await query.message.reply_text("A channel scan is already running.")
+    except Exception as e:
+        await query.message.reply_text(f"Could not start indexing: {e}")
+
+
+@StreamBot.on_callback_query(filters.regex(r"^idx:no$"))
+async def index_cancel_callback(bot: Client, query):
+    if not _user_is_admin(query.from_user.id):
+        return await query.answer("Admins only.", show_alert=True)
+    await query.answer()
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+
+
+@StreamBot.on_callback_query(filters.regex(r"^idx:stop$"))
+async def index_stop_callback(bot: Client, query):
+    if not _user_is_admin(query.from_user.id):
+        return await query.answer("Admins only.", show_alert=True)
+    channel_id = await stop_index_scan()
+    if channel_id:
+        await query.answer("Stopping after the current batch...", show_alert=True)
+    else:
+        await query.answer("No channel scan is running.", show_alert=True)
+
+
+@StreamBot.on_message(filters.command("indexstop") & filters.private & CustomFilters.admin)
+async def index_stop_command(bot: Client, message: Message):
+    channel_id = await stop_index_scan()
+    if channel_id:
+        await message.reply_text(
+            f"Stopping the scan for <code>{channel_id}</code> after the current batch.",
+            parse_mode=enums.ParseMode.HTML,
+        )
+    else:
+        await message.reply_text("No channel scan is running.")
 
 
 # =============================================================================
@@ -1999,18 +2523,9 @@ async def confirm_reset(bot: Client, message: Message):
             reset_db_state['waiting_for_confirmation'] = False
             status_msg = await message.reply_text("✅ Confirmation received. Resetting database...")
             
-            # Perform database reset
+            # Perform database reset (wipes EVERY cluster)
             try:
-                # Get all collection names
-                collections = await db.db.list_collection_names()
-                
-                deleted_count = 0
-                for collection_name in collections:
-                    if collection_name.startswith("system."):
-                        continue
-                    collection = db.db[collection_name]
-                    result = await collection.delete_many({})
-                    deleted_count += result.deleted_count
+                deleted_count, collections = await db.reset_all_databases()
                 
                 LOGGER.warning(f"🗑️ Database reset by owner: {deleted_count} documents deleted from {len(collections)} collections")
                 
@@ -2163,8 +2678,7 @@ async def delete(bot: Client, message: Message):
         db_media_type = "movie" if media_type == "mov" else "tv"
         
         # Get media info before deletion for confirmation
-        collection = db.movie_collection if db_media_type == "movie" else db.tv_collection
-        media_doc = await collection.find_one({"tmdb_id": tmdb_id})
+        media_doc = await (db.get_movie_doc(tmdb_id) if db_media_type == "movie" else db.get_tv_doc(tmdb_id))
         
         if not media_doc:
             return await message.reply_text(f"❌ No {db_media_type} found with TMDB ID {tmdb_id}")
@@ -2193,9 +2707,8 @@ Type <code>/cancel</code> to abort
             'timestamp': time.time()
         }
         
-        # Use a simple global dict for tracking (in production, use proper session management)
-        global pending_delete
-        pending_delete = delete_request
+        # Store deletion request per admin so concurrent admins don't overwrite each other
+        pending_deletes[message.from_user.id] = delete_request
         
         return await message.reply_text(confirm_text, parse_mode=enums.ParseMode.HTML)
     
@@ -2204,33 +2717,37 @@ Type <code>/cancel</code> to abort
         await message.reply_text(f"❌ An error occurred: {str(e)}")
 
 
-# Global variable for pending deletion
-pending_delete = None
+# Pending deletion requests keyed by admin user ID
+pending_deletes = {}
+
+
+@StreamBot.on_message(filters.command('cancel') & filters.private & CustomFilters.admin)
+async def cancel_delete(bot: Client, message: Message):
+    pending_deletes.pop(message.from_user.id, None)
+    await message.reply_text("✅ Pending deletion cancelled.")
 
 
 @StreamBot.on_message(filters.command('confirmdelete') & filters.private & CustomFilters.admin)
 async def confirm_delete(bot: Client, message: Message):
     """Confirm and execute the deletion."""
-    global pending_delete
-    
-    if not pending_delete:
+    pending = pending_deletes.pop(message.from_user.id, None)
+
+    if not pending:
         return await message.reply_text("❌ No pending deletion request. Use /delete first.")
-    
+
     # Check if request is still valid (5 minutes timeout)
-    if time.time() - pending_delete['timestamp'] > 300:
-        pending_delete = None
+    if time.time() - pending['timestamp'] > 300:
         return await message.reply_text("⏰ Deletion request expired. Please run /delete again.")
-    
+
     try:
-        tmdb_id = pending_delete['tmdb_id']
-        media_type = pending_delete['media_type']
-        title = pending_delete['title']
-        
+        tmdb_id = pending['tmdb_id']
+        media_type = pending['media_type']
+        title = pending['title']
+
         LOGGER.info(f"[/confirmdelete] Attempting to delete {media_type} tmdb_id={tmdb_id} ({title})")
-        
+
         # Verify the document still exists before deleting
-        collection = db.movie_collection if media_type == "movie" else db.tv_collection
-        doc = await collection.find_one({"tmdb_id": tmdb_id})
+        doc = await (db.get_movie_doc(tmdb_id) if media_type == "movie" else db.get_tv_doc(tmdb_id))
         if not doc:
             LOGGER.error(f"[/confirmdelete] Document not found in DB: {media_type} tmdb_id={tmdb_id}")
             await message.reply_text(
@@ -2239,42 +2756,39 @@ async def confirm_delete(bot: Client, message: Message):
                 f"It may have already been deleted.",
                 parse_mode=enums.ParseMode.HTML
             )
-            pending_delete = None
             return
-        
+
         # Perform deletion
         result = await db.delete_document(media_type, tmdb_id)
-        
-        if result:
-            LOGGER.info(f"✅ Deleted {media_type} tmdb_id={tmdb_id}: {title}")
-            
-            # Invalidate caches so frontend reflects the change immediately
-            try:
-                from Backend.helper.cache import clear_all_caches
-                await asyncio.to_thread(clear_all_caches)
-            except Exception as ce:
-                LOGGER.warning(f"Cache clear after delete failed (non-fatal): {ce}")
-            
-            await message.reply_text(
-                f"✅ <b>Deleted Successfully</b>\n\n"
-                f"• {title}\n"
-                f"• TMDB ID: {tmdb_id}\n"
-                f"• Type: {media_type}\n\n"
-                f"<i>Frontend cache cleared — changes will reflect immediately.</i>",
-                parse_mode=enums.ParseMode.HTML
-            )
-        else:
+
+        if not result:
             LOGGER.error(f"[/confirmdelete] delete_document returned False for {media_type} tmdb_id={tmdb_id}")
             await message.reply_text(
                 f"❌ Delete operation returned no result for <b>{title}</b> (TMDB ID {tmdb_id}).\n"
                 f"The document exists in DB but could not be deleted. Check bot logs.",
                 parse_mode=enums.ParseMode.HTML
             )
-        
-        pending_delete = None
-    
+            return
+
+        LOGGER.info(f"✅ Deleted {media_type} tmdb_id={tmdb_id}: {title}")
+
+        # Invalidate caches so frontend reflects the change immediately
+        try:
+            from Backend.helper.cache import clear_all_caches
+            await clear_all_caches()
+        except Exception as ce:
+            LOGGER.warning(f"Cache clear after delete failed (non-fatal): {ce}")
+
+        await message.reply_text(
+            f"✅ <b>Deleted Successfully</b>\n\n"
+            f"• {title}\n"
+            f"• TMDB ID: {tmdb_id}\n"
+            f"• Type: {media_type}\n\n"
+            f"<i>Changes will reflect immediately.</i>",
+            parse_mode=enums.ParseMode.HTML
+        )
+
     except Exception as e:
         import traceback
         LOGGER.error(f"[/confirmdelete] Error confirming deletion: {e}\n{traceback.format_exc()}")
         await message.reply_text(f"❌ Error: {str(e)}")
-        pending_delete = None

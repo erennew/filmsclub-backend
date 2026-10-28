@@ -459,7 +459,7 @@ async def get_audio_tracks_cached(
     try:
         if media_type == "movie" and tmdb_id and quality:
             # Check movie collection
-            movie = await db.movie_collection.find_one({"tmdb_id": tmdb_id})
+            movie = await db.get_movie_doc(tmdb_id)
             if movie and "telegram" in movie:
                 for q in movie["telegram"]:
                     if q.get("id") == file_id and q.get("audio_tracks"):
@@ -467,7 +467,7 @@ async def get_audio_tracks_cached(
         
         elif media_type == "tv" and tmdb_id and season_number is not None and episode_number is not None and quality:
             # Check TV collection
-            tv_show = await db.tv_collection.find_one({"tmdb_id": tmdb_id})
+            tv_show = await db.get_tv_doc(tmdb_id)
             if tv_show and "seasons" in tv_show:
                 for season in tv_show["seasons"]:
                     if season.get("season_number") == season_number:
@@ -525,7 +525,7 @@ async def get_media_tracks_cached(
     try:
         if media_type == "movie" and tmdb_id and quality:
             # Check movie collection
-            movie = await db.movie_collection.find_one({"tmdb_id": tmdb_id})
+            movie = await db.get_movie_doc(tmdb_id)
             if movie and "telegram" in movie:
                 for q in movie["telegram"]:
                     if q.get("id") == file_id:
@@ -539,7 +539,7 @@ async def get_media_tracks_cached(
         
         elif media_type == "tv" and tmdb_id and season_number is not None and episode_number is not None and quality:
             # Check TV collection
-            tv_show = await db.tv_collection.find_one({"tmdb_id": tmdb_id})
+            tv_show = await db.get_tv_doc(tmdb_id)
             if tv_show and "seasons" in tv_show:
                 for season in tv_show["seasons"]:
                     if season.get("season_number") == season_number:

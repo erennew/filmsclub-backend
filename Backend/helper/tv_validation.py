@@ -13,7 +13,7 @@ import httpx
 from typing import Optional, Dict, Tuple, List
 
 # Initialize TMDB client
-tmdb = aioTMDb(key=Config.TMDB_API, language="en-US", region="US")
+tmdb = aioTMDb(api_key=Config.TMDB_API, language="en-US", region="US")
 
 # Retry configuration
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}

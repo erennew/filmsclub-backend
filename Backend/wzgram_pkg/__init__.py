@@ -1,9 +1,9 @@
-from pyrogram import Client
+from wzgram import Client
 from Backend.config import Telegram
 from os import getenv
 
 
-plugins = {"root": "Backend/pyrofork/plugins"}
+plugins = {"root": "Backend/wzgram_pkg/plugins"}
 
 # Use session string for Heroku (avoids FloodWait from file loss)
 _session_string = getenv("SESSION_STRING")

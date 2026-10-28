@@ -22,9 +22,8 @@
         <input id="adminUser" type="text" placeholder="ADMIN_WEB_USERNAME" autocomplete="username" />
         <label>Admin password</label>
         <input id="adminPass" type="password" placeholder="ADMIN_WEB_PASSWORD" autocomplete="current-password" />
-        <label style="display:flex;align-items:center;gap:9px;margin-top:10px;color:var(--muted)"><input id="rememberLogin" type="checkbox" style="width:18px;min-height:18px;padding:0"> Remember on this device</label>
-        <div class="btns"><button class="btn primary" onclick="saveSecret()">Login</button><button class="btn" onclick="clearSecret()">Clear</button></div>
-        <p class="muted" style="margin:8px 0 0;font-size:12px">Set ADMIN_WEB_USERNAME and ADMIN_WEB_PASSWORD in backend env first.</p>
+        <div class="btns"><button class="btn primary" onclick="login()">Login</button><button class="btn" onclick="logout()">Logout</button></div>
+        <p class="muted" style="margin:8px 0 0;font-size:12px">Use the ADMIN_WEB_USERNAME and ADMIN_WEB_PASSWORD configured on the server. The password is never stored in this browser.</p>
       </div>
       <div class="search">
         <input id="q" placeholder="Search movie / series / file name" onkeydown="if(event.key==='Enter') loadList()" />
@@ -35,12 +34,36 @@
         <button id="tvBtn" class="chip" onclick="setType('tv')">Series</button>
         <button id="animeBtn" class="chip" onclick="setType('anime')">Anime</button>
         <button class="chip" onclick="openDirect()">Open by ID</button>
+        <button class="chip" onclick="toggleTools()">Tools</button>
       </div>
     </header>
 
     <section id="listView" class="card">
       <div class="section-title"><h3>Saved media</h3><span id="listCount">—</span></div>
       <div id="list"></div>
+    </section>
+
+    <section id="toolsView" class="card hidden">
+      <div class="section-title"><h3>Ingestion tools</h3><span>queue & storage</span></div>
+      <div class="btns">
+        <button class="btn" onclick="showQueue()">🎛 Queue desk</button>
+        <button class="btn" onclick="showFailed()">🧯 Failed files</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showCache()">🧠 Cache</button>
+        <button class="btn" onclick="showHealth()">🩺 Health</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showStorage()">💾 Storage report</button>
+        <button class="btn" onclick="mergeDupes(false)">🧹 Scan duplicates</button>
+      </div>
+      <label>Telegram post links (one per line)</label>
+      <textarea id="bulkLinks" placeholder="https://t.me/your_channel/12345" style="min-height:110px"></textarea>
+      <div class="btns">
+        <button class="btn" onclick="bulkLinks(true)">Preview</button>
+        <button class="btn purple" onclick="bulkLinks(false)">Add to queue</button>
+      </div>
+      <div id="bulkResult" class="muted" style="font-size:13px;line-height:1.5"></div>
     </section>
 
     <section id="editView" class="hidden">
@@ -132,27 +155,48 @@ let state = { type: qs.get('type') || qs.get('media_type') || 'movie', page: 1, 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.__t); window.__t=setTimeout(()=>t.classList.remove('show'),1900); }
-function loginStoreGet(key){ return sessionStorage.getItem(key) || localStorage.getItem(key) || ''; }
-function adminUser(){ return loginStoreGet('filmsclub_admin_username') || $('adminUser').value || ''; }
-function adminPass(){ return loginStoreGet('filmsclub_admin_password') || $('adminPass').value || ''; }
-function headers(){ return {'Content-Type':'application/json','x-admin-username':adminUser(),'x-admin-password':adminPass()}; }
-async function api(path, opts={}){ const r=await fetch(path,{...opts,headers:{...(opts.headers||{}),...headers()}}); let data; try{data=await r.json()}catch(e){data={detail:await r.text()}} if(!r.ok) throw new Error(data.detail || 'Request failed'); return data; }
-function saveSecret(){
+function loginStoreGet(key){ return localStorage.getItem(key) || ''; }
+let authed = false;
+function setAuthed(value){ authed = value; $('secretBox').classList.toggle('hidden', value); }
+async function api(path, opts={}){
+  const headers = {...(opts.headers||{})};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type']='application/json';
+  const r = await fetch(path, {credentials:'same-origin', ...opts, headers});
+  let data; try{data=await r.json()}catch(e){data={detail:await r.text()}}
+  if(r.status===401){ setAuthed(false); throw new Error('Please log in'); }
+  if(!r.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+async function login(){
   const u=$('adminUser').value.trim(), p=$('adminPass').value;
   if(!u || !p) return toast('Enter username and password');
-  const store = $('rememberLogin').checked ? localStorage : sessionStorage;
-  const other = $('rememberLogin').checked ? sessionStorage : localStorage;
-  other.removeItem('filmsclub_admin_username'); other.removeItem('filmsclub_admin_password');
-  store.setItem('filmsclub_admin_username', u); store.setItem('filmsclub_admin_password', p);
-  $('secretBox').classList.add('hidden'); toast('Admin login saved'); loadFromQueryOrList();
+  try{
+    const r=await fetch('/admin/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.detail || 'Login failed');
+    localStorage.setItem('filmsclub_admin_username', u);
+    $('adminPass').value='';
+    setAuthed(true);
+    toast('Logged in');
+    await loadFromQueryOrList();
+  }catch(e){ toast(e.message); }
 }
-function clearSecret(){
-  localStorage.removeItem('filmsclub_admin_username'); localStorage.removeItem('filmsclub_admin_password');
-  sessionStorage.removeItem('filmsclub_admin_username'); sessionStorage.removeItem('filmsclub_admin_password');
-  if($('adminUser')) $('adminUser').value=''; if($('adminPass')) $('adminPass').value='';
-  $('secretBox').classList.remove('hidden'); toast('Admin login cleared');
+async function logout(){
+  try{ await fetch('/admin/api/logout',{method:'POST',credentials:'same-origin'}); }catch(e){}
+  localStorage.removeItem('filmsclub_admin_username');
+  $('adminPass').value='';
+  setAuthed(false);
+  toast('Logged out');
+}
+async function checkSession(){
+  try{
+    const r=await fetch('/admin/api/session',{credentials:'same-origin'});
+    const data=await r.json();
+    return !!data.authenticated;
+  }catch(e){ return false; }
 }
 function toggleSecret(){ $('secretBox').classList.toggle('hidden'); }
+function toggleTools(){ $('toolsView').classList.toggle('hidden'); }
 function setType(t){ state.type=t; $('movieBtn').className='chip '+(t==='movie'?'good':''); $('tvBtn').className='chip '+(t==='tv'?'good':''); $('animeBtn').className='chip '+(t==='anime'?'good':''); loadList(); }
 function setPage(id){ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.page===id)); document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id)); }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setPage(t.dataset.page));
@@ -222,15 +266,160 @@ async function deleteFile(q,telegramToo=false){ try{ const k=currentKey(); let u
 function editSub(q,s){ openModal(`<h3>Edit subtitle</h3><p>${esc(s.id)}</p><label>Language</label><input id="sLang" value="${esc(s.language||'Unknown')}"><label>Format</label><input id="sFmt" value="${esc(s.format||'srt')}"><label>File name</label><textarea id="sName">${esc(s.name)}</textarea><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick='saveSub(${JSON.stringify(q).replace(/'/g,"&#39;")},${JSON.stringify(s).replace(/'/g,"&#39;")})'>Save subtitle</button></div>`); }
 async function saveSub(q,s){ try{ const k=currentKey(); const extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'PATCH',body:JSON.stringify({language:$('sLang').value,format:$('sFmt').value,name:$('sName').value,label:`${$('sLang').value} • ${$('sFmt').value.toUpperCase()}`})}); closeModal(); await reloadCurrent(); toast('Subtitle saved'); }catch(e){toast(e.message)} }
 function confirmDeleteSub(q,s){ const qObj=JSON.stringify(q).replace(/'/g,"&#39;"), sObj=JSON.stringify(s).replace(/'/g,"&#39;"); openModal(`<h3 class="dangertext">Delete subtitle?</h3><p>Choose DB only or remove the Telegram subtitle file too.</p><div class="kbd">${esc(s.name)}</div><div class="delete-note">DB only removes subtitle from FilmsClub. Telegram + DB also tries to delete the original subtitle message from Telegram.</div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},false)'>DB only</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},true)'>Telegram + DB</button></div>`); }
-async function deleteSub(q,s,telegramToo=false){ try{ const k=currentKey(); let extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; if(telegramToo) extra += '&delete_telegram=true'; const res=await api(extra,`${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `Subtitle deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Subtitle deleted from DB only'); }catch(e){toast(e.message)} }
-async function addSub(){ try{ const k=currentKey(); await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles`,{method:'POST',body:JSON.stringify({target_file_id:$('newSubTarget').value,id:$('newSubId').value,name:$('newSubName').value,language:$('newSubLang').value,format:$('newSubFmt').value})}); await reloadCurrent(); toast('Subtitle added'); }catch(e){toast(e.message)} }
+async function deleteSub(q,s,telegramToo=false){ try{ const k=currentKey(); let extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; if(telegramToo) extra += '&delete_telegram=true'; const res=await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `Subtitle deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Subtitle deleted from DB only'); }catch(e){toast(e.message)} }
+async function addSub(){ try{ const k=currentKey(); const target=$('newSubTarget').value; const q=allQualities().find(x=>x.id===target); const payload={target_file_id:target,id:$('newSubId').value,name:$('newSubName').value,language:$('newSubLang').value,format:$('newSubFmt').value}; if(q && q._season){ payload.season_number=q._season; payload.episode_number=q._episode; } await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles`,{method:'POST',body:JSON.stringify(payload)}); await reloadCurrent(); toast('Subtitle added'); }catch(e){toast(e.message)} }
 async function deleteMedia(telegramToo=false){ try{ if($('deleteConfirm').value!=='DELETE') return toast('Type DELETE first'); const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}`; if(telegramToo) url=appendParam(url,'delete_telegram','true'); const res=await api(url,{method:'DELETE'}); toast(telegramToo ? `Media deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Media deleted from DB only'); state.current=null; backToList(); history.replaceState(null,'','/admin'); await loadList(); }catch(e){toast(e.message)} }
 async function reloadCurrent(){ if(!state.current){return loadList()} const k=currentKey(); await openMedia(k.type,k.db,k.tmdb); }
 function openDirect(){ openModal(`<h3>Open media by ID</h3><label>Type</label><select id="dType"><option value="movie">movie</option><option value="tv">tv</option><option value="anime">anime</option></select><div class="grid2"><div><label>DB index</label><input id="dDb" value="1"></div><div><label>TMDb ID</label><input id="dTmdb"></div></div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="closeModal();openMedia($('dType').value,$('dDb').value,$('dTmdb').value)">Open</button></div>`); }
 function openModal(html){ $('modalBody').innerHTML=html; $('modal').classList.add('show'); }
 function closeModal(){ $('modal').classList.remove('show'); }
-async function loadFromQueryOrList(){ const u=loginStoreGet('filmsclub_admin_username'), p=loginStoreGet('filmsclub_admin_password'); if(u){ $('adminUser').value=u; } if(p){ $('adminPass').value=p; $('secretBox').classList.add('hidden'); } setType(state.type); const dbi=qs.get('db_index'), tm=qs.get('tmdb_id'); if(dbi && tm){ await openMedia(state.type,dbi,tm); } else { await loadList(); } }
-loadFromQueryOrList();
+async function loadFromQueryOrList(){ const u=loginStoreGet('filmsclub_admin_username'); if(u){ $('adminUser').value=u; } setType(state.type); const dbi=qs.get('db_index'), tm=qs.get('tmdb_id'); if(dbi && tm){ await openMedia(state.type,dbi,tm); } else { await loadList(); } }
+async function showStorage(){
+  try{
+    const d=await api('/admin/api/storage');
+    openModal(`<h3>Storage report</h3>` + (d.clusters||[]).map(c=>`
+      <div class="item"><div class="thumb">💾</div><div class="itxt"><b>Cluster ${esc(c.cluster)} • ${esc(c.used_percent)}%</b><small>${esc(c.used_mb)} / ${esc(c.quota_mb)} MB • ${esc(c.movies)} movies • ${esc(c.tv)} shows</small></div><span class="chip ${c.status==='alert'?'warn':'good'}">${esc(c.status)}</span></div>`).join('') + `<p class="muted">${Object.entries(d.ops||{}).map(([k,v])=>esc(k)+': '+esc(v)).join(' • ')}</p><div class="btns"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+async function mergeDupes(apply){
+  try{
+    const d=await api('/admin/api/merge-duplicates?apply='+(apply?'true':'false'),{method:'POST'});
+    if(!apply && d.duplicates){ if(confirm(`Found ${d.duplicates} titles on more than one cluster. Merge them now?`)) return mergeDupes(true); }
+    toast(apply ? `Merged ${d.merged} titles (${d.deleted} extra docs removed)` : `${d.duplicates} duplicated titles found`);
+  }catch(e){toast(e.message)}
+}
+async function showQueue(){
+  try{
+    const d=await api('/admin/api/queue');
+    const rows=(d.channels||[]).map(c=>`<div class="item"><div class="thumb">📁</div><div class="itxt"><b>${esc(c.channel_id)}</b><small>${esc(c.pending)} pending</small></div></div>`).join('') || '<p class="muted">No per-channel backlog</p>';
+    const fw=d.floodwait_seconds>0 ? `<span class="chip danger">FloodWait ${esc(d.floodwait_seconds)}s</span>` : '';
+    const pauseBtn=d.paused
+      ? '<button class="btn primary" onclick="queueAction(\'resume\')">▶ Resume</button>'
+      : '<button class="btn" onclick="queueAction(\'pause\')">⏸ Pause</button>';
+    openModal(`<h3>Queue desk</h3>
+      <div class="chips" style="margin-bottom:8px">
+        <span class="chip">${esc(d.engine)}</span>
+        <span class="chip ${d.paused?'warn':'good'}">${d.paused?'⏸ Paused':'▶ Running'}</span>
+        <span class="chip">${esc(d.workers)} worker(s)</span>${fw}
+      </div>
+      <div class="item"><div class="thumb">⏳</div><div class="itxt"><b>${esc(d.pending)} pending • ${esc(d.processing)} processing</b><small>${esc(d.failed)} failed • ${esc(d.retries)} retries</small></div></div>
+      <div class="btns">${pauseBtn}<button class="btn" onclick="showQueue()">↻ Refresh</button></div>
+      <p class="muted" style="font-size:12px">Per-channel backlog</p>${rows}
+      <div class="btns"><button class="btn danger" onclick="queueClear()">Clear queue…</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+async function queueAction(action){
+  try{
+    await api('/admin/api/queue/'+action,{method:'POST',body:'{}'});
+    toast(action==='pause'?'Queue paused':'Queue resumed');
+    await showQueue();
+  }catch(e){toast(e.message)}
+}
+async function queueClear(){
+  if(!confirm('Delete ALL queue items, processed records and checkpoints? This cannot be undone.')) return;
+  const typed=prompt('Type CLEAR to confirm');
+  if((typed||'').trim().toUpperCase()!=='CLEAR') return toast('Cancelled');
+  try{
+    const r=await api('/admin/api/queue/clear',{method:'POST',body:JSON.stringify({confirm:'CLEAR'})});
+    toast('Cleared '+(r.cleared||0)+' items');
+    await showQueue();
+  }catch(e){toast(e.message)}
+}
+async function showFailed(page=1){
+  const box=$('failedFilter');
+  const filter=box ? box.value.trim() : '';
+  try{
+    const d=await api(`/admin/api/failed-files?page=${page}&page_size=20&reason_filter=${encodeURIComponent(filter)}`);
+    const items=(d.items||[]).map(f=>`<div class="item">
+        <div class="thumb">🧯</div>
+        <div class="itxt"><b>${esc(f.title||f.filename||'Untitled')}</b>
+          <small>${esc(f.reason||'')}${f.timestamp?' • '+esc(new Date(f.timestamp).toLocaleString()):''}</small>
+          ${f.parse_data&&f.parse_data.msg_id?`<small>Message ${esc(f.parse_data.channel)}/${esc(f.parse_data.msg_id)}</small>`:''}
+        </div>
+        <button class="tiny" title="Retry" onclick="retryFailed('${esc(f._id)}')">↻</button>
+        <button class="tiny danger" title="Delete" onclick="deleteFailed('${esc(f._id)}')">⌫</button>
+      </div>`).join('') || '<div class="empty">No failed files 🎉</div>';
+    const total=d.total_count||0, pages=d.total_pages||1, cur=d.page||page;
+    openModal(`<h3>Failed files</h3>
+      <p class="muted" style="font-size:12px">${esc(total)} entries • retry re-fetches the original Telegram message</p>
+      <input id="failedFilter" placeholder="Filter by reason" value="${esc(filter)}" onkeydown="if(event.key==='Enter') showFailed(1)">
+      <div class="btns"><button class="btn" onclick="showFailed(1)">Filter</button><button class="btn danger" onclick="clearFailed()">Clear all</button></div>
+      <div style="margin-top:8px">${items}</div>
+      <div class="btns">
+        <button class="btn" ${cur<=1?'disabled':''} onclick="showFailed(${cur-1})">← Prev</button>
+        <button class="btn" ${cur>=pages?'disabled':''} onclick="showFailed(${cur+1})">Next →</button>
+        <button class="btn" onclick="closeModal()">Close</button>
+      </div>`);
+  }catch(e){toast(e.message)}
+}
+async function retryFailed(id){
+  try{
+    const r=await api(`/admin/api/failed-files/${encodeURIComponent(id)}/retry`,{method:'POST'});
+    toast(r.message||'Re-queued');
+    await showFailed();
+  }catch(e){toast(e.message)}
+}
+async function deleteFailed(id){
+  if(!confirm('Remove this entry from the failed list?')) return;
+  try{ await api(`/admin/api/failed-files/${encodeURIComponent(id)}`,{method:'DELETE'}); await showFailed(); }catch(e){toast(e.message)}
+}
+async function clearFailed(){
+  if(!confirm('Clear the entire failed-files log?')) return;
+  try{ await api('/admin/api/failed-files',{method:'DELETE'}); toast('Failed list cleared'); await showFailed(1); }catch(e){toast(e.message)}
+}
+async function showCache(){
+  try{
+    const d=await api('/admin/api/cache');
+    const c=d.caches||{}, vc=c.video_chunks||{}, hot=vc.hot_start||{}, lru=vc.lru_cache||{}, remux=d.remux||{};
+    openModal(`<h3>Cache & disk</h3>
+      <div class="item"><div class="thumb">🎞</div><div class="itxt"><b>Video chunk cache</b><small>${esc(hot.slots_used||0)}/${esc(hot.slots_total||0)} hot slots • ${esc(hot.memory_mb||0)} MB • LRU ${esc(lru.items||0)}/${esc(lru.max_items||0)} • ${esc(vc.active_streams||0)} active streams</small></div></div>
+      <div class="item"><div class="thumb">🎧</div><div class="itxt"><b>Remux cache (disk)</b><small>${esc(remux.files||0)} files • ${esc(remux.mb||0)} MB of ${esc(remux.budget_mb||0)} MB • TTL ${esc(remux.ttl_hours||0)}h • ${esc(remux.partials||0)} partial</small></div></div>
+      <p class="muted" style="font-size:12px">In-memory metadata ${esc(c.file_metadata?c.file_metadata.size:0)}/${esc(c.file_metadata?c.file_metadata.maxsize:0)} • hot movies ${esc(c.hot_movies?c.hot_movies.size:0)}/${esc(c.hot_movies?c.hot_movies.maxsize:0)} • Redis ${esc(d.redis?d.redis.status:'disabled')}</p>
+      <div class="btns"><button class="btn" onclick="clearCache('video')">Clear video cache</button><button class="btn" onclick="clearCache('remux')">Clear remux files</button></div>
+      <div class="btns"><button class="btn danger" onclick="clearCache('all')">Clear all caches</button><button class="btn" onclick="showCache()">↻ Refresh</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+async function clearCache(target){
+  const label=target==='all'?'ALL caches':target+' cache';
+  if(!confirm('Clear '+label+'?')) return;
+  try{
+    const r=await api('/admin/api/cache/clear',{method:'POST',body:JSON.stringify({target})});
+    toast(target==='remux'?`Freed ${(r.remux&&r.remux.freed_mb)||0} MB`:'Cache cleared');
+    await showCache();
+  }catch(e){toast(e.message)}
+}
+async function showHealth(){
+  try{
+    const d=await api('/admin/api/health');
+    const q=d.queue||{}, sys=d.system||{};
+    const clusters=(d.clusters||[]).map(c=>`<div class="item"><div class="thumb">${c.status==='up'?'🟢':'🔴'}</div><div class="itxt"><b>Cluster ${esc(c.cluster)}</b><small>${esc(c.status)}${c.error?' • '+esc(c.error):''}</small></div></div>`).join('') || '<p class="muted">No clusters</p>';
+    const usage=(d.storage&&d.storage.clusters||[]).map(c=>`<div class="item"><div class="thumb">💾</div><div class="itxt"><b>Cluster ${esc(c.cluster)} • ${esc(c.used_percent||0)}%</b><small>${esc(c.used_mb||0)} / ${esc(c.quota_mb||0)} MB</small></div><span class="chip ${c.status==='alert'?'warn':'good'}">${esc(c.status)}</span></div>`).join('') || '<p class="muted">Unavailable</p>';
+    const alerts=(d.alerts||[]).map(a=>`<div class="delete-note">${esc(a)}</div>`).join('') || '<p class="muted">No alerts 🎉</p>';
+    const fw=q.floodwait_seconds>0 ? ' • FloodWait '+q.floodwait_seconds+'s' : '';
+    const up=sys.uptime_seconds||0;
+    openModal(`<h3>Health</h3>
+      <div class="chips" style="margin-bottom:8px"><span class="chip ${d.status==='ok'?'good':'warn'}">${esc(d.status)}</span><span class="chip">v${esc(sys.version||'')}</span><span class="chip">${esc(sys.python||'')}</span></div>
+      ${alerts}
+      <p class="muted" style="font-size:12px">Clusters</p>${clusters}
+      <p class="muted" style="font-size:12px">Storage</p>${usage}
+      <p class="muted" style="font-size:12px">Queue</p>
+      <div class="item"><div class="thumb">📥</div><div class="itxt"><b>${esc(q.pending||0)} pending • ${esc(q.processing||0)} processing</b><small>${esc(q.failed||0)} failed • ${esc(q.workers||0)} workers • ${q.paused?'paused':'running'}${fw}</small></div></div>
+      <p class="muted" style="font-size:12px">System</p>
+      <div class="item"><div class="thumb">🛠</div><div class="itxt"><b>ffmpeg ${sys.ffmpeg?'✅':'❌'} • ffprobe ${sys.ffprobe?'✅':'❌'}</b><small>Disk free ${esc(sys.disk?sys.disk.free_gb:0)} / ${esc(sys.disk?sys.disk.total_gb:0)} GB • uptime ${Math.floor(up/3600)}h ${Math.floor((up%3600)/60)}m</small></div></div>
+      <div class="btns"><button class="btn" onclick="showHealth()">↻ Refresh</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+async function bulkLinks(preview){
+  const links=$('bulkLinks').value.trim();
+  if(!links) return toast('Paste at least one link');
+  $('bulkResult').textContent='Working…';
+  try{
+    const d=await api('/admin/api/queue/links',{method:'POST',body:JSON.stringify({links,preview})});
+    $('bulkResult').innerHTML=(d.results||[]).map(r=>`<div>${r.ok?'✅':'❌'} <b>${esc(r.channel||'')}/${esc(r.message_id||'')}</b> ${esc(r.file_name||r.error||'')}</div>`).join('') + `<div style="margin-top:6px">${preview?'Valid': 'Queued'}: ${d.queued} • ${d.failed} failed</div>`;
+    toast(preview ? `Previewed ${d.total} link(s)` : `Queued ${d.queued} of ${d.total}`);
+  }catch(e){ $('bulkResult').textContent=''; toast(e.message); }
+}
+(async function boot(){ if(await checkSession()){ setAuthed(true); await loadFromQueryOrList(); } else { setAuthed(false); } })();
 </script>
 </body>
 </html>

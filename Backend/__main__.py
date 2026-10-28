@@ -28,15 +28,15 @@ if _port_in_use(_port):
 
 from asyncio import get_event_loop, sleep as asleep
 from traceback import format_exc
-from pyrogram import idle
+from wzgram import idle
 from Backend import __version__, db
 from Backend.logger import LOGGER
 from Backend.fastapi import server
 from Backend.helper.pyro import restart_notification
-from Backend.pyrofork import StreamBot
-from Backend.pyrofork.clients import initialize_clients
+from Backend.wzgram_pkg import StreamBot
+from Backend.wzgram_pkg.clients import initialize_clients
 from Backend.config import Telegram
-from Backend.pyrofork.plugins.start import start_background_tasks
+from Backend.wzgram_pkg.plugins.start import start_background_tasks
 
 loop = get_event_loop()
 

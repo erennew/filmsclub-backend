@@ -1,18 +1,37 @@
+"""Drop every non-system database on the configured MongoDB cluster.
+
+Destructive maintenance utility. Requires an explicit confirmation:
+
+    CONFIRM_DROP=YES python -m Backend.reset
+"""
+
+import os
+import sys
 
 from pymongo import MongoClient
 
-MONGODB_URI = "mongodb+srv://robinenca_db_user:Gm6nADrBcjgHTzy5@robinenc.sj6hua0.mongodb.net/?appName=Robinenc"
+MONGODB_URI = os.getenv("DATABASE", "").strip().strip('"').strip("'")
 
-client = MongoClient(MONGODB_URI)
-
-# System databases that should not be dropped
 SYSTEM_DATABASES = {"admin", "local", "config"}
 
-for db_name in client.list_database_names():
-    if db_name not in SYSTEM_DATABASES:
-        print(f"Dropping database: {db_name}")
-        client.drop_database(db_name)
 
-print("✅ All user databases have been deleted.")
+def main() -> None:
+    if not MONGODB_URI:
+        sys.exit("DATABASE is not set.")
 
-client.close()
+    if os.getenv("CONFIRM_DROP", "").upper() != "YES":
+        sys.exit("Refusing to drop databases. Re-run with CONFIRM_DROP=YES.")
+
+    client = MongoClient(MONGODB_URI)
+    try:
+        for db_name in client.list_database_names():
+            if db_name not in SYSTEM_DATABASES:
+                print(f"Dropping database: {db_name}")
+                client.drop_database(db_name)
+        print("All non-system databases dropped.")
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    main()
