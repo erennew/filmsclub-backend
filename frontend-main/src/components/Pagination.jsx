@@ -1,104 +1,122 @@
+import React from "react";
+import { motion } from "framer-motion";
 import {
-  AiOutlineFastBackward,
-  AiFillFastForward,
-  AiOutlineArrowRight,
-  AiOutlineArrowLeft,
-} from "react-icons/ai";
+  HiChevronLeft,
+  HiChevronRight,
+  HiChevronDoubleLeft,
+  HiChevronDoubleRight,
+} from "react-icons/hi2";
 
-const range = (start, end) => {
-  return [...Array(end - start).keys()].map((el) => el + start);
-};
+const range = (start, end) =>
+  [...Array(end - start).keys()].map((el) => el + start);
 
 const getPagesCut = ({ pagesCount, pagesCutCount, currentPage }) => {
   const ceiling = Math.ceil(pagesCutCount / 2);
   const floor = Math.floor(pagesCutCount / 2);
-
-  if (pagesCount <= pagesCutCount) {
-    return { start: 1, end: pagesCount + 1 };
-  } else if (currentPage <= ceiling) {
-    return { start: 1, end: pagesCutCount + 1 };
-  } else if (currentPage + floor >= pagesCount) {
-    return { start: pagesCount - pagesCutCount + 1, end: pagesCount + 1 };
-  } else {
-    return {
-      start: currentPage - ceiling + 1,
-      end: currentPage + floor + 1,
-    };
-  }
+  if (pagesCount <= pagesCutCount) return { start: 1, end: pagesCount + 1 };
+  if (currentPage <= ceiling) return { start: 1, end: pagesCutCount + 1 };
+  if (currentPage + floor >= pagesCount) return { start: pagesCount - pagesCutCount + 1, end: pagesCount + 1 };
+  return { start: currentPage - ceiling + 1, end: currentPage + floor + 1 };
 };
 
-const PaginationItem = ({ page, currentPage, onPageChange, isDisabled }) => {
-  return !isDisabled ? (
-    <button
-      className={
-        page === Number(currentPage)
-          ? " border-none flex-grow max-w-fit text-md px-4 py-[0.2rem] bg-otherColor text-bgColor list-none rounded-full transition-all duration-300 ease-in-out hover:bg-secondaryTextColor hover:text-bgColor"
-          : " border-none text-secondaryTextColor max-w-fit text-md flex-grow px-4 py-[0.2rem] bg-btnColor list-none rounded-full transition-all duration-300 ease-in-out hover:bg-secondaryTextColor hover:text-bgColor"
+const NavBtn = ({ icon: Icon, onClick, disabled, label }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    aria-label={label}
+    className={`
+      flex items-center justify-center w-9 h-9 rounded-[3px]
+      transition-all duration-200
+      ${disabled
+        ? "text-bone/50 cursor-not-allowed bg-transparent"
+        : "text-bone/60 hover:text-bone hover:bg-bone/10 active:scale-95 cursor-pointer"
       }
-      onClick={() => onPageChange(page)}
-    >
-      <span className="page-link">{page}</span>
-    </button>
-  ) : (
-    <button
-      style={{ display: "none" }}
-      className={
-        page === Number(currentPage)
-          ? " border-none flex-grow max-w-[5rem] text-md px-4 py-[0.2rem] bg-otherColor text-bgColor list-none rounded-full transition-all duration-300 ease-in-out hover:bg-secondaryTextColor hover:text-bgColor"
-          : " border-none text-secondaryTextColor text-md flex-grow max-w-[5rem] px-4 py-[0.2rem] bg-btnColor list-none rounded-full transition-all duration-300 ease-in-out hover:bg-secondaryTextColor hover:text-bgColor"
-      }
-      onClick={() => onPageChange(page)}
-    >
-      <span className="page-link">{page}</span>
-    </button>
-  );
-};
+    `}
+  >
+    <Icon className="text-base" />
+  </button>
+);
 
 const Pagination = ({ currentPage, total, limit, onPageChange }) => {
-  const pagesCount = Math.ceil(total / limit); // Calculate total number of pages
+  const pagesCount = Math.ceil(total / limit);
+  if (pagesCount <= 1) return null;
+
   const pagesCut = getPagesCut({ pagesCount, pagesCutCount: 5, currentPage });
   const pages = range(pagesCut.start, pagesCut.end);
-
   const isFirstPage = Number(currentPage) === 1;
   const isLastPage = Number(currentPage) === pagesCount;
 
   return (
-    <ul className="flex items-center gap-2 flex-wrap mt-6">
-      <PaginationItem
-        page={<AiOutlineFastBackward className="text-xl" />}
-        currentPage={Number(currentPage)}
-        onPageChange={() => onPageChange(1)}
-        isDisabled={isFirstPage}
+    <div className="flex items-center justify-center gap-1 mt-8 mb-4 flex-wrap">
+      <NavBtn
+        icon={HiChevronDoubleLeft}
+        onClick={() => onPageChange(1)}
+        disabled={isFirstPage}
+        label="First page"
       />
-      <PaginationItem
-        page={<AiOutlineArrowLeft className="text-xl" />}
-        currentPage={Number(currentPage)}
-        onPageChange={() => onPageChange(Number(currentPage) - 1)}
-        isDisabled={isFirstPage}
+      <NavBtn
+        icon={HiChevronLeft}
+        onClick={() => onPageChange(Number(currentPage) - 1)}
+        disabled={isFirstPage}
+        label="Previous page"
       />
-      {pages.map((page) => (
-        <PaginationItem
-          page={page}
-          key={page}
-          currentPage={Number(currentPage)}
-          onPageChange={onPageChange}
-        />
-      ))}
-      <PaginationItem
-        page={<AiOutlineArrowRight className="text-xl" />}
-        currentPage={Number(currentPage)}
-        onPageChange={() => onPageChange(Number(currentPage) + 1)}
-        isDisabled={isLastPage}
+
+      {/* Show dots if not starting from 1 */}
+      {pagesCut.start > 1 && (
+        <span className="w-9 h-9 flex items-center justify-center text-bone/55 text-sm">…</span>
+      )}
+
+      {pages.map((page) => {
+        const isActive = page === Number(currentPage);
+        return (
+          <button
+            key={page}
+            onClick={() => onPageChange(page)}
+            className={`
+              relative w-9 h-9 rounded-[3px] text-sm font-semibold
+              transition-all duration-200 cursor-pointer active:scale-95
+              ${isActive ? "text-ink" : "text-bone/50 hover:text-bone hover:bg-bone/10"}
+            `}
+          >
+            {isActive && (
+              <motion.div
+                layoutId="activePage"
+                className="absolute inset-0 bg-projector rounded-[3px]"
+                style={{ zIndex: -1 }}
+                transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              />
+            )}
+            {page}
+          </button>
+        );
+      })}
+
+      {/* Show dots if not ending at last */}
+      {pagesCut.end <= pagesCount && (
+        <span className="w-9 h-9 flex items-center justify-center text-bone/55 text-sm">…</span>
+      )}
+
+      <NavBtn
+        icon={HiChevronRight}
+        onClick={() => onPageChange(Number(currentPage) + 1)}
+        disabled={isLastPage}
+        label="Next page"
       />
-      <PaginationItem
-        page={<AiFillFastForward className="text-xl" />}
-        currentPage={Number(currentPage)}
-        onPageChange={() => onPageChange(pagesCount)}
-        isDisabled={isLastPage}
+      <NavBtn
+        icon={HiChevronDoubleRight}
+        onClick={() => onPageChange(pagesCount)}
+        disabled={isLastPage}
+        label="Last page"
       />
-    </ul>
+
+      {/* Page count info */}
+      <div className="w-full text-center mt-2">
+        <span className="timecode text-[11px] text-bone/55">
+          Page {currentPage} of {pagesCount}
+        </span>
+      </div>
+    </div>
   );
 };
 
 export default Pagination;
-

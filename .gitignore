@@ -1,0 +1,14 @@
+*.rar
+*.zip
+.env
+__pycache__/
+*.py[cod]
+.venv/
+log.txt
+probe_*.bin
+
+# Agent workspace data and temporary verification builds
+.workbuddy-ai/
+.agents/
+.tmp-build-check/
+dist-verify/

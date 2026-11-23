@@ -1,0 +1,86 @@
+[
+  {
+    "vp": "320x568",
+    "heroArea": {
+      "t": 0,
+      "b": 8750,
+      "h": 8750
+    },
+    "heroFirstChildText": "PROJECTION INTERRUPTED |  | Tonight's feature is late |  | We couldn",
+    "dialog": {
+      "t": 179,
+      "b": 423,
+      "h": 244
+    },
+    "dialogViewportCoveragePct": 43,
+    "dock": {
+      "t": 495,
+      "b": 559,
+      "h": 64
+    },
+    "ctaBlocked": true
+  },
+  {
+    "vp": "360x740",
+    "heroArea": {
+      "t": 0,
+      "b": 8826,
+      "h": 8826
+    },
+    "heroFirstChildText": "PROJECTION INTERRUPTED |  | Tonight's feature is late |  | We couldn",
+    "dialog": {
+      "t": 351,
+      "b": 595,
+      "h": 244
+    },
+    "dialogViewportCoveragePct": 33,
+    "dock": {
+      "t": 667,
+      "b": 731,
+      "h": 64
+    },
+    "ctaBlocked": false
+  },
+  {
+    "vp": "390x844",
+    "heroArea": {
+      "t": 0,
+      "b": 8889,
+      "h": 8889
+    },
+    "heroFirstChildText": "PROJECTION INTERRUPTED |  | Tonight's feature is late |  | We couldn",
+    "dialog": {
+      "t": 455,
+      "b": 699,
+      "h": 244
+    },
+    "dialogViewportCoveragePct": 29,
+    "dock": {
+      "t": 771,
+      "b": 835,
+      "h": 64
+    },
+    "ctaBlocked": false
+  },
+  {
+    "vp": "844x390",
+    "heroArea": {
+      "t": -16,
+      "b": 8726,
+      "h": 8742
+    },
+    "heroFirstChildText": "PROJECTION INTERRUPTED |  | Tonight's feature is late |  | We couldn",
+    "dialog": {
+      "t": 122,
+      "b": 366,
+      "h": 244
+    },
+    "dialogViewportCoveragePct": 63,
+    "dock": {
+      "t": 317,
+      "b": 381,
+      "h": 64
+    },
+    "ctaBlocked": false
+  }
+]

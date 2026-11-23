@@ -1,70 +1,136 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { motion } from "framer-motion";
 import { BASE_URL as BASE, SITENAME } from "../config";
 import MoviesAndSeriesSections from "../components/MoviesAndSeriesSections";
 import Pagination from "../components/Pagination";
+import MovieCardSkeleton from "../components/MovieCardSkeleton";
 import { useParams } from "react-router-dom";
-import SEO from "../components/SEO"; // import SEO
+import SEO from "../components/SEO";
+import EmptyState, { RetryButton } from "../components/EmptyState";
+import useOnlineStatus from "../hooks/useOnlineStatus";
+import { FiFilm, FiSearch, FiWifiOff } from "react-icons/fi";
 
 export default function SearchResults() {
-  // States
   const [movies, setMovies] = useState([]);
-  const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true);
-  const [moviesDataForPageCount, setMoviesDataForPageCount] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  let { searchResult } = useParams();
+  const [error, setError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const online = useOnlineStatus();
+  const { searchResult } = useParams();
 
-  // Fetch Movie Data Section
   useEffect(() => {
-    setIsMoviesDataLoading(true);
+    setIsLoading(true);
+    setCurrentPage(1);
+    window.scrollTo(0, 0);
+  }, [searchResult]);
+
+  useEffect(() => {
+    if (!searchResult) return;
+    setIsLoading(true);
+    setError(false);
     window.scrollTo(0, 0);
 
-    axios
-      .get(`${BASE}/api/search/`, {
-        params: {
-          query: searchResult,
-          page: currentPage,
-          page_size: 20,
-        },
+    axios.get(`${BASE}/api/search/`, {
+      params: { query: searchResult, page: currentPage, page_size: 20 },
+    })
+      .then(({ data }) => {
+        setMovies(data.results || []);
+        setTotalCount(data.total_count || 0);
+        setIsLoading(false);
       })
-      .then((response) => {
-        setMovies(response.data.results);
-        setMoviesDataForPageCount(response.data.total_count);
-        setIsMoviesDataLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching movie data:", error);
-        setIsMoviesDataLoading(false);
+      .catch(() => {
+        setError(true);
+        setIsLoading(false);
       });
-  }, [searchResult, currentPage, BASE]);
+  }, [searchResult, currentPage, BASE, reloadToken]);
 
   return (
     <div>
-      {/* SEO SECTION */}
       <SEO
-        title={SITENAME}
-        description={`Discover a world of entertainment where every show, movie, and exclusive content takes you on a journey beyond the screen. ${SITENAME} offers endless options for every mood, helping you relax, escape, and imagine more. Stream your favorites, dream big, and repeat the experience, only with ${SITENAME}.`}
+        title={`"${searchResult}" - Search Results | ${SITENAME}`}
+        description={`Search results for "${searchResult}" on ${SITENAME}. Find movies, series, anime and more.`}
         name={SITENAME}
-        type="text/html"
-        keywords="watch movies online, watch hd movies, watch full movies, streaming movies online, free streaming movie, watch movies free, watch hd movies online, watch series online, watch hd series free, free tv series, free movies online, tv online, tv links, tv links movies, free tv shows, watch tv shows online, watch tv shows online free, free hd movies, New Movie Releases, Top Movies of the Year, Watch Movies Online, Streaming Services, Movie Reviews, Upcoming Films, Best Movie Scenes, Classic Movies, HD Movie Streaming, Film Trailers, Action Movies, Drama Films, Comedy Movies, Sci-Fi Films, Horror Movie Picks, Family-Friendly Movies, Award-Winning Films, Movie Recommendations, Cinematic Experiences, Behind-the-Scenes, Director Spotlights, Actor Interviews, Film Festivals, Cult Classics, Top Box Office Hits, Celebrity News, Movie Soundtracks, Oscar-Winning Movies, Movie Trivia, Exclusive Film Content, Best Cinematography, Must-Watch Movies, Film Industry News, Filmmaking Tips, Top Movie Blogs, Latest Movie Gossip, Interactive Movie Quizzes, Red Carpet Moments, IMDb Ratings, Movie Fan Communities, fmovies, fmovies.to, fmovies to, fmovies is, fmovie, free movies, online movie, movie online, free movies online, watch movies online free, free hd movies, watch movies online"
-        link={`https://${SITENAME}.com`}
+        type="website"
+        keywords={`${searchResult}, watch online, stream, movies, series`}
+        /* Every distinct query is a thin, near-duplicate listing page; letting
+           them all be indexed fills the crawl budget with junk. */
+        noIndex
       />
-      {/* Movies Component */}
-      <MoviesAndSeriesSections
-        movieData={movies}
-        isMovieDataLoading={isMoviesDataLoading}
-        dataType="searchResult"
-        sectionTitle={`results for : ${searchResult}`}
-      />
-      {/* Pagination Component */}
-      <Pagination
-        currentPage={currentPage}
-        total={moviesDataForPageCount}
-        onPageChange={(p) => {
-          setCurrentPage(p);
-        }}
-        limit={20}
-      />
+
+      {/* Page Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mt-2 mb-6"
+      >
+        <div className="flex items-center gap-3">
+          <FiSearch className="text-projector text-xl shrink-0" />
+          <div>
+            <span className="eyebrow mb-1">Search results</span>
+            <h1 className="section-title text-xl sm:text-2xl tracking-tight">
+              “{searchResult}”
+            </h1>
+          </div>
+        </div>
+        {!isLoading && (
+          <p className="timecode text-[11px] text-bone/60 mt-2 ml-8">
+            {totalCount === 0
+              ? "No results"
+              : `${totalCount} result${totalCount === 1 ? "" : "s"} on file`}
+          </p>
+        )}
+        <div className="mt-4 h-px bg-gradient-to-r from-projector/20 via-bone/5 to-transparent" />
+      </motion.div>
+
+      {/* Results */}
+      {isLoading ? (
+        <MovieCardSkeleton count={20} />
+      ) : error ? (
+        <EmptyState
+          icon={online ? FiFilm : FiWifiOff}
+          eyebrow={online ? "Projection interrupted" : "Signal lost"}
+          title={online ? "We lost the feed" : "You're offline"}
+          description={
+            online
+              ? "The archive didn't answer in time. Give it another reel."
+              : "Search needs a connection the first time. Reconnect and try again."
+          }
+          action={
+            <RetryButton
+              onClick={() => setReloadToken((token) => token + 1)}
+              label="Retry search"
+            />
+          }
+        />
+      ) : movies.length > 0 ? (
+        <>
+          <MoviesAndSeriesSections
+            movieData={movies}
+            isMovieDataLoading={false}
+            dataType="searchResult"
+            sectionTitle=""
+          />
+          <Pagination
+            currentPage={currentPage}
+            total={totalCount}
+            onPageChange={(p) => {
+              setCurrentPage(p);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            limit={20}
+          />
+        </>
+      ) : (
+        <EmptyState
+          icon={FiSearch}
+          eyebrow="No matches"
+          title="Nothing in the archive"
+          description={`We couldn't find anything for “${searchResult}”. Try a different title, actor, or year.`}
+        />
+      )}
     </div>
   );
 }

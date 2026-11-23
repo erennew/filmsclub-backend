@@ -1,15 +1,17 @@
 import asyncio
-from pyrogram import utils, raw
-from pyrogram.errors import AuthBytesInvalid
-from pyrogram.file_id import FileId, FileType, ThumbnailSource
-from pyrogram.session import Session, Auth
+from collections import deque
+from wzgram import utils, raw
+from wzgram.errors import AuthBytesInvalid, FileReferenceExpired
+from wzgram.file_id import FileId, FileType, ThumbnailSource
+from wzgram.session import Session, Auth
 from typing import Dict, Union
+from Backend.config import Cache as CacheConfig
 from Backend.logger import LOGGER
 from Backend.helper.exceptions import FIleNotFound
 from Backend.helper.pyro import get_file_ids
-from Backend.pyrofork import work_loads
+from Backend.wzgram_pkg import work_loads
 from Backend.helper.cache import file_metadata_cache, cache_stats, video_chunk_cache
-from pyrogram import Client
+from wzgram import Client
 
 
 class ByteStreamer:
@@ -57,15 +59,28 @@ class ByteStreamer:
         
         return file_id
 
+    async def _refresh_file_id(self, chat_id: int, message_id: int) -> FileId:
+        """Re-fetch a FileId from Telegram and replace both cache entries."""
+        file_id = await get_file_ids(self.client, int(chat_id), int(message_id))
+        if not file_id:
+            LOGGER.info('Message with ID %s not found while refreshing!', message_id)
+            raise FIleNotFound
+        self.__cached_file_ids[message_id] = file_id
+        await file_metadata_cache.set(f"{chat_id}:{message_id}", file_id)
+        return file_id
+
     async def yield_file(self, file_id: FileId, index: int, offset: int, first_part_cut: int, last_part_cut: int, part_count: int, chunk_size: int) -> Union[str, None]: # type: ignore
         """Original yield_file method - kept for backward compatibility."""
         client = self.client
-        work_loads[index] += 1
+        work_loads[index] = work_loads.get(index, 0) + 1
         LOGGER.debug(f"Starting to yielding file with client {index}.")
         media_session = await self.generate_media_session(client, file_id)
         current_part = 1
         location = await self.get_location(file_id)
         try:
+            if media_session is None:
+                LOGGER.error(f"Cannot stream file: no media session for DC {file_id.dc_id}")
+                return
             r = await media_session.send(raw.functions.upload.GetFile(location=location, offset=offset, limit=chunk_size))
             if isinstance(r, raw.types.upload.File):
                 while True:
@@ -96,7 +111,7 @@ class ByteStreamer:
             pass
         finally:
             LOGGER.debug("Finished yielding file with {current_part} parts.")
-            work_loads[index] -= 1
+            work_loads[index] = max(0, work_loads.get(index, 0) - 1)
 
     async def yield_file_with_cache(
         self,
@@ -107,7 +122,9 @@ class ByteStreamer:
         last_part_cut: int,
         part_count: int,
         chunk_size: int,
-        stream_id: str = None
+        stream_id: str = None,
+        chat_id: int = None,
+        message_id: int = None,
     ) -> Union[str, None]:
         """
         Yield file with intelligent chunk-level caching.
@@ -127,7 +144,7 @@ class ByteStreamer:
             stream_id: Optional stream identifier for active stream buffering
         """
         client = self.client
-        work_loads[index] += 1
+        work_loads[index] = work_loads.get(index, 0) + 1
         file_id_str = str(file_id.media_id) if hasattr(file_id, 'media_id') else str(file_id)
         
         LOGGER.debug(f"Starting cached file yield with client {index}, stream_id={stream_id}")
@@ -139,26 +156,58 @@ class ByteStreamer:
         media_session = None
         current_part = 1
         current_offset = offset
+        inflight = deque()   # contiguous (offset, task) parts, head == current_offset
         
         try:
             # Check hot start cache for first request
             if offset == 0 and current_part == 1:
                 hot_start = await video_chunk_cache.get_chunk(file_id_str, 0, chunk_size)
                 if hot_start:
-                    LOGGER.debug(f"Hot start cache hit for {file_id_str}")
-                    # Apply first_part_cut if this is the only part
-                    if part_count == 1:
+                    # Only trust the cached buffer if it covers the whole part
+                    # we promised in Content-Length.
+                    if part_count == 1 and len(hot_start) >= last_part_cut:
+                        LOGGER.debug(f"Hot start cache hit for {file_id_str}")
                         yield hot_start[first_part_cut:last_part_cut]
-                    else:
-                        yield hot_start[first_part_cut:]
-                    current_part += 1
-                    current_offset += chunk_size
+                        current_part += 1
+                        current_offset += chunk_size
+                    elif part_count > 1 and len(hot_start) >= chunk_size:
+                        LOGGER.debug(f"Hot start cache hit for {file_id_str}")
+                        # Never yield more than one chunk here: the rest of the
+                        # response continues from the Telegram fetch below.
+                        yield hot_start[first_part_cut:chunk_size]
+                        current_part += 1
+                        current_offset += chunk_size
             
             # Get media session (only if we need to fetch from Telegram)
             media_session = await self.generate_media_session(client, file_id)
+            if media_session is None:
+                LOGGER.error(f"Cannot stream file: no media session for DC {file_id.dc_id}")
+                return
             location = await self.get_location(file_id)
             
-            # Continue with remaining chunks
+            # Continue with remaining chunks.
+            # Parts are requested through a bounded window of in-flight calls, so
+            # one slow round trip to the media DC no longer idles the whole stream.
+            # Yields still happen strictly in offset order.
+            window = max(1, min(CacheConfig.VIDEO_PREFETCH_WINDOW, 8))
+            last_offset = offset + (part_count - 1) * chunk_size
+            next_schedule = offset
+
+            def fetch_part(part_location, part_offset):
+                part_task = asyncio.create_task(
+                    media_session.send(
+                        raw.functions.upload.GetFile(
+                            location=part_location,
+                            offset=part_offset,
+                            limit=chunk_size
+                        )
+                    )
+                )
+                # Parts abandoned by a disconnect would otherwise log
+                # "exception was never retrieved" for every failed fetch.
+                part_task.add_done_callback(lambda t: None if t.cancelled() else t.exception())
+                return part_task
+
             while current_part <= part_count:
                 # Check active stream buffer
                 if stream_id:
@@ -167,22 +216,43 @@ class ByteStreamer:
                     )
                     if buffered:
                         LOGGER.debug(f"Stream buffer hit for {file_id_str} at {current_offset}")
+                        if inflight and inflight[0][0] == current_offset:
+                            _, raced = inflight.popleft()
+                            raced.cancel()
                         yield buffered
                         current_part += 1
                         current_offset += chunk_size
                         continue
-                
+
+                while len(inflight) < window and next_schedule <= last_offset:
+                    inflight.append((next_schedule, fetch_part(location, next_schedule)))
+                    next_schedule += chunk_size
+
+                if not inflight:
+                    break
+
                 # Fetch from Telegram
+                head_offset, part_task = inflight.popleft()
                 try:
-                    r = await media_session.send(
-                        raw.functions.upload.GetFile(
-                            location=location,
-                            offset=current_offset,
-                            limit=chunk_size
-                        )
-                    )
+                    r = await part_task
+                except FileReferenceExpired:
+                    for _, stale in inflight:
+                        stale.cancel()
+                    inflight.clear()
+                    if chat_id is None or message_id is None:
+                        LOGGER.warning("File reference expired and no message id available to refresh")
+                        break
+                    LOGGER.info(f"File reference expired for {chat_id}:{message_id}, refreshing")
+                    file_id = await self._refresh_file_id(chat_id, message_id)
+                    location = await self.get_location(file_id)
+                    next_schedule = current_offset + chunk_size
+                    try:
+                        r = await fetch_part(location, current_offset)
+                    except Exception as e:
+                        LOGGER.warning(f"Telegram API error after refresh at offset {current_offset}: {e}")
+                        break
                 except Exception as e:
-                    LOGGER.warning(f"Telegram API error at offset {current_offset}: {e}")
+                    LOGGER.warning(f"Telegram API error at offset {head_offset}: {e}")
                     break
                 
                 if isinstance(r, raw.types.upload.File):
@@ -229,8 +299,10 @@ class ByteStreamer:
         except Exception as e:
             LOGGER.error(f"Unexpected error in yield_file_with_cache: {e}")
         finally:
+            for _, stale in inflight:
+                stale.cancel()
             LOGGER.debug(f"Finished cached file yield. Parts: {current_part - 1}")
-            work_loads[index] -= 1
+            work_loads[index] = max(0, work_loads.get(index, 0) - 1)
             if stream_id:
                 await video_chunk_cache.close_stream_buffer(stream_id)
 

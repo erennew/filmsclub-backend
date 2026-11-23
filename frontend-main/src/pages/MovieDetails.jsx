@@ -1,97 +1,238 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
-import MoviesAndSeriesDetailsSections from "../components/MoviesAndSeriesDetailsSections";
-import Similars from "../components/Similars";
-import SEO from "../components/SEO"; // import SEO
-import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { BASE_URL as BASE, SITENAME } from "../config";
+import { trackVisit } from "../utils/watchHistory";
+import MoviesAndSeriesDetailsSections from "../components/MoviesAndSeriesDetailsSections";
+import Similars from "../components/Similars";
+import SEO from "../components/SEO";
+import EmptyState, { RetryButton } from "../components/EmptyState";
+import useOnlineStatus from "../hooks/useOnlineStatus";
+import { sizedImage } from "../utils/imageUrl";
+import { FiFilm, FiWifiOff } from "react-icons/fi";
+
+// ── Palette extraction from poster ───────────────────────────────
+/*
+ * Only a single pixel is read, from a 4x6 canvas, but this used to hand the raw
+ * poster URL to `new Image()`. That pulled the full-size artwork — frequently
+ * `image.tmdb.org/t/p/original`, i.e. 1-1.5 MB — purely to sample one colour,
+ * and did it eagerly on mount. The tiny thumbnail (w92, ~3 KB) yields the same
+ * pixel after the same 4x6 downscale, so the ambient colour is unchanged while
+ * the download disappears. This colour is decorative, so a failure is silent.
+ */
+function extractPosterColor(src, onColor) {
+  if (!src) return;
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = sizedImage(src, 46, 1, ["w92", "w154", "w185"]);
+  img.onload = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      // Sample a tiny version — fastest possible read
+      canvas.width = 4;
+      canvas.height = 6;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, 4, 6);
+      // Use center-bottom pixel for the dominant "scene" color
+      const [r, g, b] = ctx.getImageData(2, 4, 1, 1).data;
+      // Only apply if it's not too dark or near-greyscale
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (max > 40 && max - min > 18) {
+        onColor(`${r},${g},${b}`);
+      } else {
+        onColor("233,184,114"); // fallback to brand blue
+      }
+    } catch {
+      onColor("233,184,114");
+    }
+  };
+  img.onerror = () => onColor("233,184,114");
+}
+
 export default function MovieDetails() {
+  const { movieID } = useParams();
 
-  let { movieID } = useParams();
-
-  // States
   const [movieDetail, setMovieDetail] = useState({});
   const [similarMovies, setSimilarMovies] = useState([]);
   const [isDetailsLoading, setDetailsIsLoading] = useState(true);
   const [isSimilarLoading, setIsSimilarLoading] = useState(true);
+  const [detailsError, setDetailsError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const online = useOnlineStatus();
 
-  // Fetch Movie Details Data
+  // ── Ambient color state ───────────────────────────────────────
+  const [ambientRgb, setAmbientRgb] = useState("233,184,114");
+  const prevMovieID = useRef(null);
+
+  // Fetch Movie Details
   useEffect(() => {
     setDetailsIsLoading(true);
+    setDetailsError(false);
+    setAmbientRgb("233,184,114"); // reset while loading
     window.scrollTo(0, 0);
 
-    axios
-      .get(`${BASE}/api/id/${movieID}`)
-      .then((response) => {
-        setMovieDetail(response.data);
+    axios.get(`${BASE}/api/id/${movieID}`)
+      .then(({ data }) => {
+        setMovieDetail(data);
         setDetailsIsLoading(false);
+        trackVisit({ ...data, media_type: "movie" });
+
+        // Extract ambient color from the poster
+        if (data.poster && movieID !== prevMovieID.current) {
+          prevMovieID.current = movieID;
+          extractPosterColor(data.poster, setAmbientRgb);
+        }
       })
-      .catch((error) => {
-        console.error("Error fetching movie details:", error);
+      .catch(() => {
+        setDetailsError(true);
         setDetailsIsLoading(false);
       });
-  }, [movieID, BASE]);
+  }, [movieID, BASE, reloadToken]);
 
-  // Track view
+  // Track view (fire-and-forget)
   useEffect(() => {
-    if (movieID) {
-      fetch(`${BASE}/api/track-view?tmdb_id=${movieID}&media_type=movie`, {
-        method: "POST",
-        keepalive: true,
-      }).catch(() => {});
-    }
+    if (!movieID) return;
+    fetch(`${BASE}/api/track-view?tmdb_id=${movieID}&media_type=movie`, {
+      method: "POST",
+      keepalive: true,
+    }).catch(() => {});
   }, [movieID, BASE]);
 
   // Fetch Similar Movies
   useEffect(() => {
     setIsSimilarLoading(true);
-
-    axios
-      .get(`${BASE}/api/similar/`, {
-        params: {
-          tmdb_id: movieID,
-          media_type: "movie",
-          limit: 10,
-        },
-      })
-      .then((response) => {
-        setSimilarMovies(response.data.similar_media);
+    axios.get(`${BASE}/api/similar/`, {
+      params: { tmdb_id: movieID, media_type: "movie", page_size: 18 },
+    })
+      .then(({ data }) => {
+        setSimilarMovies(data.similar_media || []);
         setIsSimilarLoading(false);
       })
-      .catch((error) => {
-        console.error("Error fetching similar movies:", error);
-        setIsSimilarLoading(false);
-      });
+      .catch(() => setIsSimilarLoading(false));
   }, [movieID, BASE]);
 
-  return (
-    <div>
-      {/* SEO SECTION */}
-      <ToastContainer style={{ fontSize: "0.8rem" }} />
+  const movieTitle = movieDetail?.title || "";
+  const movieYear  = movieDetail?.release_year || "";
 
-      <SEO
-        title={SITENAME}
-        description={`Discover a world of entertainment where every show, movie, and exclusive content takes you on a journey beyond the screen. ${SITENAME} offers endless options for every mood, helping you relax, escape, and imagine more. Stream your favorites, dream big, and repeat the experience, only with ${SITENAME}.`}
-        name={SITENAME}
-        type="text/html"
-        keywords="watch movies online, watch hd movies, watch full movies, streaming movies online, free streaming movie, watch movies free, watch hd movies online, watch series online, watch hd series free, free tv series, free movies online, tv online, tv links, tv links movies, free tv shows, watch tv shows online, watch tv shows online free, free hd movies, New Movie Releases, Top Movies of the Year, Watch Movies Online, Streaming Services, Movie Reviews, Upcoming Films, Best Movie Scenes, Classic Movies, HD Movie Streaming, Film Trailers, Action Movies, Drama Films, Comedy Movies, Sci-Fi Films, Horror Movie Picks, Family-Friendly Movies, Award-Winning Films, Movie Recommendations, Cinematic Experiences, Behind-the-Scenes, Director Spotlights, Actor Interviews, Film Festivals, Cult Classics, Top Box Office Hits, Celebrity News, Movie Soundtracks, Oscar-Winning Movies, Movie Trivia, Exclusive Film Content, Best Cinematography, Must-Watch Movies, Film Industry News, Filmmaking Tips, Top Movie Blogs, Latest Movie Gossip, Interactive Movie Quizzes, Red Carpet Moments, IMDb Ratings, Movie Fan Communities, fmovies, fmovies.to, fmovies to, fmovies is, fmovie, free movies, online movie, movie online, free movies online, watch movies online free, free hd movies, watch movies online"
-        link={`https://${SITENAME}.com`}
+  return (
+    // ── Ambient backdrop wrapper ────────────────────────────────
+    <div className="relative min-h-screen">
+      {/* Animated ambient glow — pulses with the movie's dominant color */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 transition-all duration-[1200ms] ease-out"
+        style={{
+          background: `
+            radial-gradient(ellipse 80% 55% at 50% -10%,
+              rgba(${ambientRgb}, 0.22) 0%,
+              rgba(${ambientRgb}, 0.08) 45%,
+              transparent 75%
+            )
+          `,
+        }}
       />
-      {/* Call MoviesAndSeriesDetailsSections Component */}
-      <MoviesAndSeriesDetailsSections
-        movieData={movieDetail}
-        isMovieDataLoading={isDetailsLoading}
-        detailType="movie"
+
+      {/* ── Side ambient streaks (desktop only) ── */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 hidden md:block transition-all duration-[1200ms] ease-out"
+        style={{
+          background: `
+            radial-gradient(ellipse 30% 60% at -5% 40%,
+              rgba(${ambientRgb}, 0.10) 0%,
+              transparent 70%
+            ),
+            radial-gradient(ellipse 30% 60% at 105% 40%,
+              rgba(${ambientRgb}, 0.08) 0%,
+              transparent 70%
+            )
+          `,
+        }}
       />
-      <Similars
-        movieData={similarMovies}
-        isMovieDataLoading={isSimilarLoading}
-        sectionTitle="You may also like"
-        detailType="similarMovies"
-        seeMoreButtonLink={`/similarMov/${movieID}`}
-      />
+
+      {/* ── Page Content (sits above the glow) ── */}
+      <div className="relative z-10">
+        <SEO
+          title={movieTitle ? `${movieTitle}${movieYear ? ` (${movieYear})` : ""} - ${SITENAME}` : SITENAME}
+          description={movieDetail?.description
+            ? `Watch ${movieTitle} online on ${SITENAME}. ${movieDetail.description.slice(0, 150)}...`
+            : `Stream ${movieTitle || "movies"} in HD quality on ${SITENAME}.`}
+          name={SITENAME}
+          type="video.movie"
+          keywords={`${movieTitle}, watch ${movieTitle} online, stream ${movieTitle}, ${SITENAME}`}
+          image={movieDetail?.backdrop || movieDetail?.poster}
+          imageAlt={movieTitle ? `${movieTitle} poster` : undefined}
+          /* Movie rich result: lets search engines show a proper film card
+             with rating, year and runtime instead of a bare blue link. */
+          jsonLd={
+            movieTitle
+              ? {
+                  "@context": "https://schema.org",
+                  "@type": "Movie",
+                  name: movieTitle,
+                  ...(movieDetail?.description
+                    ? { description: String(movieDetail.description).slice(0, 500) }
+                    : {}),
+                  ...(Number(movieDetail?.rating) > 0
+                    ? {
+                        aggregateRating: {
+                          "@type": "AggregateRating",
+                          ratingValue: Number(movieDetail.rating),
+                          bestRating: 10,
+                          worstRating: 0,
+                          ratingCount: Math.max(1, Number(movieDetail?.rating_count) || 1),
+                        },
+                      }
+                    : {}),
+                  ...(movieYear ? { datePublished: String(movieYear) } : {}),
+                  ...(movieDetail?.backdrop || movieDetail?.poster
+                    ? { image: movieDetail?.backdrop || movieDetail?.poster }
+                    : {}),
+                  ...(Array.isArray(movieDetail?.genres) && movieDetail.genres.length
+                    ? { genre: movieDetail.genres.map((g) => String(g)) }
+                    : {}),
+                }
+              : undefined
+          }
+        />
+
+        {detailsError ? (
+          <EmptyState
+            icon={online ? FiFilm : FiWifiOff}
+            eyebrow={online ? "Projection interrupted" : "Signal lost"}
+            title={online ? "We lost the feed" : "You're offline"}
+            description={
+              online
+                ? "This title didn't make it through the projector. Try loading it again."
+                : "This title isn't cached yet. Reconnect to load the film details."
+            }
+            action={
+              <RetryButton
+                onClick={() => setReloadToken((token) => token + 1)}
+                label="Retry screening"
+              />
+            }
+          />
+        ) : (
+          <>
+            <MoviesAndSeriesDetailsSections
+              movieData={movieDetail}
+              isMovieDataLoading={isDetailsLoading}
+              detailType="movie"
+            />
+
+            <Similars
+              movieData={similarMovies}
+              isMovieDataLoading={isSimilarLoading}
+              sectionTitle="You May Also Like"
+              currentTmdbId={movieID}
+              seeMoreButtonLink={`/similarMov/${movieID}`}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import "plyr-react/plyr.css";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { BASE_URL as BASE } from "../config";
+import { mediaUrl, parseQuality } from "../utils/media";
 
 export default function WatchTrailer(props) {
   const [sources, setSources] = useState([]);
@@ -46,15 +47,15 @@ export default function WatchTrailer(props) {
 
       try {
         let fileId, fileName;
-        if (props.popUpType === "movie" && props.id.telegram?.length > 0) {
-          fileId = props.id.telegram[0].id;
-          fileName = props.id.telegram[0].name;
+        if (props.popUpType === "movie" && props.id.sources?.length > 0) {
+          fileId = props.id.sources[0].id;
+          fileName = props.id.sources[0].name;
         } else if (props.popUpType === "episode") {
           const season = props.id.seasons?.find((s) => s.season_number === props.seasonNumber);
           const episode = season?.episodes?.find((ep) => ep.episode_number === props.episodeNumber);
-          if (episode?.telegram?.length > 0) {
-            fileId = episode.telegram[0].id;
-            fileName = episode.telegram[0].name;
+          if (episode?.sources?.length > 0) {
+            fileId = episode.sources[0].id;
+            fileName = episode.sources[0].name;
           }
         }
         if (!fileId || !fileName) return;
@@ -221,11 +222,11 @@ export default function WatchTrailer(props) {
           let selectedPoster = "";
 
           if (props.popUpType === "movie") {
-            if (props.id?.telegram?.length > 0) {
-              videoSources = props.id.telegram.map((q) => ({
-                src: `${BASE}/dl/${q.id}/${q.name}`,
+            if (props.id?.sources?.length > 0) {
+              videoSources = props.id.sources.map((q) => ({
+                src: mediaUrl(q),
                 type: "video/mp4",
-                size: parseInt(q.quality.replace("p", ""), 10),
+                size: parseQuality(q.quality),
               }));
             }
             selectedPoster = props.id?.backdrop || "";
@@ -243,11 +244,11 @@ export default function WatchTrailer(props) {
               const episode = season.episodes?.find(
                 (ep) => ep.episode_number === props.episodeNumber
               );
-              if (episode?.telegram?.length > 0) {
-                videoSources = episode.telegram.map((q) => ({
-                  src: `${BASE}/dl/${q.id}/${q.name}`,
+              if (episode?.sources?.length > 0) {
+                videoSources = episode.sources.map((q) => ({
+                  src: mediaUrl(q),
                   type: "video/mp4",
-                  size: parseInt(q.quality.replace("p", ""), 10),
+                  size: parseQuality(q.quality),
                 }));
                 selectedPoster = episode.episode_backdrop || "";
               }
@@ -309,13 +310,17 @@ export default function WatchTrailer(props) {
         "play",
         "progress",
         "current-time",
-        "mute",
-        "volume",
-        "settings",
+        "duration",
         "pip",
         "fullscreen",
       ],
       tooltips: { controls: true, seek: true },
+      hideControls: false,
+      invertTime: false,
+      clickToPlay: true,
+      disableContextMenu: false,
+      captions: { active: false, update: false, language: 'auto' },
+      audio: { active: false },
     },
   }), [sources, poster]);
 
@@ -330,7 +335,7 @@ export default function WatchTrailer(props) {
           className={`fixed z-40 transition-all duration-500 ${
             isMiniPlayer
               ? "bottom-4 right-4 w-80 sm:w-96 rounded-lg shadow-2xl"
-              : "inset-0 w-full h-screen bg-black/90 backdrop-blur-md flex items-center justify-center"
+              : "inset-0 w-full h-[100dvh] bg-black/90 backdrop-blur-md flex items-center justify-center"
           }`}
         >
           {/* Close / Minimize buttons */}
@@ -349,7 +354,7 @@ export default function WatchTrailer(props) {
             )}
             <button
               onClick={closeModal}
-              className={`text-white text-lg bg-black/50 hover:bg-black/80 rounded-full ${isMiniPlayer ? "p-1.5" : "p-2"}`}
+              className={`text-bone text-lg bg-ink/60 hover:bg-ink/90 rounded-[3px] ${isMiniPlayer ? "p-1.5" : "p-2"}`}
             >
               <AiOutlineClose />
             </button>
@@ -361,118 +366,48 @@ export default function WatchTrailer(props) {
             animate={{ scale: 1 }}
             exit={{ scale: isMiniPlayer ? 1 : 0.9 }}
             transition={{ duration: 0.3, ease: "easeInOut" }}
-            className={`flex flex-col shadow-lg relative bg-black ${
-              isMiniPlayer ? "w-full rounded-lg" : "w-full max-w-5xl rounded-lg"
+            className={`flex flex-col shadow-lg relative bg-ink ${
+              isMiniPlayer ? "w-full rounded-[4px]" : "w-full max-w-5xl rounded-[4px]"
             }`}
           >
-            {/* Toolbar: Audio + Subtitle Selectors */}
-            {(audioTracks.length > 1 || subtitleTracks.length > 0) && (
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-[#111] border-b border-white/5">
-                {/* Audio Selector */}
-                {audioTracks.length > 1 && (
-                  <div ref={audioDropdownRef} className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowAudioDropdown((p) => !p); setShowSubDropdown(false); }}
-                      className="flex items-center gap-2 text-[13px] text-white/80 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                      </svg>
-                      <span>Audio: {audioTracks[currentAudioTrack]?.title || audioTracks[currentAudioTrack]?.language?.toUpperCase() || `Track ${currentAudioTrack + 1}`}</span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${showAudioDropdown ? "rotate-180" : ""}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-                    {showAudioDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-[#1a1a1a] rounded-lg overflow-hidden min-w-[220px] border border-white/10 shadow-2xl z-50">
-                        <div className="px-3 py-2 text-[11px] text-white/40 uppercase tracking-wider border-b border-white/5">Audio Track</div>
-                        {audioTracks.map((track, index) => (
-                          <button
-                            key={index}
-                            onClick={(e) => { e.stopPropagation(); switchAudioTrack(index); }}
-                            className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${index === currentAudioTrack ? "text-green-400" : "text-white/80"}`}
-                          >
-                            {index === currentAudioTrack ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                            ) : (
-                              <span className="w-[14px]" />
-                            )}
-                            <span>{track.title || track.language?.toUpperCase() || `Track ${index + 1}`}</span>
-                            {track.channels > 2 && (
-                              <span className="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/50">{track.channels}ch</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Subtitle Selector */}
-                {subtitleTracks.length > 0 && (
-                  <div ref={subDropdownRef} className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowSubDropdown((p) => !p); setShowAudioDropdown(false); }}
-                      className="flex items-center gap-2 text-[13px] text-white/80 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                      <span>{currentSubtitleTrack >= 0 ? (subtitleTracks[currentSubtitleTrack]?.title || subtitleTracks[currentSubtitleTrack]?.language?.toUpperCase() || 'On') : 'CC'}</span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`transition-transform ${showSubDropdown ? "rotate-180" : ""}`}>
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-                    {showSubDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-[#1a1a1a] rounded-lg overflow-hidden min-w-[200px] border border-white/10 shadow-2xl z-50">
-                        <div className="px-3 py-2 text-[11px] text-white/40 uppercase tracking-wider border-b border-white/5">Subtitles</div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); switchSubtitleTrack(-1); }}
-                          className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${currentSubtitleTrack === -1 ? "text-green-400" : "text-white/80"}`}
-                        >
-                          {currentSubtitleTrack === -1 ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                          ) : (
-                            <span className="w-[14px]" />
-                          )}
-                          Off
-                        </button>
-                        {subtitleTracks.map((track, index) => (
-                          <button
-                            key={index}
-                            onClick={(e) => { e.stopPropagation(); switchSubtitleTrack(index); }}
-                            className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${index === currentSubtitleTrack ? "text-green-400" : "text-white/80"}`}
-                          >
-                            {index === currentSubtitleTrack ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                            ) : (
-                              <span className="w-[14px]" />
-                            )}
-                            <span>{track.title || track.language?.toUpperCase() || `Sub ${index + 1}`}</span>
-                            {track.is_default && <span className="ml-auto text-[10px] bg-green-500/20 text-green-400 px-1.5 rounded">Default</span>}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Remux active indicator */}
-            {(currentAudioTrack > 0 || currentSubtitleTrack >= 0) && (
-              <div className="px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
-                <span className="text-[11px] text-amber-400/80">
-                  Audio/Subtitle remux active — first load may take a moment, then cached for instant switching
-                </span>
-              </div>
-            )}
+            <style>{`
+              .plyr {
+                --plyr-color-main: #e9b872;
+                --plyr-video-background: #08090b;
+                --plyr-video-control-background: rgba(8, 9, 11, 0.8);
+                --plyr-control-color: #f2ede3;
+                --plyr-control-icon-color: #f2ede3;
+                --plyr-progress-loading-background: rgba(242, 237, 227, 0.25);
+                --plyr-progress-playing-background: #e9b872;
+                --plyr-progress-buffered-background: rgba(242, 237, 227, 0.5);
+              }
+              .plyr__progress__buffer {
+                color: rgba(242, 237, 227, 0.5);
+              }
+              .plyr__progress--played {
+                color: #e9b872;
+              }
+              .plyr__progress {
+                background: rgba(255, 255, 255, 0.2) !important;
+              }
+              .plyr__progress__input[type="range"] {
+                background: rgba(255, 255, 255, 0.2) !important;
+              }
+              .plyr__controls__item.plyr__controls__item--captions,
+              .plyr__controls__item.plyr__controls__item--audio {
+                display: none !important;
+              }
+              .plyr__caption {
+                display: none !important;
+              }
+              video::-webkit-media-text-track-container {
+                display: none !important;
+              }
+            `}</style>
 
             {/* Video Player */}
             {sources.length > 0 && (
-              <div className="plyr-wrapper">
+              <div className="plyr-wrapper" style={{ display: 'block', lineHeight: 0, fontSize: 0 }}>
                 <Plyr ref={playerRef} {...plyrProps} />
               </div>
             )}

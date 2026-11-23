@@ -1,10 +1,32 @@
-.venv
-log.txt
-**/__pycache__/
+# Secrets and local configuration
+.env
+config.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Telegram session files
 *.session
 *.session-journal
 *.session-shm
 *.session-wal
-/.vscode/
-test.py
-*.pyc
+
+# Runtime data
+log.txt
+data/
+.cache/
+probe_*.bin
+
+# Local archives and editor files
+*.rar
+*.zip
+.DS_Store
+.idea/
+.vscode/

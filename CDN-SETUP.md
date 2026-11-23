@@ -60,13 +60,15 @@ Settings:
   ✓ Browser Cache TTL: 1 month
 ```
 
-#### Rule 5: Video Streams (Custom)
+#### Rule 5: Video Streams (Do Not Cache)
 ```
 URL Pattern: yourdomain.com/dl/*
 Settings:
-  ✓ Cache Level: Cache Everything
-  ✓ Edge Cache TTL: 7 days
-  ⚠️ Note: May increase bandwidth costs. Monitor usage.
+  ✓ Cache Level: Bypass
+  ✓ Disable cache for this rule
+  ⚠️ Stream URLs are bearer credentials with a 12h TTL. Caching them at the
+  edge would let a leaked token replay content and would expose media to
+  shared caches. The backend also sends Cache-Control: private, no-store.
 ```
 
 ### Step 3: Enable Performance Features
@@ -104,16 +106,37 @@ Vary: Accept-Encoding
 
 ### Custom Header Rules in CloudFlare
 
-Add in **Rules → Transform Rules**:
+The backend already sets security headers and removes `Server`. Use Transform
+Rules to add the origin lock:
 
 ```
-# Strip sensitive headers
-Remove headers: Server, X-Powered-By
+# Inject the shared secret on every origin request
+Add header: X-Edge-Key = $EDGE_SHARED_SECRET
 
-# Add security headers
-Add header: X-Frame-Options = DENY
-Add header: X-Content-Type-Options = nosniff
+# Optional: strip any client-supplied copy first (Cloudflare overwrites on Set)
+Set header: X-Edge-Key = $EDGE_SHARED_SECRET
 ```
+
+Set `EDGE_SHARED_SECRET` to the same value on Heroku. The origin then returns
+404 for every request that does not arrive through Cloudflare, including direct
+requests to the `*.herokuapp.com` host.
+
+### Hiding the origin
+
+1. Point a custom API hostname (for example `api.example.com`) at the Heroku
+   host through Cloudflare with the orange proxy enabled.
+2. Set `BASE_URL=https://api.example.com` on Heroku and the frontend's
+   `VITE_BASE_URL=https://api.example.com`.
+3. Do not link or document the raw Heroku hostname anywhere public.
+4. Enable Cloudflare WAF managed rules and a rate-limit rule for:
+   - `/api/*` — 180 requests/minute per IP
+   - `/dl/*` — 300 requests/minute per IP
+   - `/admin*` — 20 requests/minute per IP, optionally IP-allowlisted
+5. Set `TRUST_CLOUDFLARE=true` on Heroku so rate limits key off
+   `CF-Connecting-IP` instead of a spoofable header.
+6. Block direct origin access at the network layer if the plan supports it
+   (Heroku Private Spaces / firewall, or a proxy that only accepts Cloudflare
+   IP ranges). The edge lock above covers the application layer.
 
 ## Cache Invalidation
 

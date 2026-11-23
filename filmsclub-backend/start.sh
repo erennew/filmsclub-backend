@@ -1,1 +1,4 @@
-python3 update.py && python3 -m Backend
+#!/usr/bin/env bash
+set -euo pipefail
+
+exec python3 -m Backend

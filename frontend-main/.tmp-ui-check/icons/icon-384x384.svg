@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="384" height="384" viewBox="0 0 384 384" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a14"/>
+      <stop offset="100%" stop-color="#0d1730"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0071EB"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <rect width="384" height="384" rx="84" ry="84"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="384" height="384" rx="84" ry="84" fill="url(#bg)"/>
+  <!-- Blue glow circle -->
+  <circle cx="192" cy="192" r="145.92000000000002" fill="#0071EB" opacity="0.08"/>
+  <!-- Play button icon -->
+  <polygon
+    points="138.24,107.52000000000001 291.84000000000003,192 138.24,276.48"
+    fill="url(#accent)"
+    opacity="0.95"
+  />
+  <!-- FC text - only for larger sizes -->
+  <text x="192" y="337.92" text-anchor="middle" font-family="'Inter', 'Arial', sans-serif" font-size="50" font-weight="700" fill="#ffffff" opacity="0.5" letter-spacing="2">FC</text>
+</svg>

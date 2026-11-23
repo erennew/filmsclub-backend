@@ -1,124 +1,92 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { LazyLoadImage } from "react-lazy-load-image-component";
-import "react-lazy-load-image-component/src/effects/black-and-white.css";
+import "react-lazy-load-image-component/src/effects/blur.css";
 import { PiStarFill } from "react-icons/pi";
-
 import { BsPlayFill } from "react-icons/bs";
 import posterPlaceholder from "../assets/images/poster-placeholder.png";
+import { posterUrl } from "../utils/imageUrl";
+import WatchlistButton from "./WatchlistButton";
 
 const MovieCard = ({ movie }) => {
-  const [showPlayBtn, setShowPlayBtn] = useState(false);
-  const [openId, setOpenId] = useState();
+  const link =
+    movie.media_type === "movie"
+      ? `/mov/${movie.tmdb_id}`
+      : `/ser/${movie.tmdb_id}`;
 
-  const showPlay = () => {
-    setOpenId(movie.tmdb_id);
-    setShowPlayBtn(true);
-  };
-
-  const hidePlay = () => {
-    setOpenId(movie.tmdb_id);
-    setShowPlayBtn(false);
-  };
+  const kind = movie.media_type === "tv" ? "Series" : "Movie";
+  const rating =
+    movie.rating != null
+      ? typeof movie.rating === "number"
+        ? movie.rating.toFixed(1)
+        : movie.rating
+      : null;
 
   return (
-    <div className="relative">
+    <div className="group relative rounded-[4px]" style={{ textDecoration: "none" }}>
       <Link
-        to={
-          movie.media_type === "movie"
-            ? `/mov/${movie.tmdb_id}`
-            : `/ser/${movie.tmdb_id}`
-        }
-        className="rounded-t-2xl"
-      >
-        <div className="flex items-center justify-center aspect-[9/13.5] w-full object-cover rounded-2xl ">
-          <LazyLoadImage
-            src={movie.poster ? movie.poster : posterPlaceholder}
-            width="100%"
-            effect="black-and-white"
-            alt={movie.title}
-            className="aspect-[9/13.5] w-full object-cover rounded-2xl "
-            onMouseEnter={showPlay}
-            onMouseLeave={hidePlay}
-          />
-        </div>
-      </Link>
+        to={link}
+        aria-label={`${kind}: ${movie.title}`}
+        className="absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+      />
+      <div className="relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon ring-1 ring-inset ring-bone/10 group-hover:ring-projector/50 transition-shadow duration-300 group-hover:shadow-[0_18px_40px_-18px_rgba(0,0,0,0.9)]">
+        <LazyLoadImage
+          src={posterUrl(movie.poster || posterPlaceholder)}
+          alt={movie.title}
+          effect="blur"
+          wrapperClassName="absolute inset-0 w-full h-full"
+          className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-[1.04]"
+        />
 
-      <div className="text-primaryTextColor mt-2">
-        <p className="line-clamp-1 text-md md:text-base ">{movie.title}</p>
-        <div className="flex items-center justify-between text-secondaryTextColor mt-1 uppercase text-[0.6rem] sm:text-xs md:text-sm">
-          {movie.release_year && <p>{movie.release_year}</p>}
-          <div className="uppercase bg-bgColorSecondary text-primaryTextColor py-1 px-3 rounded-full text-[0.5rem] sm:text-[0.6rem]">
-            <p>{movie.media_type}</p>
+        {rating && (
+          <div className="absolute top-1.5 right-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[2px] bg-ink/80 backdrop-blur-sm">
+            <PiStarFill className="text-projector text-[9px]" />
+            <span className="timecode text-[10px] font-medium text-bone/90 leading-none">
+              {rating}
+            </span>
           </div>
+        )}
+
+        <span className="absolute top-1.5 left-1.5 z-10 timecode text-[10px] uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-[2px] bg-ink/70 text-bone/60 backdrop-blur-sm">
+          {kind}
+        </span>
+
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          aria-hidden="true"
+        />
+
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-projector text-ink shadow-[0_8px_24px_rgba(0,0,0,0.45)] translate-y-1 group-hover:translate-y-0 transition-transform duration-200">
+            <BsPlayFill className="text-lg ml-0.5" />
+          </span>
+        </div>
+
+        <div className="absolute bottom-1.5 right-1.5 z-20">
+          <WatchlistButton item={movie} />
         </div>
       </div>
 
-      {movie.rating ? (
-        <div className="flex items-center gap-1 absolute top-5 left-3 bg-bgColorSecondary text-yellow-300 py-1 px-3 rounded-full font-extrabold text-[0.6rem] sm:text-xs">
-          <PiStarFill />
-          <p>{movie.rating.toFixed(1)}</p>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1 absolute top-5 left-3 bg-primaryBtn text-bgColor py-1 px-3 rounded-full text-xs font-extrabold">
-          <PiStarFill />
-          <p>0.0</p>
-        </div>
-      )}
-
-
-      {movie.languages ? (
-        <div className="flex items-center gap-1 absolute bottom-16 right-3 bg-primaryBtn text-bgColor py-1 px-3 rounded-full font-extrabold text-[0.6rem] sm:text-xs">
-          <p>
-            {movie.languages
-              .map((lang) => lang.charAt(0).toUpperCase() + lang.slice(1)) // Capitalize each language code
-              .join("-")}{" "}
+      <div className="mt-2">
+        <h3 className="text-[13px] sm:text-sm font-semibold leading-snug text-bone line-clamp-2 group-hover:text-projector transition-colors duration-200">
+          {movie.title}
+        </h3>
+        {movie.episode_label && (
+          <p className="mt-1 timecode text-[10px] uppercase tracking-[0.14em] text-projector/85">
+            {movie.episode_label}
           </p>
-        </div>
-      ) : (
-        <div className="flex items-center gap-1 absolute bottom-16 right-3 bg-primaryBtn text-bgColor py-1 px-3 rounded-full text-xs font-extrabold">
-          <p>Hi</p>
-        </div>
-      )}
-
-      {movie.rip ? (
-        <div className="flex bg-bgColorSecondary rounded-full items-center gap-1 absolute bottom-16 left-3 text-primaryTextColor py-1 px-3 font-medium text-[0.6rem] sm:text-xs">
-          <p>{movie.rip}</p>
-        </div>
-      ) : (
-        <div className="flex bg-bgColorSecondary rounded-full items-center gap-1 absolute bottom-16 left-3 text-primaryTextColor py-1 px-3 font-medium text-[0.6rem] sm:text-xs">
-          <p>Blu-Ray</p>
-        </div>
-      )}
-
-      <AnimatePresence>
-        {openId === movie.tmdb_id && showPlayBtn && (
-          <Link
-            to={
-              movie.media_type === "movie"
-                ? `/mov/${movie.tmdb_id}`
-                : `/ser/${movie.tmdb_id}`
-            }
-            onMouseEnter={showPlay}
-            onMouseLeave={hidePlay}
-            className="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-primaryBtn sm:block"
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: -20 }}
-              exit={{ opacity: 0, y: -40 }}
-              transition={{
-                type: "tween",
-                duration: 0.3,
-              }}
-              className="text-3xl p-1 rounded-full border-4 border-primaryBtn"
-            >
-              <BsPlayFill />
-            </motion.div>
-          </Link>
         )}
-      </AnimatePresence>
+        {movie.episode_title && (
+          <p className="mt-0.5 text-[11px] leading-snug text-bone/55 line-clamp-1">
+            {movie.episode_title}
+          </p>
+        )}
+        {!movie.episode_label && movie.release_year && (
+          <p className="mt-0.5 timecode text-[10px] text-bone/55">
+            {movie.release_year}
+          </p>
+        )}
+      </div>
     </div>
   );
 };

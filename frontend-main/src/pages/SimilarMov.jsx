@@ -1,82 +1,65 @@
-// src/pages/SimilarMovies.jsx
+// src/pages/SimilarMov.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { motion } from "framer-motion";
+import { useParams } from "react-router-dom";
+import { BASE_URL as BASE, SITENAME } from "../config";
 import MoviesAndSeriesSections from "../components/MoviesAndSeriesSections";
 import Pagination from "../components/Pagination";
-import { useParams } from "react-router-dom";
-import SEO from "../components/SEO"; // import SEO
-import { BASE_URL as BASE, SITENAME } from "../config";
+import SEO from "../components/SEO";
 
 export default function SimilarMov() {
-
-
-  // States
   const [movies, setMovies] = useState([]);
-  const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true); 
-  const [moviesDataForPageCount, setMoviesDataForPageCount] = useState("");
-  const [currentPage, setCurrentPage] = useState(1); 
-  const { movieID } = useParams(); 
-  const [title, setTitle] = useState(""); 
+  const [isMoviesDataLoading, setIsMoviesDataLoading] = useState(true);
+  const [moviesDataForPageCount, setMoviesDataForPageCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [title, setTitle] = useState("");
+  const { movieID } = useParams();
 
-  // FETCH SIMILAR MOVIE DATA SECTION
   useEffect(() => {
-    setIsMoviesDataLoading(true); 
+    setIsMoviesDataLoading(true);
     window.scrollTo(0, 0);
 
     axios.get(`${BASE}/api/similar/`, {
-      params: {
-        tmdb_id: movieID,
-        media_type: "movie",
-        limit: 20,
-        page: currentPage
-      }
+      params: { tmdb_id: movieID, media_type: "movie", page_size: 20, page: currentPage },
     })
-    .then(response => {
-      setMovies(response.data.similar_media);
-      setMoviesDataForPageCount(response.data.total_count);
-      setIsMoviesDataLoading(false); 
-    })
-    .catch(error => {
-      console.error("Error fetching similar movies:", error);
-      setIsMoviesDataLoading(false); 
-    });
-  }, [currentPage, movieID, BASE]); 
+      .then(({ data }) => {
+        setMovies(data.similar_media || []);
+        setMoviesDataForPageCount(data.total_count || 0);
+        setIsMoviesDataLoading(false);
+      })
+      .catch(() => setIsMoviesDataLoading(false));
+  }, [currentPage, movieID, BASE]);
 
-  // FETCH MOVIE TITLE DATA SECTION
   useEffect(() => {
     axios.get(`${BASE}/api/id/${movieID}`)
-    .then(response => {
-      setTitle(response.data.title);
-    })
-    .catch(error => {
-      console.error("Error fetching movie title:", error);
-    });
+      .then(({ data }) => setTitle(data.title || ""))
+      .catch(() => {});
   }, [movieID, BASE]);
 
   return (
     <div>
-      {/* SEO SECTION */}
       <SEO
-        title={SITENAME}
-        description={`Discover a world of entertainment where every show, movie, and exclusive content takes you on a journey beyond the screen. ${SITENAME} offers endless options for every mood, helping you relax, escape, and imagine more. Stream your favorites, dream big, and repeat the experience, only with ${SITENAME}.`}
+        title={title ? `Similar to ${title} - ${SITENAME}` : `Similar Movies - ${SITENAME}`}
+        description={`Discover movies similar to ${title || "this film"} on ${SITENAME}.`}
         name={SITENAME}
-        type="text/html"
-        keywords="watch movies online, watch hd movies, watch full movies, streaming movies online, free streaming movie, watch movies free, watch hd movies online, watch series online, watch hd series free, free tv series, free movies online, tv online, tv links, tv links movies, free tv shows, watch tv shows online, watch tv shows online free, free hd movies, New Movie Releases, Top Movies of the Year, Watch Movies Online, Streaming Services, Movie Reviews, Upcoming Films, Best Movie Scenes, Classic Movies, HD Movie Streaming, Film Trailers, Action Movies, Drama Films, Comedy Movies, Sci-Fi Films, Horror Movie Picks, Family-Friendly Movies, Award-Winning Films, Movie Recommendations, Cinematic Experiences, Behind-the-Scenes, Director Spotlights, Actor Interviews, Film Festivals, Cult Classics, Top Box Office Hits, Celebrity News, Movie Soundtracks, Oscar-Winning Movies, Movie Trivia, Exclusive Film Content, Best Cinematography, Must-Watch Movies, Film Industry News, Filmmaking Tips, Top Movie Blogs, Latest Movie Gossip, Interactive Movie Quizzes, Red Carpet Moments, IMDb Ratings, Movie Fan Communities, fmovies, fmovies.to, fmovies to, fmovies is, fmovie, free movies, online movie, movie online, free movies online, watch movies online free, free hd movies, watch movies online"
-        link={`https://${SITENAME}.com`}
+        type="website"
+        keywords={`similar movies, ${title}, watch online, stream movies`}
       />
-      {/* Movies component */}
+
       <MoviesAndSeriesSections
         movieData={movies}
         isMovieDataLoading={isMoviesDataLoading}
         dataType="similarMovies"
-        sectionTitle={`Similar with: ${title}`}
+        sectionTitle={title ? `More like "${title}"` : "Similar Movies"}
       />
-      {/* Call Pagination Component */}
+
       <Pagination
         currentPage={currentPage}
         total={moviesDataForPageCount}
         onPageChange={(p) => {
           setCurrentPage(p);
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
         limit={20}
       />

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="https://cdn.jsdelivr.net/gh/weebzone/weebzone/data/Surf-TG/src/ico2.png" type="image/x-icon" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b0c10'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%23d9a65c'/%3E%3C/svg%3E" type="image/svg+xml" />
     <title>Stream</title>
     <style>
         video {
@@ -35,12 +36,12 @@
             const videoElement = document.getElementById("videoPlayer");
 
             // Choose the highest quality available
-            if (data.telegram.length > 0) {
-                const bestQuality = data.telegram.reduce((prev, curr) => 
+            if (data.sources.length > 0) {
+                const bestQuality = data.sources.reduce((prev, curr) => 
                     parseInt(curr.quality) > parseInt(prev.quality) ? curr : prev
                 );
 
-                videoElement.src = `/dl/${bestQuality.id}/${bestQuality.name}`;
+                videoElement.src = `/dl/${bestQuality.id}/${encodeURIComponent(bestQuality.name)}`;
                 videoElement.poster = `https://image.tmdb.org/t/p/original${data.backdrop}`;
             }
         }

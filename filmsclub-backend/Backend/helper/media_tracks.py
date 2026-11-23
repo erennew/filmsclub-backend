@@ -284,7 +284,7 @@ async def probe_subtitle_tracks(file_url: str, timeout: int = 30) -> List[Dict]:
         return []
 
 
-async def probe_media_tracks(file_url: str, timeout: int = 30, use_cache: bool = True) -> Dict:
+async def probe_media_tracks(file_url: str, timeout: int = 30, use_cache: bool = True, headers: Optional[Dict[str, str]] = None) -> Dict:
     """
     Detect both audio and subtitle tracks in one combined call.
     
@@ -310,14 +310,17 @@ async def probe_media_tracks(file_url: str, timeout: int = 30, use_cache: bool =
         await cache_stats.record_miss()
     
     try:
+        header_arg = "".join(f"{key}: {value}\r\n" for key, value in (headers or {}).items())
         # Check if file is accessible
         head_cmd = [
             'ffprobe',
             '-v', 'error',
             '-show_entries', 'format=duration',
-            '-of', 'json',
-            file_url
+            '-of', 'json'
         ]
+        if header_arg:
+            head_cmd.extend(['-headers', header_arg])
+        head_cmd.append(file_url)
         
         head_process = await asyncio.create_subprocess_exec(
             *head_cmd,
@@ -340,9 +343,11 @@ async def probe_media_tracks(file_url: str, timeout: int = 30, use_cache: bool =
             '-v', 'error',
             '-print_format', 'json',
             '-show_streams',
-            '-show_entries', 'stream=index,codec_name,codec_type,channels,sample_rate,bit_rate,codec_tag_string,tags:stream_tags=language,title',
-            file_url
+            '-show_entries', 'stream=index,codec_name,codec_type,channels,sample_rate,bit_rate,codec_tag_string,tags:stream_tags=language,title'
         ]
+        if header_arg:
+            cmd.extend(['-headers', header_arg])
+        cmd.append(file_url)
         
         process = await asyncio.create_subprocess_exec(
             *cmd,
@@ -459,7 +464,7 @@ async def get_audio_tracks_cached(
     try:
         if media_type == "movie" and tmdb_id and quality:
             # Check movie collection
-            movie = await db.movie_collection.find_one({"tmdb_id": tmdb_id})
+            movie = await db.get_movie_doc(tmdb_id)
             if movie and "telegram" in movie:
                 for q in movie["telegram"]:
                     if q.get("id") == file_id and q.get("audio_tracks"):
@@ -467,7 +472,7 @@ async def get_audio_tracks_cached(
         
         elif media_type == "tv" and tmdb_id and season_number is not None and episode_number is not None and quality:
             # Check TV collection
-            tv_show = await db.tv_collection.find_one({"tmdb_id": tmdb_id})
+            tv_show = await db.get_tv_doc(tmdb_id)
             if tv_show and "seasons" in tv_show:
                 for season in tv_show["seasons"]:
                     if season.get("season_number") == season_number:
@@ -525,7 +530,7 @@ async def get_media_tracks_cached(
     try:
         if media_type == "movie" and tmdb_id and quality:
             # Check movie collection
-            movie = await db.movie_collection.find_one({"tmdb_id": tmdb_id})
+            movie = await db.get_movie_doc(tmdb_id)
             if movie and "telegram" in movie:
                 for q in movie["telegram"]:
                     if q.get("id") == file_id:
@@ -539,7 +544,7 @@ async def get_media_tracks_cached(
         
         elif media_type == "tv" and tmdb_id and season_number is not None and episode_number is not None and quality:
             # Check TV collection
-            tv_show = await db.tv_collection.find_one({"tmdb_id": tmdb_id})
+            tv_show = await db.get_tv_doc(tmdb_id)
             if tv_show and "seasons" in tv_show:
                 for season in tv_show["seasons"]:
                     if season.get("season_number") == season_number:

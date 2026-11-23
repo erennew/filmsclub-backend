@@ -1,0 +1,50 @@
+{
+  "elapsed": 10432,
+  "audit": {
+    "title": "CloudXMovies – Stream Movies, Series & Anime",
+    "readyState": "complete",
+    "rootChildren": 7,
+    "bootShell": false,
+    "bodyBg": "rgb(8, 9, 11)",
+    "bodyColor": "rgb(242, 237, 227)",
+    "htmlScrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "visualViewport": {
+      "w": 390,
+      "h": 844
+    },
+    "main": {
+      "x": 0,
+      "y": 0,
+      "width": 390,
+      "height": 9000.828125,
+      "top": 0,
+      "right": 390,
+      "bottom": 9000.828125,
+      "left": 0
+    },
+    "nav": {
+      "x": 0,
+      "y": 771.203125,
+      "width": 390,
+      "height": 64,
+      "top": 771.203125,
+      "right": 390,
+      "bottom": 835.203125,
+      "left": 0
+    },
+    "hero": null,
+    "dockText": "HOME|MOVIES|SERIES|ANIME|K-DRAMA",
+    "visibleText": "Skip to content\nCloudXMovies\nHOME\nMOVIES\nSERIES\nANIME\nK-DRAMA\n\nPROJECTION INTERRUPTED\n\nTonight's feature is late\n\nWe couldn't reach the library just now. The shelves below may still load — or try again in a moment.\n\nTry again\nBrowse movies\nTrending Now\n\nCouldn’t load this shelf.\n\nRetry\nNew Episodes\n\nCouldn’t load this shelf.\n\nRetry\nMost Watched\n\nCouldn’t load this shelf.\n\nRetry\nLatest Movies\n\nCouldn’t load this shelf.\n\nRetry\nLatest TV Shows\n\nCouldn’t load this shelf.\n\nRetry\nPopular Movies\n\nCouldn’t load this shelf.\n\nRetry\nCloudXMovies\n\nA late-night screening room for movies, TV series, anime, and K-Dramas. No account, no noise — just the film.\n\nInstall the app\nCONTENT\nMovies\nTV Shows\nAnime\nK-Drama\nHD Streaming\nLatest Releases\nQUICK LINKS\nHome\nMovies\nSeries\nAnime\nK-Drama\nTop Rated Movies\nTo",
+    "overflowers": [],
+    "imgCount": 0,
+    "brokenImgs": [],
+    "sw": "http://127.0.0.1:4173/sw.js"
+  },
+  "logs": [
+    "[console:error] Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "[requestfailed] http://127.0.0.1:4173/_vercel/insights/script.js :: net::ERR_ABORTED"
+  ]
+}

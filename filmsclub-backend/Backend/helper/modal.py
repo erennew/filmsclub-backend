@@ -7,6 +7,10 @@ class QualityDetail(BaseModel):
     id: str = Field(..., description="Unique hash for the video")
     name: str = Field(..., description="Original Filename of telegram file")
     size: str = Field(..., description="Size of the File")
+    codec: Optional[str] = Field(None, description="Video codec (e.g., h264, vp9, h265)")
+    file_unique_id: Optional[str] = Field(None, description="Telegram file_unique_id — stable identity for dedupe")
+    size_bytes: Optional[int] = Field(None, description="Exact file size in bytes")
+    duration: Optional[int] = Field(None, description="Duration in seconds")
     audio_tracks: Optional[List[Dict]] = Field(None, description="Cached audio track information from ffprobe")
     subtitle_tracks: Optional[List[Dict]] = Field(None, description="Cached embedded subtitle track information from ffprobe")
 
@@ -49,6 +53,7 @@ class TVShowSchema(BaseModel):
     rip: str = Field(..., description="Media rip of the file")
     seasons: List[Season] = Field(..., description="List of seasons in the TV show")
     external_subtitles: Optional[List[ExternalSubtitle]] = Field(None, description="List of external subtitle files for the TV show")
+    cast: Optional[List[Dict]] = Field(None, description="List of cast members with name, character, profile")
 
 
 
@@ -68,3 +73,4 @@ class MovieSchema(BaseModel):
     rip: str = Field(..., description="Media rip of the file")
     telegram: Optional[List[QualityDetail]] = Field(None, description="List of available quality details")
     external_subtitles: Optional[List[ExternalSubtitle]] = Field(None, description="List of external subtitle files for the movie")
+    cast: Optional[List[Dict]] = Field(None, description="List of cast members with name, character, profile")

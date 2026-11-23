@@ -1,43 +1,63 @@
 """
-Generate Pyrogram session string for Heroku deployment.
+Generate a Wzgram session string for Heroku deployment.
 
-This prevents FloodWait errors by creating a persistent session
-that can be stored as a Heroku config var instead of a file.
+Credentials are read from the environment (or config.env / .env), never
+hardcoded. Run:
 
-Usage:
     python generate_session_string.py
 
-Then copy the output and set it as Heroku config var:
-    heroku config:set SESSION_STRING="your_session_string_here" -a your-app-name
+Then store the output as the SESSION_STRING config var:
+
+    heroku config:set SESSION_STRING="..." -a your-app-name
 """
 
 import asyncio
-from pyrogram import Client
+import os
+import sys
 
-# Replace with your actual credentials
-API_ID = 25259066
-API_HASH = "caad2cdad2fe06057f2bf8f8a8e58950"
-BOT_TOKEN = "8228736863:AAFuwwJ3AZn0SCRz7F14PprLAcigN_3uyOk"
+from dotenv import load_dotenv
 
-async def main():
-    print("Generating session string for bot...")
-    
+load_dotenv("config.env")
+load_dotenv(".env")
+
+try:
+    from wzgram import Client
+except ImportError:
+    sys.exit("wzgram is not installed. Run: pip install -r requirements.txt")
+
+
+API_ID = os.getenv("API_ID", "").strip()
+API_HASH = os.getenv("API_HASH", "").strip()
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+
+
+async def main() -> None:
+    missing = [
+        name
+        for name, value in (
+            ("API_ID", API_ID),
+            ("API_HASH", API_HASH),
+            ("BOT_TOKEN", BOT_TOKEN),
+        )
+        if not value
+    ]
+    if missing:
+        sys.exit(f"Missing environment variables: {', '.join(missing)}")
+
     async with Client(
         name="session_gen",
-        api_id=API_ID,
+        api_id=int(API_ID),
         api_hash=API_HASH,
         bot_token=BOT_TOKEN,
-        in_memory=True  # Don't create session file
+        in_memory=True,
     ) as app:
         session_string = await app.export_session_string()
-        print("\n" + "="*60)
-        print("SESSION STRING GENERATED!")
-        print("="*60)
-        print(f"\n{session_string}\n")
-        print("="*60)
-        print("\nSet this as Heroku config var:")
-        print(f'heroku config:set SESSION_STRING="{session_string}" -a your-app-name')
-        print("\nThis will prevent FloodWait errors on Heroku.")
+
+    print("\nSESSION_STRING generated:\n")
+    print(session_string)
+    print("\nStore it with:")
+    print('  heroku config:set SESSION_STRING="<value>" -a your-app-name')
+
 
 if __name__ == "__main__":
     asyncio.run(main())

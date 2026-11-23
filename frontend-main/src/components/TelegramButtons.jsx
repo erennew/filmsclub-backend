@@ -1,53 +1,18 @@
 import React, { useState } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import { PiTelegramLogo } from "react-icons/pi";
-import axios from "axios";
 import { Button } from "@nextui-org/button";
 import Spinner from "./svg/Spinner";
-import { useLocation } from "react-router-dom";
-import { TG_USERNAME as USERNAME, API_URL, API_KEY } from "../config";
+import { TG_USERNAME as USERNAME } from "../config";
 
 const TelegramButton = ({ movieData }) => {
 
-  const [shortenedUrls, setShortenedUrls] = useState({});
   const [loading, setLoading] = useState({});
-  const location = useLocation();
 
-  const shortenUrl = async (url) => {
-  try {
-    // Flexible structure for various APIs
-    const response = await axios.get(API_URL, {
-    params: {
-      api: API_KEY,   // ✅ Correct key name
-      url: url,       // ✅ Correct param for URL
-      format: "json", // ✅ Optional but good to include for clarity
-    },
-  });
-
-    const data = response.data;
-
-    // Adjust this based on expected field in your API response
-    return data?.shortenedUrl || data?.short || data?.url || url;
-  } catch (error) {
-    console.error("Error shortening URL:", error);
-    return url;
-  }
-};
-
-
-  const handleButtonClick = async (originalUrl, quality) => {
+  const handleButtonClick = (originalUrl, quality) => {
     setLoading((prev) => ({ ...prev, [quality]: true }));
-    let shortUrl = originalUrl;
-
-    try {
-      shortUrl = await shortenUrl(originalUrl);
-      setShortenedUrls((prev) => ({ ...prev, [originalUrl]: shortUrl }));
-    } catch (error) {
-      console.error("Error processing URL:", error);
-    } finally {
-      setLoading((prev) => ({ ...prev, [quality]: false }));
-      window.open(shortUrl, "_blank", "noopener noreferrer");
-    }
+    window.open(originalUrl, "_blank", "noopener noreferrer");
+    setLoading((prev) => ({ ...prev, [quality]: false }));
   };
 
   const renderQualityButtons = (qualityDetails) =>
@@ -61,7 +26,7 @@ const TelegramButton = ({ movieData }) => {
           )
         }
         size="sm"
-        className="bg-primaryBtn rounded-full"
+        className="bg-projector text-ink rounded-[3px] font-semibold"
         isLoading={loading[quality]}
         spinner={<Spinner />}
       >
@@ -69,11 +34,12 @@ const TelegramButton = ({ movieData }) => {
       </Button>
     ));
 
-  const renderSeasonButtons = () =>
-    movieData.seasons.map((season, seasonIndex) => {
+  const renderSeasonButtons = () => {
+    if (!movieData?.seasons?.length) return null;
+    return movieData.seasons.map((season, seasonIndex) => {
       const availableQualities = new Set();
-      season.episodes.forEach((episode) => {
-        episode.telegram?.forEach(({ quality }) =>
+      (season.episodes || []).forEach((episode) => {
+        episode.sources?.forEach(({ quality }) =>
           availableQualities.add(quality)
         );
       });
@@ -86,11 +52,11 @@ const TelegramButton = ({ movieData }) => {
           offset={20}
         >
           <PopoverTrigger>
-            <button className="text-left bg-otherColor text-bgColor py-1 px-3 rounded-full border-2 border-otherColor">
+            <button className="text-left bg-projector text-ink py-1.5 px-3 rounded-[3px] text-sm font-semibold">
               Season {season.season_number}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="bg-btnColor">
+          <PopoverContent className="bg-carbon border border-bone/10 rounded-[4px]">
             <div className="px-1 py-2 flex gap-1 flex-wrap">
               {Array.from(availableQualities).map((quality, qualityIndex) => (
                 <Button
@@ -102,7 +68,7 @@ const TelegramButton = ({ movieData }) => {
                     )
                   }
                   size="sm"
-                  className="bg-primaryBtn rounded-full"
+                  className="bg-projector text-ink rounded-[3px] font-semibold"
                   isLoading={loading[quality]}
                   spinner={<Spinner />}
                 >
@@ -114,18 +80,19 @@ const TelegramButton = ({ movieData }) => {
         </Popover>
       );
     });
+  };
 
   return (
     <Popover placement="bottom" showArrow={true}>
       <PopoverTrigger>
-        <button className="uppercase flex items-center justify-center gap-2 bg-otherColor max-w-full grow text-bgColor text-xs rounded-full border-2 border-otherColor py-1 px-3 lg:text-sm sm:px-5 sm:max-w-[15rem] sm:py-2">
+        <button className="flex items-center justify-center gap-2 bg-projector hover:bg-[#F0CA98] transition-colors max-w-full grow text-ink text-xs font-bold rounded-[3px] py-2 px-3 min-h-[44px] lg:text-sm sm:px-5 sm:max-w-[15rem]">
           <PiTelegramLogo className="text-lg" /> Telegram
         </button>
       </PopoverTrigger>
-      <PopoverContent className="bg-btnColor">
+      <PopoverContent className="bg-carbon border border-bone/10 rounded-[4px]">
         <div className="px-1 py-2 flex gap-1 flex-wrap flex-col">
           {movieData.media_type === "movie"
-            ? renderQualityButtons(movieData.telegram || [])
+            ? renderQualityButtons(movieData.sources || [])
             : renderSeasonButtons()}
         </div>
       </PopoverContent>

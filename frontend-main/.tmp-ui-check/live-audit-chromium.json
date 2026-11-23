@@ -1,0 +1,342 @@
+[
+  {
+    "engine": "chromium",
+    "route": "/",
+    "status": 200,
+    "shot": "C:/Users/Ravikiran/Downloads/filmsclub/frontend-main/.tmp-ui-check/live-chromium-_.png",
+    "audit": {
+      "title": "CloudXMovies – Stream Movies, Series & Anime",
+      "rootChildren": 8,
+      "bootShell": false,
+      "bodyBg": "rgb(8, 9, 11)",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 11512,
+      "dock": {
+        "x": 0,
+        "y": 591.203125,
+        "width": 390,
+        "height": 64,
+        "top": 591.203125,
+        "right": 390,
+        "bottom": 655.203125,
+        "left": 0
+      },
+      "imgs": 16,
+      "broken": [],
+      "overflowers": [
+        {
+          "tag": "DIV",
+          "cls": "swiper-wrapper",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "swiper-slide swiper-slide-prev",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative w-full overflow-hidden",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "SPAN",
+          "cls": "w-full h-full block lazy-load-image-background blur lazy-load-image-loaded",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "IMG",
+          "cls": "w-full h-full object-cover",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 pointer-events-none",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 pointer-events-none",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 pointer-events-none sm:hidden",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 flex flex-col justify-end",
+          "left": -390,
+          "right": 0,
+          "w": 390
+        },
+        {
+          "tag": "DIV",
+          "cls": "",
+          "left": -374,
+          "right": -16,
+          "w": 358
+        },
+        {
+          "tag": "DIV",
+          "cls": "",
+          "left": -374,
+          "right": -16,
+          "w": 358
+        },
+        {
+          "tag": "SPAN",
+          "cls": "eyebrow mb-3 sm:mb-4",
+          "left": -374,
+          "right": -231,
+          "w": 143
+        },
+        {
+          "tag": "H1",
+          "cls": "",
+          "left": -374,
+          "right": -16,
+          "w": 358
+        },
+        {
+          "tag": "DIV",
+          "cls": "timecode flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] sm:text-[11px] uppercase tracking",
+          "left": -374,
+          "right": -16,
+          "w": 358
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-projector",
+          "left": -374,
+          "right": -341,
+          "w": 33
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-bone/50",
+          "left": -331,
+          "right": -324,
+          "w": 7
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "left": -314,
+          "right": -288,
+          "w": 26
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-bone/50",
+          "left": -278,
+          "right": -271,
+          "w": 7
+        },
+        {
+          "tag": "SPAN",
+          "cls": "inline-flex items-center gap-1",
+          "left": -261,
+          "right": -229,
+          "w": 33
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "left": -261,
+          "right": -252,
+          "w": 9
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "left": -261,
+          "right": -253,
+          "w": 8
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-bone/50",
+          "left": -219,
+          "right": -212,
+          "w": 7
+        },
+        {
+          "tag": "SPAN",
+          "cls": "",
+          "left": -202,
+          "right": -156,
+          "w": 46
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-bone/50",
+          "left": -146,
+          "right": -139,
+          "w": 7
+        },
+        {
+          "tag": "SPAN",
+          "cls": "text-bone/60",
+          "left": -374,
+          "right": -189,
+          "w": 185
+        },
+        {
+          "tag": "P",
+          "cls": "hidden mobile-desc:block line-clamp-2",
+          "left": -374,
+          "right": -91,
+          "w": 283
+        },
+        {
+          "tag": "DIV",
+          "cls": "",
+          "left": -374,
+          "right": -16,
+          "w": 358
+        },
+        {
+          "tag": "A",
+          "cls": "group inline-flex items-center gap-2.5 bg-projector text-ink font-bold text-[13px] sm:text-sm px-5 s",
+          "left": -374,
+          "right": -237,
+          "w": 137
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "left": -354,
+          "right": -338,
+          "w": 16
+        }
+      ],
+      "text": "Skip to content\nCloudXMovies\nHOME\nMOVIES\nSERIES\nANIME\nK-DRAMA\nAdd to Home Screen\n\nTwo taps in Safari — no app store.\n\n01\nTap Share in Safari's toolbar.\n02\nChoose \"Add to Home Screen\".\n03\nTap Add — the app lands on your home screen.\nGot it\nNOW SCREENING\nThe Odyssey\nMOVIE\n/\n2026\n/\n8.0\n/\nBLU-RAY\n/\nADVENTURE · ACTION · FANTASY\n\nOdysseus, the legendary King of Ithaca, embarks on a long and perilous jou",
+      "sw": "https://cloudxmovies.vercel.app/sw.js",
+      "fcp": 1124,
+      "lcp": null,
+      "dcl": 313.0999999977648,
+      "load": 709.7999999970198,
+      "transfer": 239264,
+      "resources": 41
+    },
+    "logs": [
+      "[warning] Deprecated API for given entry type."
+    ]
+  },
+  {
+    "engine": "chromium",
+    "route": "/Movies",
+    "status": 404,
+    "shot": "C:/Users/Ravikiran/Downloads/filmsclub/frontend-main/.tmp-ui-check/live-chromium-_Movies.png",
+    "audit": {
+      "title": "404: NOT_FOUND",
+      "bootShell": false,
+      "bodyBg": "rgb(255, 255, 255)",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 664,
+      "dock": null,
+      "imgs": 0,
+      "broken": [],
+      "overflowers": [],
+      "text": "This page doesn’t exist\n\nIt may have been moved, removed, or never existed.\n\n404 NOT_FOUND\n\nbom1::gz7qr-1794241779685-b5a0a2939afe\n\nVIEW DOCUMENTATION\nCOPY DEBUG PROMPT",
+      "sw": "none",
+      "fcp": 212,
+      "lcp": null,
+      "dcl": 183.60000000149012,
+      "load": 213.39999999850988,
+      "transfer": 0,
+      "resources": 0
+    },
+    "logs": [
+      "[error] Failed to load resource: the server responded with a status of 404 ()",
+      "[warning] Deprecated API for given entry type."
+    ]
+  },
+  {
+    "engine": "chromium",
+    "route": "/Series",
+    "status": 404,
+    "shot": "C:/Users/Ravikiran/Downloads/filmsclub/frontend-main/.tmp-ui-check/live-chromium-_Series.png",
+    "audit": {
+      "title": "404: NOT_FOUND",
+      "bootShell": false,
+      "bodyBg": "rgb(255, 255, 255)",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 664,
+      "dock": null,
+      "imgs": 0,
+      "broken": [],
+      "overflowers": [],
+      "text": "This page doesn’t exist\n\nIt may have been moved, removed, or never existed.\n\n404 NOT_FOUND\n\nbom1::bchms-1794241784887-cae67a0f44dd\n\nVIEW DOCUMENTATION\nCOPY DEBUG PROMPT",
+      "sw": "none",
+      "fcp": 208,
+      "lcp": null,
+      "dcl": 174.19999999925494,
+      "load": 207.39999999850988,
+      "transfer": 0,
+      "resources": 0
+    },
+    "logs": [
+      "[error] Failed to load resource: the server responded with a status of 404 ()",
+      "[warning] Deprecated API for given entry type."
+    ]
+  },
+  {
+    "engine": "chromium",
+    "route": "/mov/1368337",
+    "status": 404,
+    "shot": "C:/Users/Ravikiran/Downloads/filmsclub/frontend-main/.tmp-ui-check/live-chromium-_mov_1368337.png",
+    "audit": {
+      "title": "404: NOT_FOUND",
+      "bootShell": false,
+      "bodyBg": "rgb(255, 255, 255)",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 664,
+      "dock": null,
+      "imgs": 0,
+      "broken": [],
+      "overflowers": [],
+      "text": "This page doesn’t exist\n\nIt may have been moved, removed, or never existed.\n\n404 NOT_FOUND\n\nbom1::6xckc-1794241790066-666ebdc7c29b\n\nVIEW DOCUMENTATION\nCOPY DEBUG PROMPT",
+      "sw": "none",
+      "fcp": 236,
+      "lcp": null,
+      "dcl": 203.89999999850988,
+      "load": 235.59999999776483,
+      "transfer": 0,
+      "resources": 0
+    },
+    "logs": [
+      "[error] Failed to load resource: the server responded with a status of 404 ()",
+      "[warning] Deprecated API for given entry type."
+    ]
+  }
+]

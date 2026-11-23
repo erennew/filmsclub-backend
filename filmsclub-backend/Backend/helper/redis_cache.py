@@ -10,8 +10,10 @@ are not shared between instances.
 
 import json
 import hashlib
+import time
 from typing import Optional, Any, List
 from functools import wraps
+from urllib.parse import urlparse
 from Backend.logger import LOGGER
 
 # Try to import redis - graceful fallback if not installed
@@ -52,6 +54,16 @@ class RedisCache:
         self._client = None
         self._connected = False
         self._available = REDIS_AVAILABLE and CacheConfig.ENABLE_REDIS
+        self._next_retry = 0.0
+    
+    def _display_url(self) -> str:
+        """Render the connection target without credentials for logs."""
+        try:
+            parts = urlparse(self.redis_url)
+            port = f":{parts.port}" if parts.port else ""
+            return f"{parts.scheme}://{parts.hostname or '<hidden>'}{port}{parts.path or ''}"
+        except ValueError:
+            return "redis://<hidden>"
     
     async def connect(self) -> bool:
         """
@@ -66,24 +78,34 @@ class RedisCache:
         if self._connected:
             return True
         
+        # Back off briefly after a failure so a down Redis doesn't log on
+        # every request.
+        if time.monotonic() < self._next_retry:
+            return False
+        
         try:
-            # redis.asyncio.from_url() auto-detects SSL/TLS from rediss:// scheme
-            # For Upstash Redis, use: rediss://default:PASSWORD@host:port
-            self._client = await redis.from_url(
-                self.redis_url,
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-                health_check_interval=30
-            )
+            options = {
+                "decode_responses": True,
+                "socket_connect_timeout": 5,
+                "socket_timeout": 5,
+                "health_check_interval": 30,
+            }
+            if self.redis_url.startswith("rediss://"):
+                # Heroku Redis serves a self-signed certificate chain, which
+                # the system CA store cannot verify.
+                options["ssl_cert_reqs"] = "none"
+            self._client = redis.from_url(self.redis_url, **options)
             # Test connection
             await self._client.ping()
             self._connected = True
-            LOGGER.info(f"Redis connected to {self.redis_url}")
+            self._next_retry = 0.0
+            LOGGER.info(f"Redis connected to {self._display_url()}")
             return True
         except Exception as e:
             LOGGER.error(f"Redis connection failed: {e}")
+            self._client = None
             self._connected = False
+            self._next_retry = time.monotonic() + 30
             return False
     
     async def disconnect(self):

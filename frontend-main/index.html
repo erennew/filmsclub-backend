@@ -1,29 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Google Analytics tag (gtag.js) -->
-    <script
-      async
-      src="https://www.googletagmanager.com/gtag/js?id=G-JDFS7KRV40"
-    ></script>
-
-    <!-- Cloudflare Turnstile Widget -->
-    <script
-      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-      async
-      defer
-    ></script>
-
-    <!-- Google Analytics setup -->
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-
-      gtag("config", "G-JDFS7KRV40");
-    </script>
+    <!-- Analytics is handled by Vercel Insights (mounted in App.jsx). -->
 
     <!-- Google Site Verification -->
     <meta
@@ -32,12 +10,169 @@
     />
 
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Srilinks4k - Stream, Dream, Repeat.</title>
+    <meta name="referrer" content="no-referrer" />
+    <!-- PWA / App meta -->
+    <meta name="application-name" content="CloudXMovies" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CloudXMovies" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png" />
+    <!-- iOS launch screens (dark, gold-on-ink) -->
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1640x2360.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/splash/apple-splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+    <!-- Favicon -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08090B" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="color-scheme" content="dark" />
+    <title>CloudXMovies - Stream Movies, Series & Anime</title>
+    <!-- Premium Fonts -->
+    <!--
+      This stylesheet is cross-origin and was a plain render-blocking <link>, so
+      every cold launch painted nothing until Google Fonts responded. On a slow
+      mobile connection that is the difference between an instant splash and a
+      blank screen. It is now loaded asynchronously: `media="print"` makes it
+      non-blocking, and the onload handler flips it to `all` once it arrives.
+
+      `display=swap` is already in the URL, so text renders in the fallback face
+      immediately and swaps when the webfont lands — no invisible text. The
+      <noscript> copy covers the (rare) no-JS case, where blocking is harmless.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      />
+    </noscript>
+    <meta name="description" content="CloudXMovies — a late-night screening room for movies, series, anime and K-Dramas. No account, no noise, just the film." />
+    <!-- Static social/card metadata (crawlers that don't run JS still see this) -->
+    <link rel="canonical" href="https://cloudxmovies.vercel.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CloudXMovies" />
+    <meta property="og:title" content="CloudXMovies – Stream Movies, Series & Anime" />
+    <meta property="og:description" content="A late-night screening room for movies, series, anime and K-Dramas. No account, no noise, just the film." />
+    <meta property="og:url" content="https://cloudxmovies.vercel.app/" />
+    <meta property="og:image" content="https://cloudxmovies.vercel.app/icons/icon-512x512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Boot shell.
+
+      #root used to be an empty div. If the entry bundle failed to load or threw
+      during module init — a stale index.html pointing at a bundle hash a later
+      deploy deleted, a blocked/aborted chunk, a corrupt SW response — nothing
+      painted, and because the document canvas defaulted to white the user got a
+      completely blank white page with no way to recover (measured: 100% white,
+      mean luminance 255, zero children in #root).
+
+      This markup is static, inline-styled and dependency-free, so it renders
+      before any CSS or JS and survives both failing. React replaces it on mount
+      (main.jsx clears #root). The retry button only appears if the module never
+      executes, which the handler below detects.
+    -->
+    <div
+      id="root"
+      style="min-height: 100vh; background: #08090b; color: #f2ede3; font-family: system-ui, -apple-system, sans-serif"
+    >
+      <div
+        id="boot-shell"
+        style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 1.5rem; text-align: center"
+      >
+        <svg width="56" height="56" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="bootBrand" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#F0CA98" />
+              <stop offset="100%" stop-color="#D9A65C" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M5,9 C5,5.5 7.5,3 11,3.5 C12.5,2 15,1.5 17,3 C19.5,3 21,5 21,7.5 C23,8.5 24,10.5 23,13 C22,15.5 19.5,16 17,16 L9,16 C6.5,16 4,14 4,11.5 C4,10 4.5,9.2 5,9 Z"
+            fill="url(#bootBrand)"
+          />
+        </svg>
+        <noscript>
+          <p style="font-size: 0.9rem; color: #a8a49b; max-width: 22rem; line-height: 1.6">
+            CloudXMovies needs JavaScript to play films. Please enable it in your
+            browser settings and reload.
+          </p>
+        </noscript>
+        <div id="boot-error" style="display: none; max-width: 22rem">
+          <p style="font-size: 0.95rem; margin: 0 0 0.5rem">
+            The app didn&rsquo;t finish loading.
+          </p>
+          <p style="font-size: 0.8rem; color: #a8a49b; margin: 0 0 1.25rem; line-height: 1.6">
+            Usually a stale cached file. Reloading fixes it.
+          </p>
+          <button
+            type="button"
+            onclick="location.reload()"
+            style="background: #e9b872; color: #08090b; border: 0; border-radius: 3px; padding: 0.65rem 1.35rem; font-size: 0.85rem; font-weight: 600; cursor: pointer"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
+    </div>
+    <script>
+      /*
+       * Detect a failed entry-bundle load. `error` on a module script does not
+       * bubble as a normal event, so listen in the capture phase. A 4s timeout
+       * covers the case where the request hangs rather than errors.
+       *
+       * If React mounted, #root no longer contains #boot-shell and this is a
+       * no-op.
+       */
+      (function () {
+        var revealed = false;
+        function reveal() {
+          if (revealed) return;
+          var shell = document.getElementById("boot-shell");
+          if (!shell || !document.body.contains(shell)) return; // app booted
+          var box = document.getElementById("boot-error");
+          if (box) box.style.display = "block";
+          revealed = true;
+        }
+        window.addEventListener("error", function (e) {
+          var t = e && e.target;
+          if (t && t.tagName === "SCRIPT") reveal();
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var m = (e && e.reason && (e.reason.message || String(e.reason))) || "";
+          if (/Importing a module script failed|Failed to fetch dynamically imported module|error loading dynamically imported module/i.test(m)) reveal();
+        });
+        setTimeout(reveal, 4000);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Adestra tag -->
 <!--     <script type='text/javascript' src='//inactionaccompanyingstress.com/17/8a/18/178a185de04bfeb367b4ed9b28fd8814.js'></script> -->

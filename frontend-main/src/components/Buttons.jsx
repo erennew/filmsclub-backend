@@ -1,6 +1,5 @@
-import axios from "axios";
 import React, { useState, useEffect } from "react";
-import { BASE_URL as BASE, API_URL, API_KEY } from "../config";
+import { BASE_URL as BASE } from "../config";
 import { Select, SelectItem } from "@nextui-org/select";
 import { Popover, PopoverTrigger, PopoverContent } from "@nextui-org/popover";
 import { Button } from "@nextui-org/button";
@@ -18,11 +17,11 @@ const DownloadButton = ({ movieData, btnType }) => {
 
   useEffect(() => {
     if (selectedSeason) {
-      const season = movieData.seasons.find(
+      const season = (movieData.seasons || []).find(
         (s) => s.season_number === parseInt(selectedSeason)
       );
       if (season) {
-        setEpisodes(season.episodes);
+        setEpisodes(season.episodes || []);
         setSelectedEpisode("");
         setQualities([]);
       }
@@ -35,33 +34,11 @@ const DownloadButton = ({ movieData, btnType }) => {
         (e) => e.episode_number === parseInt(selectedEpisode)
       );
       if (episode) {
-        setQualities(episode.telegram);
+        setQualities(episode.sources);
         setSelectedQuality("");
       }
     }
   }, [selectedEpisode, episodes]);
-
-  const shortenUrl = async (url) => {
-  try {
-    // Flexible structure for various APIs
-    const response = await axios.get(API_URL, {
-    params: {
-      api: API_KEY,   // ✅ Correct key name
-      url: url,       // ✅ Correct param for URL
-      format: "json", // ✅ Optional but good to include for clarity
-    },
-  });
-
-    const data = response.data;
-
-    // Adjust this based on expected field in your API response
-    return data?.shortenedUrl || data?.short || data?.url || url;
-  } catch (error) {
-    console.error("Error shortening URL:", error);
-    return url;
-  }
-};
-
 
   const generateUrl = (id, name) => {
     const downloadUrl = `${BASE}/dl/${id}/${encodeURIComponent(name)}`;
@@ -70,12 +47,9 @@ const DownloadButton = ({ movieData, btnType }) => {
     return `intent:${downloadUrl}#Intent;type=video/x-matroska;action=android.intent.action.VIEW;end;`;
   };
 
-  const handleButtonClick = async (id, name, quality) => {
-    setLoading((prev) => ({ ...prev, [quality]: true }));
+  const handleButtonClick = (id, name, quality) => {
     const rawUrl = generateUrl(id, name);
-    const shortUrl = await shortenUrl(rawUrl);
-    setLoading((prev) => ({ ...prev, [quality]: false }));
-    window.open(shortUrl, "_blank", "noopener noreferrer");
+    window.open(rawUrl, "_blank", "noopener noreferrer");
   };
 
   const handleM3UDownload = (id, name) => {
@@ -84,7 +58,7 @@ const DownloadButton = ({ movieData, btnType }) => {
     const safeName = name.replace(/[^a-zA-Z0-9]/g, "_");
 
     if (isMobile) {
-      // Mobile: direct download
+      // Mobile: direct download intent
       const a = document.createElement("a");
       a.href = streamUrl;
       a.download = name;
@@ -94,20 +68,23 @@ const DownloadButton = ({ movieData, btnType }) => {
       return;
     }
 
-    // DESKTOP: Try VLC protocol first, then M3U fallback
-    try {
-      const vlcUrl = `vlc://${encodeURIComponent(streamUrl)}`;
-      window.location.href = vlcUrl;
+    // DESKTOP: Always generate M3U file (most reliable — works with VLC, MPC, mpv, etc.)
+    // The M3U playlist contains the raw streaming URL so VLC can parse it correctly.
+    generateAndDownloadM3U(streamUrl, safeName);
 
-      // Fallback: if browser still has focus after 1s, VLC is not installed → generate M3U
-      setTimeout(() => {
-        if (document.hasFocus()) {
-          generateAndDownloadM3U(streamUrl, safeName);
-        }
-      }, 1000);
-    } catch (error) {
-      console.error("VLC protocol failed:", error);
-      generateAndDownloadM3U(streamUrl, safeName);
+    // Also try the vlc:// protocol handler (opens VLC directly without file download).
+    // We pass the raw URL — NOT encoded again — so VLC can open the MRL correctly.
+    // This runs alongside the M3U download; one of the two will always work.
+    try {
+      const vlcDirectUrl = `vlc://${streamUrl}`;
+      const a = document.createElement("a");
+      a.href = vlcDirectUrl;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (_) {
+      // Silently ignore — M3U file already downloaded above
     }
   };
 
@@ -180,36 +157,72 @@ const DownloadButton = ({ movieData, btnType }) => {
     setLoading((prev) => ({ ...prev, [quality]: false }));
   };
 
+  // Sort qualities by number of languages (prefer more languages)
+  const sortQualitiesByLanguages = (qualities) => {
+    if (!qualities) return [];
+    return [...qualities].sort((a, b) => {
+      const aLanguages = a.languages?.length || 0;
+      const bLanguages = b.languages?.length || 0;
+      return bLanguages - aLanguages; // Descending order (more languages first)
+    });
+  };
+
+  // Format file size for display
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+  };
+
+  // Enhanced quality info component
+  const QualityInfo = ({ quality }) => {
+    const info = [];
+    if (quality.codec) info.push(quality.codec.toUpperCase());
+    if (quality.quality) info.push(quality.quality);
+    if (quality.audio) info.push(quality.audio);
+    if (quality.size) info.push(formatFileSize(quality.size));
+    return info.join(' • ');
+  };
+
   const renderMovieButtons = () =>
-    movieData.telegram?.map((q, i) => (
-      <Button
-        key={i}
-        onClick={() => handleButtonClick(q.id, q.name, q.quality)}
-        size="sm"
-        className="bg-primaryBtn rounded-full"
-        isLoading={loading[q.quality]}
-        spinner={<Spinner />}
-      >
-        {q.quality}
-      </Button>
+    sortQualitiesByLanguages(movieData.sources).map((q, i) => (
+      <div key={i} className="flex flex-col gap-1">
+        <Button
+          onClick={() => handleButtonClick(q.id, q.name, q.quality)}
+          size="sm"
+          className="bg-projector text-ink rounded-[3px] font-semibold"
+          isLoading={loading[q.quality]}
+          spinner={<Spinner />}
+        >
+          {q.quality}
+        </Button>
+        <div className="font-mono text-[10px] text-bone/50 text-center">
+          <QualityInfo quality={q} />
+        </div>
+      </div>
     ));
 
   const renderPCPlayerButtons = () =>
-    movieData.telegram?.map((q, i) => (
+    sortQualitiesByLanguages(movieData.sources).map((q, i) => (
       <div key={i} className="flex flex-col gap-1 items-center">
-        <span className="text-[10px] text-white/60">{q.quality}</span>
+        <span className="font-mono text-[10px] text-bone/60">{q.quality}</span>
+        <div className="font-mono text-[10px] text-bone/60 text-center max-w-[4rem]">
+          <QualityInfo quality={q} />
+        </div>
         <div className="flex gap-1">
           <Button
             onClick={() => handleM3UDownload(q.id, q.name)}
             size="sm"
-            className="bg-primaryBtn rounded-full min-w-[3.5rem]"
+            className="bg-projector text-ink rounded-[3px] font-semibold min-w-[3.5rem]"
           >
             M3U
           </Button>
           <Button
             onClick={() => handleMP4Download(q.id, q.name, q.quality)}
             size="sm"
-            className="bg-otherColor rounded-full min-w-[3.5rem]"
+            className="bg-bone/[0.06] text-bone border border-bone/15 rounded-[3px] min-w-[3.5rem]"
             isLoading={loading[q.quality]}
             spinner={<Spinner />}
           >
@@ -230,7 +243,7 @@ const DownloadButton = ({ movieData, btnType }) => {
         onChange={(e) => setSelectedSeason(e.target.value)}
         value={selectedSeason}
       >
-        {movieData.seasons
+        {(movieData.seasons || [])
           .sort((a, b) => a.season_number - b.season_number)
           .map((s) => (
             <SelectItem key={s.season_number} value={s.season_number}>
@@ -266,7 +279,7 @@ const DownloadButton = ({ movieData, btnType }) => {
         value={selectedQuality}
         disabled={!selectedEpisode}
       >
-        {qualities?.map((q) => (
+        {sortQualitiesByLanguages(qualities).map((q) => (
           <SelectItem key={q.quality} value={q.quality}>
             {q.quality}
           </SelectItem>
@@ -293,7 +306,7 @@ const DownloadButton = ({ movieData, btnType }) => {
               if (q) handleM3UDownload(q.id, q.name);
             }}
             size="sm"
-            className="bg-otherColor rounded-full"
+            className="bg-bone/[0.06] text-bone border border-bone/15 rounded-[3px]"
           >
             Get M3U
           </Button>
@@ -303,7 +316,7 @@ const DownloadButton = ({ movieData, btnType }) => {
               if (q) handleMP4Download(q.id, q.name, q.quality);
             }}
             size="sm"
-            className="bg-otherColor rounded-full"
+            className="bg-bone/[0.06] text-bone border border-bone/15 rounded-[3px]"
             isLoading={loading[selectedQuality]}
             spinner={<Spinner />}
           >
@@ -317,7 +330,7 @@ const DownloadButton = ({ movieData, btnType }) => {
   return (
     <Popover placement="bottom" showArrow={true}>
       <PopoverTrigger>
-        <button className="flex justify-center items-center gap-2 uppercase text-otherColor max-w-full grow text-xs rounded-full border-2 border-otherColor py-1 px-3 lg:text-sm sm:px-5 sm:max-w-[15rem] sm:py-2">
+        <button className="flex justify-center items-center gap-2 text-projector hover:text-[#F0CA98] max-w-full grow text-xs font-bold rounded-[3px] border border-projector/45 hover:border-projector/70 hover:bg-projector/[0.06] transition-colors py-2 px-3 min-h-[44px] lg:text-sm sm:px-5 sm:max-w-[15rem]">
           {btnType === "Download" ? (
             <>
               <FaCloudDownloadAlt className="text-lg" /> Download
@@ -333,9 +346,9 @@ const DownloadButton = ({ movieData, btnType }) => {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="bg-btnColor">
+      <PopoverContent className="bg-carbon border border-bone/10 rounded-[4px]">
         {movieData.media_type === "movie"
-          ? <div className="px-1 py-2 flex gap-1 flex-wrap">{btnType === "PC Player" ? renderPCPlayerButtons() : renderMovieButtons()}</div>
+          ? <div className="px-1 py-2 flex gap-2 flex-wrap">{btnType === "PC Player" ? renderPCPlayerButtons() : renderMovieButtons()}</div>
           : renderShowSelectors()}
       </PopoverContent>
     </Popover>

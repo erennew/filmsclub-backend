@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FilmsClub Admin</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070707;--card:#111;--card2:#171717;--line:#282828;--txt:#f5f5f5;--muted:#a2a2a2;--accent:#a873ff;--accent2:#66d9ff;--danger:#ff4d5e;--good:#3ddc97;--warn:#ffd166;--radius:16px;font-family:ui-rounded,"SF Pro Rounded","Segoe UI",Roboto,Arial,sans-serif}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 12% 0,rgba(168,115,255,.25),transparent 32%),radial-gradient(circle at 95% 10%,rgba(102,217,255,.12),transparent 28%),var(--bg);color:var(--txt);font-family:ui-rounded,"SF Pro Rounded","Segoe UI",Roboto,Arial,sans-serif}button,input,textarea,select{font:inherit}.app{max-width:440px;margin:0 auto;min-height:100vh;padding:16px 14px 110px}.top{position:sticky;top:0;z-index:20;margin:-16px -14px 14px;padding:14px;background:rgba(7,7,7,.86);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.07)}.row{display:flex;align-items:center;gap:10px}.brand{font-size:22px;font-weight:950;letter-spacing:.4px}.spacer{flex:1}.icon,.btn,.chip{border:1px solid var(--line);background:rgba(255,255,255,.055);color:var(--txt);min-height:42px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 13px;font-weight:850;text-decoration:none}.icon{width:44px;padding:0;font-size:21px}.btn{cursor:pointer}.btn.primary{background:#fff;color:#111;border-color:#fff}.btn.purple{border:0;background:linear-gradient(135deg,#7a4dff,#03bdf2)}.btn.danger{background:rgba(255,77,94,.13);border-color:rgba(255,77,94,.45);color:#ffd2d7}.chip{min-height:32px;border-radius:12px;font-size:13px;white-space:nowrap}.chip.good{color:#bfffe3;border-color:rgba(61,220,151,.4)}.chip.warn{color:#ffe6a6;border-color:rgba(255,209,102,.4)}.chip.danger{color:#ffc3ca;border-color:rgba(255,77,94,.45)}.search{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px}.field,label{display:block}label{margin:12px 0 7px;color:#ddd;font-size:13px;font-weight:850}input,textarea,select{width:100%;min-height:48px;border:1px solid var(--line);background:#080808;border-radius:12px;padding:12px;color:var(--txt);font-size:15px}input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:10px 0}.section-title{display:flex;align-items:center;gap:8px;margin:0 0 12px}.section-title h3{margin:0;font-size:16px;font-weight:850}.section-title span{color:var(--muted);font-size:13px}.list-card{display:flex;gap:12px;padding:12px;border:1px solid var(--line);background:#080808;border-radius:12px;margin:8px 0;cursor:pointer;transition:border-color .2s}.list-card:hover{border-color:var(--accent)}.list-poster{width:60px;height:90px;background-size:cover;background-position:center;border-radius:8px;background-color:#1a1a1a}.itxt{flex:1;min-width:0}.itxt b{display:block;font-size:15px;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.itxt small{display:block;color:var(--muted);font-size:12px;line-height:1.3}.hidden{display:none}.tabs{display:flex;gap:8px;margin:16px 0;overflow-x:auto;padding-bottom:4px}.tab{flex:0 0 auto;padding:8px 16px;border:1px solid var(--line);background:#080808;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}.page{display:none}.page.active{display:block}.btns{display:flex;gap:8px;margin-top:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hero{padding:0;overflow:hidden}.backdrop{min-height:200px;background-size:cover;background-position:center;position:relative}.hero-inner{display:flex;gap:16px;padding:16px;background:linear-gradient(transparent,rgba(7,7,7,.9))}.poster{width:80px;height:120px;background-size:cover;background-position:center;border-radius:10px;background-color:#1a1a1a;flex-shrink:0}.item{display:flex;gap:12px;padding:10px;border:1px solid var(--line);background:#080808;border-radius:10px;margin:6px 0}.thumb{width:36px;height:36px;background:#1a1a1a;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}.tiny{width:32px;min-height:32px;padding:0;font-size:14px}.empty{color:var(--muted);text-align:center;padding:20px;font-size:14px}.muted{color:var(--muted)}.dangerbox{border:1px solid rgba(255,77,94,.35);background:rgba(255,77,94,.08);border-radius:12px;padding:16px}.dangerbox h3{margin:0 0 8px;color:#ffd2d7}.dangerbox p{margin:0 0 12px;color:#ffc3ca;font-size:13px;line-height:1.4}.dangertext{color:#ffd2d7}.kbd{background:#1a1a1a;padding:8px 12px;border-radius:8px;font-family:monospace;font-size:12px;margin:8px 0;word-break:break-all}.delete-note{border:1px solid rgba(255,209,102,.35);background:rgba(255,209,102,.08);border-radius:12px;padding:10px;color:#ffe7ac;font-size:13px;line-height:1.4;margin:10px 0}.bottom{position:fixed;bottom:0;left:0;right:0;padding:12px 14px;background:rgba(7,7,7,.95);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.07);display:flex;gap:8px;z-index:30}.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:12px 24px;border-radius:20px;font-weight:700;font-size:14px;z-index:100;opacity:0;transition:opacity .3s;pointer-events:none}.toast.show{opacity:1}.modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.sheet{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:20px;max-width:400px;width:100%;max-height:80vh;overflow-y:auto}.backbtn{min-width:78px}
+    .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.wrap{flex-wrap:wrap}
+    .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.filters input,.filters select{min-height:40px;font-size:13px;padding:8px}.filters-actions{grid-column:1/-1;display:flex;gap:8px}
+    .pick{width:20px;height:20px;min-height:0;flex:0 0 auto;margin-top:24px;accent-color:var(--accent)}
+    .linkrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center}
+    .linkchip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#101010;color:var(--accent2);font-size:11px;text-decoration:none;font-weight:800}
+    .linkchip.off{opacity:.35;pointer-events:none}
+    .bulkbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px;border:1px solid rgba(168,115,255,.45);background:rgba(168,115,255,.1);border-radius:12px;margin:8px 0;font-size:12px;font-weight:800}
+    .bulkbar .btn{min-height:34px;font-size:12px;padding:0 10px}
+    .pager{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--muted);font-size:13px}
+    .chart{display:flex;align-items:flex-end;gap:4px;height:96px;padding:10px;border:1px solid var(--line);background:#080808;border-radius:12px;margin-top:10px}
+    .bar{flex:1;background:linear-gradient(180deg,#a873ff,#66d9ff);border-radius:4px 4px 0 0;min-height:2px}
+    .chartlabels{display:flex;gap:4px;margin-top:4px;color:var(--muted);font-size:10px}.chartlabels span{flex:1;text-align:center}
+    .season{border:1px solid var(--line);border-radius:12px;margin:8px 0;overflow:hidden;background:#080808}
+    .season-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#0d0d0d;font-weight:850;font-size:13px}
+    .eprow{display:flex;gap:10px;align-items:center;padding:8px 12px;border-top:1px solid var(--line);font-size:13px}.eprow .itxt small{font-size:11px}
+    .actionrow{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.actionrow .btn{min-height:38px;font-size:13px}
+    .notice{font-size:12px;color:var(--muted);line-height:1.5}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="row">
+        <button class="icon backbtn" onclick="goBack()" title="Back">←</button>
+        <div class="brand">FILMSCLUB</div><span class="chip good">Admin Panel</span><div class="spacer"></div>
+        <button class="icon" onclick="reloadCurrent()" title="Reload">↻</button>
+        <button class="icon" onclick="toggleSecret()" title="Login">⚙</button>
+      </div>
+      <div id="secretBox" class="card" style="margin:12px 0 0;padding:12px">
+        <label style="margin-top:0">Admin username</label>
+        <input id="adminUser" type="text" placeholder="ADMIN_WEB_USERNAME" autocomplete="username" />
+        <label>Admin password</label>
+        <input id="adminPass" type="password" placeholder="ADMIN_WEB_PASSWORD" autocomplete="current-password" />
+        <div class="btns"><button class="btn primary" onclick="login()">Login</button><button class="btn" onclick="logout()">Logout</button></div>
+        <p class="muted" style="margin:8px 0 0;font-size:12px">Use the ADMIN_WEB_USERNAME and ADMIN_WEB_PASSWORD configured on the server. The password is never stored in this browser.</p>
+      </div>
+      <div class="search">
+        <input id="q" placeholder="Search movie / series / TMDb id" onkeydown="if(event.key==='Enter') { state.page=1; loadList(); }" />
+        <button class="btn primary" onclick="state.page=1; loadList()">Search</button>
+      </div>
+      <div class="chips" style="margin-top:10px">
+        <button id="movieBtn" class="chip good" onclick="setType('movie')">Movies</button>
+        <button id="tvBtn" class="chip" onclick="setType('tv')">Series</button>
+        <button id="animeBtn" class="chip" onclick="setType('anime')">Anime</button>
+        <button class="chip" onclick="openDirect()">Open by ID</button>
+        <button class="chip" onclick="toggleTools()">Tools</button>
+      </div>
+    </header>
+
+    <section id="listView" class="card">
+      <div class="section-title"><h3>Saved media</h3><span id="listCount">—</span></div>
+      <div class="filters">
+        <select id="sortSel" title="Sort">
+          <option value="updated_on:desc">Recently updated</option>
+          <option value="title:asc">Title A → Z</option>
+          <option value="title:desc">Title Z → A</option>
+          <option value="rating:desc">Rating high → low</option>
+          <option value="release_year:desc">Year new → old</option>
+          <option value="release_year:asc">Year old → new</option>
+          <option value="files:desc">Most files</option>
+          <option value="subtitles:desc">Most subtitles</option>
+          <option value="episodes:desc">Most episodes</option>
+        </select>
+        <select id="flagSel" title="Filter">
+          <option value="">All titles</option>
+          <option value="no_files">No video files</option>
+          <option value="has_files">Has video files</option>
+          <option value="no_subs">No subtitles</option>
+          <option value="has_subs">Has subtitles</option>
+          <option value="no_poster">Missing poster</option>
+          <option value="no_backdrop">Missing backdrop</option>
+          <option value="no_description">Missing description</option>
+          <option value="no_genres">Missing genres</option>
+          <option value="no_cast">Missing cast</option>
+        </select>
+        <input id="langFilter" placeholder="Language (Tamil)" />
+        <input id="genreFilter" placeholder="Genre (Action)" />
+        <div class="filters-actions">
+          <button class="btn purple" onclick="applyFilters()">Apply filters</button>
+          <button class="btn" onclick="resetFilters()">Reset</button>
+        </div>
+      </div>
+      <div id="bulkBar" class="bulkbar hidden">
+        <span id="bulkCount">0 selected</span>
+        <button class="btn" onclick="bulkEdit()">✏ Language / genre</button>
+        <button class="btn" onclick="bulkRefresh()">♻ Refresh TMDB</button>
+        <button class="btn danger" onclick="bulkDelete(false)">🗑 DB only</button>
+        <button class="btn danger" onclick="bulkDelete(true)">🗑 Telegram + DB</button>
+        <button class="btn" onclick="clearSelection()">✕ Clear</button>
+      </div>
+      <div id="list"></div>
+      <div class="pager">
+        <button class="btn" onclick="setListPage(state.page-1)">← Prev</button>
+        <span id="pageInfo">—</span>
+        <button class="btn" onclick="setListPage(state.page+1)">Next →</button>
+      </div>
+    </section>
+
+    <section id="toolsView" class="card hidden">
+      <div class="section-title"><h3>Ingestion tools</h3><span>queue & storage</span></div>
+      <div class="btns">
+        <button class="btn" onclick="showQueue()">🎛 Queue desk</button>
+        <button class="btn" onclick="showFailed()">🧯 Failed files</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showCache()">🧠 Cache</button>
+        <button class="btn" onclick="showHealth()">🩺 Health</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showLibraryHealth()">🩹 Library health</button>
+        <button class="btn" onclick="showViews()">📈 Views</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showStorage()">💾 Storage report</button>
+        <button class="btn" onclick="mergeDupes(false)">🧹 Scan duplicates</button>
+      </div>
+      <div class="btns">
+        <button class="btn" onclick="showRescan()">📡 Rescan channel</button>
+        <button class="btn" onclick="showDefaultId()">🆔 Default ID</button>
+      </div>
+      <div class="btns">
+        <button class="btn purple" onclick="showManualAdd()">➕ Manual add</button>
+      </div>
+      <label>Telegram post links (one per line)</label>
+      <textarea id="bulkLinks" placeholder="https://t.me/your_channel/12345" style="min-height:110px"></textarea>
+      <div class="btns">
+        <button class="btn" onclick="bulkLinks(true)">Preview</button>
+        <button class="btn purple" onclick="bulkLinks(false)">Add to queue</button>
+      </div>
+      <div id="bulkResult" class="muted" style="font-size:13px;line-height:1.5"></div>
+    </section>
+
+    <section id="editView" class="hidden">
+      <button class="btn" onclick="backToList()">← Back</button>
+      <section class="card hero">
+        <div id="heroBackdrop" class="backdrop">
+          <div class="hero-inner">
+            <div id="heroPoster" class="poster"></div>
+            <div style="min-width:0;flex:1">
+              <h1 id="heroTitle">Select media</h1>
+              <p id="heroDesc">Search and open one item to edit.</p>
+              <div class="chips" id="heroChips"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="actionrow">
+        <a id="heroSite" class="btn" target="_blank" rel="noopener">🌐 Open in site</a>
+        <a id="heroTg" class="btn" target="_blank" rel="noopener">✈️ Telegram</a>
+        <button class="btn" onclick="refreshTmdb(false)">♻ Refresh TMDB</button>
+        <button class="btn" onclick="refreshTmdb(true)">↻ Overwrite TMDB</button>
+      </div>
+
+      <section class="card">
+        <div class="tabs">
+          <button class="tab active" data-page="details">✏ Details</button>
+          <button class="tab" data-page="files">🎞 Files</button>
+          <button class="tab" data-page="subs">💬 Subs</button>
+          <button class="tab hidden" id="episodesTab" data-page="episodes">📺 Episodes</button>
+          <button class="tab" data-page="images">🖼 Images</button>
+          <button class="tab" data-page="cast">👥 Cast</button>
+          <button class="tab" data-page="danger">🗑 Delete</button>
+        </div>
+
+        <div id="details" class="page active">
+          <label>Title</label><input id="fTitle" />
+          <div class="grid2"><div><label>Year</label><input id="fYear" type="number" /></div><div><label>Rating</label><input id="fRating" /></div></div>
+          <div class="grid2"><div><label>Runtime / seasons</label><input id="fRuntime" /></div><div><label>Rip</label><input id="fRip" /></div></div>
+          <label>Languages</label><input id="fLanguages" placeholder="ta, hi, en" />
+          <label>Genres</label><input id="fGenres" placeholder="Action, Comedy" />
+          <label>Description</label><textarea id="fDescription"></textarea>
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save details</button><button class="btn" onclick="reloadCurrent()">Reload</button></div>
+        </div>
+
+        <div id="files" class="page">
+          <div class="section-title"><h3>Video files</h3><span id="fileCount">0</span></div>
+          <div id="fileList"></div>
+          <p class="empty">Video upload still goes through Telegram bot. When deleting, choose DB only or delete the Telegram message too.</p>
+        </div>
+
+        <div id="subs" class="page">
+          <div class="section-title"><h3>Subtitle files</h3><span id="subCount">0</span></div>
+          <div id="subList"></div>
+          <div class="card" style="padding:12px">
+            <h3 style="margin:0 0 8px">Attach subtitle manually</h3>
+            <label>Target file</label><select id="newSubTarget"></select>
+            <label>Encoded subtitle id</label><input id="newSubId" placeholder="Telegram encoded file id" />
+            <label>Subtitle name</label><input id="newSubName" placeholder="movie_tamil.srt" />
+            <div class="grid2"><div><label>Language</label><input id="newSubLang" value="Tamil" /></div><div><label>Format</label><input id="newSubFmt" value="srt" /></div></div>
+            <p class="notice">For series, “All qualities” attaches the subtitle to every episode file (all seasons).</p>
+            <div class="btns"><button class="btn purple" onclick="addSub()">Add subtitle</button></div>
+          </div>
+        </div>
+
+        <div id="episodes" class="page">
+          <div class="section-title"><h3>Seasons & episodes</h3><span id="seasonCount">—</span></div>
+          <div id="seasonList"></div>
+          <div class="card" style="padding:12px">
+            <h3 style="margin:0 0 8px">Add episode</h3>
+            <div class="grid2"><div><label>Season</label><input id="epSeasonNum" type="number" value="1" /></div><div><label>Episode</label><input id="epNum" type="number" value="1" /></div></div>
+            <label>Title</label><input id="epTitle" placeholder="Episode title" />
+            <label>Backdrop URL</label><input id="epBackdrop" placeholder="https://image.tmdb.org/…" />
+            <div class="btns"><button class="btn purple" onclick="addEpisode()">Add episode</button></div>
+          </div>
+          <div class="card" style="padding:12px">
+            <h3 style="margin:0 0 8px">Attach subtitle to episodes</h3>
+            <label>Season</label><select id="epSubSeason"><option value="all">All seasons</option></select>
+            <label>Encoded subtitle id</label><input id="epSubId" placeholder="Telegram encoded file id" />
+            <label>Subtitle name</label><input id="epSubName" placeholder="episode_tamil.srt" />
+            <div class="grid2"><div><label>Language</label><input id="epSubLang" value="Tamil" /></div><div><label>Format</label><input id="epSubFmt" value="srt" /></div></div>
+            <div class="btns"><button class="btn purple" onclick="attachEpisodeSub()">Attach to episode files</button></div>
+          </div>
+        </div>
+
+        <div id="images" class="page">
+          <label>Poster URL</label><input id="fPoster" />
+          <label>Backdrop URL</label><input id="fBackdrop" />
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save images</button><button class="btn" onclick="applyImagePreview()">Preview images</button></div>
+        </div>
+
+        <div id="cast" class="page">
+          <p class="muted">One cast member per line: <b>Name | Role | Image URL | TMDB ID</b></p>
+          <textarea id="fCast" style="min-height:180px"></textarea>
+          <div class="btns"><button class="btn purple" onclick="saveDetails()">Save cast</button></div>
+        </div>
+
+        <div id="danger" class="page">
+          <div class="dangerbox">
+            <h3>Danger zone</h3>
+            <p>Delete the full movie/series. Choose DB only to keep Telegram files, or Telegram + DB to remove saved Telegram video/subtitle messages too.</p>
+            <label>Type DELETE to confirm</label><input id="deleteConfirm" placeholder="DELETE" />
+            <div class="btns"><button class="btn danger" onclick="deleteMedia(false)">DB only</button><button class="btn danger" onclick="deleteMedia(true)">Telegram + DB</button></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="bottom"><button class="btn" onclick="showList()">List</button><button class="btn" onclick="toggleTools()">Tools</button><button class="btn primary" onclick="saveDetails()">Save</button></div>
+  <div id="toast" class="toast">Saved</div>
+
+  <div id="modal" class="modal" onclick="if(event.target.id==='modal') closeModal()"><div class="sheet"><div id="modalBody"></div></div></div>
+
+<script>
+const WEBSITE_URL = {{ website_url|tojson }} || location.origin;
+const qs = new URLSearchParams(location.search);
+let state = {
+  type: qs.get('type') || qs.get('media_type') || 'movie',
+  page: 1, current: null, items: [], total: 0, pages: 1,
+  sort: 'updated_on:desc', flag: '', language: '', genre: '',
+  selected: new Map(), viewDays: 7
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(window.__t); window.__t=setTimeout(()=>t.classList.remove('show'),2200); }
+function loginStoreGet(key){ return localStorage.getItem(key) || ''; }
+let authed = false;
+function setAuthed(value){ authed = value; $('secretBox').classList.toggle('hidden', value); }
+async function api(path, opts={}){
+  const headers = {...(opts.headers||{})};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type']='application/json';
+  const r = await fetch(path, {credentials:'same-origin', ...opts, headers});
+  let data; try{data=await r.json()}catch(e){data={detail:await r.text()}}
+  if(r.status===401){ setAuthed(false); throw new Error('Please log in'); }
+  if(!r.ok) throw new Error(data.detail || 'Request failed');
+  return data;
+}
+async function login(){
+  const u=$('adminUser').value.trim(), p=$('adminPass').value;
+  if(!u || !p) return toast('Enter username and password');
+  try{
+    const r=await fetch('/admin/api/login',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(data.detail || 'Login failed');
+    localStorage.setItem('filmsclub_admin_username', u);
+    $('adminPass').value='';
+    setAuthed(true);
+    toast('Logged in');
+    await loadFromQueryOrList();
+  }catch(e){ toast(e.message); }
+}
+async function logout(){
+  try{ await fetch('/admin/api/logout',{method:'POST',credentials:'same-origin'}); }catch(e){}
+  localStorage.removeItem('filmsclub_admin_username');
+  $('adminPass').value='';
+  setAuthed(false);
+  toast('Logged out');
+}
+async function checkSession(){
+  try{
+    const r=await fetch('/admin/api/session',{credentials:'same-origin'});
+    const data=await r.json();
+    return !!data.authenticated;
+  }catch(e){ return false; }
+}
+function toggleSecret(){ $('secretBox').classList.toggle('hidden'); }
+function toggleTools(){ $('toolsView').classList.toggle('hidden'); }
+function setType(t){
+  state.type=t; state.page=1; state.selected.clear(); updateBulkBar();
+  $('movieBtn').className='chip '+(t==='movie'?'good':'');
+  $('tvBtn').className='chip '+(t==='tv'?'good':'');
+  $('animeBtn').className='chip '+(t==='anime'?'good':'');
+  loadList();
+}
+function setPage(id){ document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.page===id)); document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id)); }
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>setPage(t.dataset.page));
+function backToList(){ $('editView').classList.add('hidden'); $('listView').classList.remove('hidden'); }
+function showList(){ state.current=null; backToList(); history.replaceState(null,'','/admin?type='+encodeURIComponent(state.type)); loadList(); }
+function goBack(){
+  if(!$('editView').classList.contains('hidden')){ state.current=null; backToList(); history.replaceState(null,'','/admin?type='+encodeURIComponent(state.type)); return; }
+  if(history.length>1){ history.back(); } else { location.href='/'; }
+}
+function showEdit(){ $('listView').classList.add('hidden'); $('editView').classList.remove('hidden'); scrollTo({top:0,behavior:'smooth'}); }
+
+/* ── List, filters, multi-select ─────────────────────────────────────────── */
+function itemKey(item){ return `${item.type}:${item.collection||item.type}:${item.tmdb_id}`; }
+async function loadList(){
+  try{
+    const params = new URLSearchParams({
+      media_type: state.type,
+      query: $('q').value.trim(),
+      page: String(state.page),
+      page_size: '30',
+      sort: state.sort,
+      language: state.language,
+      genre: state.genre,
+      flag: state.flag
+    });
+    const data = await api('/admin/api/media?' + params.toString());
+    state.items = data.items || [];
+    state.total = data.total_count || 0;
+    state.pages = Math.max(1, Math.ceil(state.total / 30));
+    if(!state.items.length && state.page > 1 && state.total > 0){ state.page--; return loadList(); }
+    $('listCount').textContent = `${state.total} items`;
+    $('pageInfo').textContent = `Page ${state.page} / ${state.pages}`;
+    const rows = state.items.map(item => {
+      const key = itemKey(item);
+      const picked = state.selected.has(key);
+      const sitePath = item.collection === 'tv' ? 'ser' : 'mov';
+      const siteUrl = `${WEBSITE_URL}/${sitePath}/${item.tmdb_id}`;
+      return `<div class="list-card" onclick="openMedia('${item.type}','${item.db_index}','${item.tmdb_id}')">
+        <input type="checkbox" class="pick" ${picked?'checked':''} onclick="event.stopPropagation();togglePick('${key}')" title="Select">
+        <div class="list-poster" style="background-image:url('${esc(item.poster||item.backdrop||'')}')"></div>
+        <div class="itxt"><b>${esc(item.title)}</b>
+          <small>${esc(item.release_year||'')} • ${esc((item.languages||[]).join(' / '))} • ${item.file_count||0} files • ${item.subtitle_count||0} subs${item.collection==='tv'?` • ${item.episode_count||0} eps`:''}</small>
+          <div class="linkrow">
+            <a class="linkchip" href="${siteUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Site ↗</a>
+            ${item.telegram_link
+              ? `<a class="linkchip" href="${esc(item.telegram_link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Telegram ↗</a>`
+              : `<span class="linkchip off">Telegram —</span>`}
+            ${item.is_anime?'<span class="chip warn">anime</span>':''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    $('list').innerHTML = rows || `<div class="empty">No results</div>`;
+    updateBulkBar();
+  } catch(e){ toast(e.message); }
+}
+function setListPage(p){
+  if(p < 1 || p > state.pages) return;
+  state.page = p; loadList();
+}
+function applyFilters(){
+  state.sort = $('sortSel').value;
+  state.flag = $('flagSel').value;
+  state.language = $('langFilter').value.trim();
+  state.genre = $('genreFilter').value.trim();
+  state.page = 1;
+  state.selected.clear();
+  loadList();
+}
+function resetFilters(){
+  $('sortSel').value='updated_on:desc'; $('flagSel').value=''; $('langFilter').value=''; $('genreFilter').value='';
+  applyFilters();
+}
+function togglePick(key){
+  if(state.selected.has(key)) state.selected.delete(key);
+  else { const item = state.items.find(i => itemKey(i) === key); if(item) state.selected.set(key, item); }
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const n = state.selected.size;
+  $('bulkCount').textContent = `${n} selected`;
+  $('bulkBar').classList.toggle('hidden', n === 0);
+}
+function clearSelection(){
+  state.selected.clear();
+  document.querySelectorAll('.pick').forEach(box => box.checked = false);
+  updateBulkBar();
+}
+function selectedItems(){
+  return [...state.selected.values()].map(i => ({
+    type: i.type, db_index: i.db_index, tmdb_id: i.tmdb_id, title: i.title
+  }));
+}
+async function bulkRequest(body){
+  const items = selectedItems();
+  if(!items.length) return toast('Select at least one title');
+  const d = await api('/admin/api/media/bulk', {method:'POST', body:JSON.stringify({...body, items})});
+  toast(`${d.succeeded}/${d.attempted} done${d.failed ? ` • ${d.failed} failed` : ''}`);
+  if(d.errors && d.errors.length) console.warn('Bulk errors', d.errors);
+  clearSelection();
+  closeModal();
+  await loadList();
+  return d;
+}
+function bulkEdit(){
+  if(!state.selected.size) return toast('Select at least one title');
+  openModal(`<h3>Edit ${state.selected.size} titles</h3>
+    <p class="notice">Blank fields are left unchanged.</p>
+    <label>Languages</label><input id="bLang" placeholder="Tamil, Hindi">
+    <label>Genres</label><input id="bGenre" placeholder="Action, Drama">
+    <label>Rip</label><input id="bRip" placeholder="WEB-DL">
+    <div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="bulkUpdate()">Apply to ${state.selected.size}</button></div>`);
+}
+async function bulkUpdate(){
+  const fields = {};
+  if($('bLang').value.trim()) fields.languages = $('bLang').value.trim();
+  if($('bGenre').value.trim()) fields.genres = $('bGenre').value.trim();
+  if($('bRip').value.trim()) fields.rip = $('bRip').value.trim();
+  if(!Object.keys(fields).length) return toast('Enter at least one field');
+  try{ await bulkRequest({action:'update', fields}); }catch(e){toast(e.message)}
+}
+async function bulkRefresh(){
+  const n = state.selected.size;
+  if(!n) return toast('Select at least one title');
+  if(n > 25) return toast('Select 25 or fewer titles for TMDB refresh');
+  if(!confirm(`Refresh TMDB metadata for ${n} title(s)? Existing values are kept unless missing.`)) return;
+  try{ toast('Refreshing from TMDB…'); await bulkRequest({action:'refresh', overwrite:false}); }catch(e){toast(e.message)}
+}
+async function bulkDelete(telegramToo){
+  const n = state.selected.size;
+  if(!n) return toast('Select at least one title');
+  if(!confirm(`Delete ${n} title(s) from the database${telegramToo ? ' AND their Telegram video files' : ' (Telegram files are kept)'}?`)) return;
+  try{ await bulkRequest({action: telegramToo ? 'delete_telegram' : 'delete'}); }catch(e){toast(e.message)}
+}
+
+/* ── Editor ─────────────────────────────────────────────────────────────── */
+async function openMedia(type, dbIndex, tmdbId){
+  try{
+    state.type=type;
+    state.current = await api(`/admin/api/media/${type}/${dbIndex}/${tmdbId}`);
+    fillForm(); showEdit();
+    history.replaceState(null,'',`/admin?type=${type}&db_index=${dbIndex}&tmdb_id=${tmdbId}`);
+  }catch(e){toast(e.message)}
+}
+function currentKey(){ const m=state.current; if(!m) throw new Error('No media selected'); return {type:m.type||state.type,db:m.db_index,tmdb:m.tmdb_id}; }
+function allQualities(){
+  const m=state.current; if(!m) return [];
+  if((m.type||state.type)==='movie') return m.telegram||[];
+  let out=[];
+  (m.seasons||[]).forEach(s=>(s.episodes||[]).forEach(ep=>(ep.telegram||[]).forEach(q=>out.push({...q,_season:s.season_number,_episode:ep.episode_number,_episodeTitle:ep.title}))));
+  return out;
+}
+function fillForm(){
+  const m=state.current, type=m.type||state.type;
+  $('heroTitle').textContent=m.title||'Untitled'; $('heroDesc').textContent=m.description||'';
+  $('heroBackdrop').style.backgroundImage=`url('${m.backdrop||m.poster||''}')`;
+  $('heroPoster').style.backgroundImage=`url('${m.poster||m.backdrop||''}')`;
+  const qualities=allQualities();
+  const subs=qualities.reduce((n,q)=>n+((q.subtitle_tracks||[]).length),0);
+  const eps=(m.seasons||[]).reduce((n,s)=>n+((s.episodes||[]).length),0);
+  $('heroChips').innerHTML = `<span class="chip good">${esc(type)}</span><span class="chip">${qualities.length} files</span><span class="chip">${subs} subs</span>${type==='tv'?`<span class="chip">${eps} eps</span>`:''}<span class="chip">DB ${esc(m.db_index)}</span><span class="chip">TMDb ${esc(m.tmdb_id)}</span>`;
+  $('heroSite').href = `${WEBSITE_URL}/${type==='tv'?'ser':'mov'}/${m.tmdb_id}`;
+  const tg=$('heroTg');
+  if(m.telegram_link){ tg.href=m.telegram_link; tg.classList.remove('hidden'); }
+  else { tg.removeAttribute('href'); tg.classList.add('hidden'); }
+  $('episodesTab').classList.toggle('hidden', type!=='tv');
+  if(type!=='tv' && $('episodes').classList.contains('active')) setPage('details');
+  $('fTitle').value=m.title||''; $('fYear').value=m.release_year||''; $('fRating').value=m.rating||'';
+  $('fRuntime').value= type==='movie' ? (m.runtime||'') : `${m.total_seasons||0} seasons / ${m.total_episodes||0} eps`;
+  $('fRip').value=m.rip||'';
+  $('fLanguages').value=(m.languages||[]).join(', '); $('fGenres').value=(m.genres||[]).join(', ');
+  $('fDescription').value=m.description||''; $('fPoster').value=m.poster||''; $('fBackdrop').value=m.backdrop||'';
+  $('fCast').value=(m.cast||[]).map(c=>[c.name,c.character||c.role,c.profile_path||c.profile||c.image,c.id].filter(v=>v!==undefined&&v!==null).join(' | ')).join('\n');
+  renderFiles(); renderSubs();
+  if(type==='tv') renderEpisodes(); else { $('seasonList').innerHTML=''; $('seasonCount').textContent='—'; }
+  applyImagePreview();
+}
+const slim = q => JSON.stringify(Object.fromEntries(Object.entries(q).filter(([k]) => k !== 'subtitle_tracks'))).replace(/'/g,"&#39;");
+function renderFiles(){
+  const qs=allQualities(); $('fileCount').textContent=`${qs.length} files`;
+  $('fileList').innerHTML = qs.map(q=>`
+    <div class="item">
+      <div class="thumb">🎞</div><div class="itxt"><b>${esc(q.name)}</b><small>${esc(q.quality)} • ${esc(q.size)} ${q.abyss?'• Abyss':''}${q._season?` • S${q._season}E${q._episode}`:''}</small></div>
+      <button class="tiny" onclick='editFile(${slim(q)})'>✎</button><button class="tiny danger" onclick='confirmDeleteFile(${slim(q)})'>⌫</button>
+    </div>`).join('') || `<div class="empty">No video files</div>`;
+  $('newSubTarget').innerHTML = `<option value="all">All qualities</option>` + qs.map(q=>`<option value="${esc(q.id)}">${esc(q.quality)} • ${esc(q.name).slice(0,42)}</option>`).join('');
+}
+function renderSubs(){
+  const qs=allQualities(); let rows=[];
+  qs.forEach(q=>(q.subtitle_tracks||[]).forEach(s=>rows.push({q,s})));
+  $('subCount').textContent=`${rows.length} subs`;
+  $('subList').innerHTML = rows.map(({q,s})=>`
+    <div class="item"><div class="thumb">💬</div><div class="itxt"><b>${esc(s.name)}</b><small>${esc(s.language||'Unknown')} • ${esc((s.format||'srt').toUpperCase())} • ${esc(q.quality)}${q._season?` • S${q._season}E${q._episode}`:''}</small></div>
+      <button class="tiny" onclick='editSub(${slim(q)},${JSON.stringify(s).replace(/'/g,"&#39;")})'>✎</button><button class="tiny danger" onclick='confirmDeleteSub(${slim(q)},${JSON.stringify(s).replace(/'/g,"&#39;")})'>⌫</button></div>`).join('') || `<div class="empty">No subtitles</div>`;
+}
+function renderEpisodes(){
+  const seasons=(state.current&&state.current.seasons)||[];
+  const total=seasons.reduce((n,s)=>n+((s.episodes||[]).length),0);
+  $('seasonCount').textContent=`${seasons.length} seasons • ${total} episodes`;
+  $('seasonList').innerHTML = seasons.map(s=>{
+    const eps=(s.episodes||[]).map(ep=>{
+      const qs=ep.telegram||[];
+      const subs=qs.reduce((n,q)=>n+((q.subtitle_tracks||[]).length),0);
+      return `<div class="eprow">
+        <div class="thumb">${qs.length?'🎞':'▫️'}</div>
+        <div class="itxt"><b>E${esc(ep.episode_number)} • ${esc(ep.title||'Untitled')}</b><small>${qs.length} files • ${subs} subs</small></div>
+        <button class="tiny" onclick="editEpisode(${s.season_number},${ep.episode_number})">✎</button>
+        <button class="tiny danger" onclick="confirmDeleteEpisode(${s.season_number},${ep.episode_number})">⌫</button>
+      </div>`;
+    }).join('') || '<div class="empty">No episodes</div>';
+    return `<div class="season"><div class="season-head">📺 Season ${esc(s.season_number)}<span class="spacer"></span><span class="muted">${(s.episodes||[]).length} eps</span></div>${eps}</div>`;
+  }).join('') || '<div class="empty">No seasons</div>';
+  $('epSubSeason').innerHTML = `<option value="all">All seasons</option>` + seasons.map(s=>`<option value="${s.season_number}">Season ${s.season_number}</option>`).join('');
+}
+function applyImagePreview(){
+  $('heroBackdrop').style.backgroundImage=`url('${$('fBackdrop').value || $('fPoster').value}')`;
+  $('heroPoster').style.backgroundImage=`url('${$('fPoster').value || $('fBackdrop').value}')`;
+}
+async function saveDetails(){
+  try{
+    const k=currentKey();
+    const payload={title:$('fTitle').value,release_year:$('fYear').value,rating:$('fRating').value,rip:$('fRip').value,languages:$('fLanguages').value,genres:$('fGenres').value,description:$('fDescription').value,poster:$('fPoster').value,backdrop:$('fBackdrop').value,cast:$('fCast').value};
+    if(k.type==='movie') payload.runtime=$('fRuntime').value;
+    state.current=await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}`,{method:'PATCH',body:JSON.stringify(payload)}).then(d=>d.media);
+    fillForm(); toast('Saved');
+  }catch(e){toast(e.message)}
+}
+async function refreshTmdb(overwrite){
+  try{
+    const k=currentKey();
+    if(overwrite && !confirm('Overwrite existing title, description, images, genres, rating, cast and runtime with TMDB data?')) return;
+    const d=await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/refresh-metadata`,{method:'POST',body:JSON.stringify({overwrite})});
+    if(d.media){ state.current=d.media; fillForm(); }
+    toast(d.updated_fields && d.updated_fields.length ? `Updated ${d.updated_fields.length} fields` : 'Nothing to update');
+  }catch(e){toast(e.message)}
+}
+
+/* ── File / subtitle actions ────────────────────────────────────────────── */
+function suffixFor(q){ return q._season ? `?season_number=${q._season}&episode_number=${q._episode}` : ''; }
+function appendParam(url,key,value){ return url + (url.includes('?')?'&':'?') + encodeURIComponent(key) + '=' + encodeURIComponent(value); }
+function editFile(q){ openModal(`<h3>Edit video file</h3><p>${esc(q.id)}</p><label>Quality</label><input id="mQuality" value="${esc(q.quality)}"><label>Size</label><input id="mSize" value="${esc(q.size)}"><label>File name</label><textarea id="mName">${esc(q.name)}</textarea><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick='saveFile(${JSON.stringify(q).replace(/'/g,"&#39;")})'>Save file</button></div>`); }
+async function saveFile(q){ try{ const k=currentKey(); await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/files/${encodeURIComponent(q.id)}${suffixFor(q)}`,{method:'PATCH',body:JSON.stringify({quality:$('mQuality').value,size:$('mSize').value,name:$('mName').value})}); closeModal(); await reloadCurrent(); toast('File saved'); }catch(e){toast(e.message)} }
+function confirmDeleteFile(q){ openModal(`<h3 class="dangertext">Delete video file?</h3><p>Choose how to delete this saved quality.</p><div class="kbd">${esc(q.name)}</div><div class="delete-note">DB only keeps the Telegram channel file. Telegram + DB tries to delete the Telegram video message and linked subtitles too, then removes the DB row.</div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick='deleteFile(${JSON.stringify(q).replace(/'/g,"&#39;")},false)'>DB only</button><button class="btn danger" onclick='deleteFile(${JSON.stringify(q).replace(/'/g,"&#39;")},true)'>Telegram + DB</button></div>`); }
+async function deleteFile(q,telegramToo=false){ try{ const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/files/${encodeURIComponent(q.id)}${suffixFor(q)}`; if(telegramToo) url=appendParam(url,'delete_telegram','true'); const res=await api(url,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `File deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'File deleted from DB only'); }catch(e){toast(e.message)} }
+function editSub(q,s){ openModal(`<h3>Edit subtitle</h3><p>${esc(s.id)}</p><label>Language</label><input id="sLang" value="${esc(s.language||'Unknown')}"><label>Format</label><input id="sFmt" value="${esc(s.format||'srt')}"><label>File name</label><textarea id="sName">${esc(s.name)}</textarea><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick='saveSub(${JSON.stringify(q).replace(/'/g,"&#39;")},${JSON.stringify(s).replace(/'/g,"&#39;")})'>Save subtitle</button></div>`); }
+async function saveSub(q,s){ try{ const k=currentKey(); const extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'PATCH',body:JSON.stringify({language:$('sLang').value,format:$('sFmt').value,name:$('sName').value,label:`${$('sLang').value} • ${$('sFmt').value.toUpperCase()}`})}); closeModal(); await reloadCurrent(); toast('Subtitle saved'); }catch(e){toast(e.message)} }
+function confirmDeleteSub(q,s){ const qObj=JSON.stringify(q).replace(/'/g,"&#39;"), sObj=JSON.stringify(s).replace(/'/g,"&#39;"); openModal(`<h3 class="dangertext">Delete subtitle?</h3><p>Choose DB only or remove the Telegram subtitle file too.</p><div class="kbd">${esc(s.name)}</div><div class="delete-note">DB only removes subtitle from FilmsClub. Telegram + DB also tries to delete the original subtitle message from Telegram.</div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},false)'>DB only</button><button class="btn danger" onclick='deleteSub(${qObj},${sObj},true)'>Telegram + DB</button></div>`); }
+async function deleteSub(q,s,telegramToo=false){ try{ const k=currentKey(); let extra=`?file_id=${encodeURIComponent(q.id)}${q._season?`&season_number=${q._season}&episode_number=${q._episode}`:''}`; if(telegramToo) extra += '&delete_telegram=true'; const res=await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles/${encodeURIComponent(s.id)}${extra}`,{method:'DELETE'}); closeModal(); await reloadCurrent(); toast(telegramToo ? `Subtitle deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Subtitle deleted from DB only'); }catch(e){toast(e.message)} }
+async function addSub(){
+  try{
+    const k=currentKey(); const target=$('newSubTarget').value;
+    const q=allQualities().find(x=>x.id===target);
+    const payload={id:$('newSubId').value,name:$('newSubName').value,language:$('newSubLang').value,format:$('newSubFmt').value};
+    if(k.type==='tv' && target==='all'){
+      await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/episodes/subtitles`,{method:'POST',body:JSON.stringify(payload)});
+    } else {
+      payload.target_file_id=target;
+      if(q && q._season){ payload.season_number=q._season; payload.episode_number=q._episode; }
+      await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/subtitles`,{method:'POST',body:JSON.stringify(payload)});
+    }
+    await reloadCurrent(); toast('Subtitle added');
+  }catch(e){toast(e.message)}
+}
+async function deleteMedia(telegramToo=false){
+  try{
+    if($('deleteConfirm').value!=='DELETE') return toast('Type DELETE first');
+    const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}`;
+    if(telegramToo) url=appendParam(url,'delete_telegram','true');
+    const res=await api(url,{method:'DELETE'});
+    toast(telegramToo ? `Media deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Media deleted from DB only');
+    state.current=null; backToList(); history.replaceState(null,'','/admin?type='+encodeURIComponent(state.type));
+    await loadList();
+  }catch(e){toast(e.message)}
+}
+async function reloadCurrent(){ if(!state.current){return loadList()} const k=currentKey(); await openMedia(k.type,k.db,k.tmdb); }
+function openDirect(){ openModal(`<h3>Open media by ID</h3><label>Type</label><select id="dType"><option value="movie">movie</option><option value="tv">tv</option><option value="anime">anime</option></select><div class="grid2"><div><label>DB index</label><input id="dDb" value="1"></div><div><label>TMDb ID</label><input id="dTmdb"></div></div><div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="closeModal();openMedia($('dType').value,$('dDb').value,$('dTmdb').value)">Open</button></div>`); }
+
+/* ── Episodes ───────────────────────────────────────────────────────────── */
+async function addEpisode(){
+  try{
+    const k=currentKey();
+    const season=parseInt($('epSeasonNum').value,10), episode=parseInt($('epNum').value,10);
+    if(!Number.isFinite(season) || !Number.isFinite(episode)) return toast('Season and episode numbers are required');
+    await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/episodes`,{method:'POST',body:JSON.stringify({season_number:season,episode_number:episode,title:$('epTitle').value,episode_backdrop:$('epBackdrop').value})});
+    $('epTitle').value=''; $('epBackdrop').value='';
+    await reloadCurrent(); toast('Episode added');
+  }catch(e){toast(e.message)}
+}
+function editEpisode(season, episode){
+  const current=(state.current.seasons||[]).find(s=>Number(s.season_number)===Number(season));
+  const ep=(current&&current.episodes||[]).find(e=>Number(e.episode_number)===Number(episode))||{};
+  openModal(`<h3>Edit S${esc(season)}E${esc(episode)}</h3>
+    <label>Title</label><input id="epEditTitle" value="${esc(ep.title||'')}">
+    <label>Backdrop URL</label><input id="epEditBackdrop" value="${esc(ep.episode_backdrop||'')}">
+    <div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="saveEpisode(${season},${episode})">Save episode</button></div>`);
+}
+async function saveEpisode(season, episode){
+  try{
+    const k=currentKey();
+    await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/episodes/${season}/${episode}`,{method:'PATCH',body:JSON.stringify({title:$('epEditTitle').value,episode_backdrop:$('epEditBackdrop').value})});
+    closeModal(); await reloadCurrent(); toast('Episode saved');
+  }catch(e){toast(e.message)}
+}
+function confirmDeleteEpisode(season, episode){
+  openModal(`<h3 class="dangertext">Delete S${esc(season)}E${esc(episode)}?</h3>
+    <div class="delete-note">DB only keeps the Telegram video files. Telegram + DB also deletes the episode's video messages.</div>
+    <div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="deleteEpisode(${season},${episode},false)">DB only</button><button class="btn danger" onclick="deleteEpisode(${season},${episode},true)">Telegram + DB</button></div>`);
+}
+async function deleteEpisode(season, episode, telegramToo){
+  try{
+    const k=currentKey(); let url=`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/episodes/${season}/${episode}`;
+    if(telegramToo) url=appendParam(url,'delete_telegram','true');
+    const res=await api(url,{method:'DELETE'});
+    closeModal(); await reloadCurrent();
+    toast(telegramToo ? `Episode deleted • Telegram ${res.telegram_deleted||0}/${res.telegram_total||0}` : 'Episode deleted from DB only');
+  }catch(e){toast(e.message)}
+}
+async function attachEpisodeSub(){
+  try{
+    const k=currentKey();
+    const season=$('epSubSeason').value;
+    const payload={id:$('epSubId').value,name:$('epSubName').value,language:$('epSubLang').value,format:$('epSubFmt').value};
+    if(season!=='all') payload.season_number=parseInt(season,10);
+    await api(`/admin/api/media/${k.type}/${k.db}/${k.tmdb}/episodes/subtitles`,{method:'POST',body:JSON.stringify(payload)});
+    await reloadCurrent(); toast(season==='all' ? 'Subtitle attached to all episodes' : `Subtitle attached to season ${season}`);
+  }catch(e){toast(e.message)}
+}
+
+/* ── Modal + auto-refresh ───────────────────────────────────────────────── */
+let modalTimer=null, modalRefresh=null;
+function openModal(html, refreshFn=null){
+  $('modalBody').innerHTML=html;
+  $('modal').classList.add('show');
+  modalRefresh=refreshFn||null;
+  if(modalRefresh && !modalTimer){
+    modalTimer=setInterval(async()=>{
+      if(!$('modal').classList.contains('show') || !modalRefresh){ stopModalTimer(); return; }
+      try{ await modalRefresh(); }catch(e){}
+    },5000);
+  }
+  if(!modalRefresh) stopModalTimer();
+}
+function stopModalTimer(){ if(modalTimer){ clearInterval(modalTimer); modalTimer=null; } }
+function closeModal(){ $('modal').classList.remove('show'); modalRefresh=null; stopModalTimer(); }
+function formatEta(seconds){
+  if(seconds===null || seconds===undefined) return '—';
+  let s=Math.max(0,Math.round(seconds));
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  if(h) return `${h}h ${m}m`;
+  if(m) return `${m}m ${s%60}s`;
+  return `${s}s`;
+}
+
+/* ── Tools ──────────────────────────────────────────────────────────────── */
+async function loadFromQueryOrList(){
+  const u=loginStoreGet('filmsclub_admin_username'); if(u){ $('adminUser').value=u; }
+  $('sortSel').value=state.sort; $('flagSel').value=state.flag;
+  setType(state.type);
+  const dbi=qs.get('db_index'), tm=qs.get('tmdb_id');
+  if(dbi && tm){ await openMedia(state.type,dbi,tm); }
+}
+async function showStorage(){
+  try{
+    const d=await api('/admin/api/storage');
+    openModal(`<h3>Storage report</h3>` + (d.clusters||[]).map(c=>`
+      <div class="item"><div class="thumb">💾</div><div class="itxt"><b>Cluster ${esc(c.cluster)} • ${esc(c.used_percent)}%</b><small>${esc(c.used_mb)} / ${esc(c.quota_mb)} MB • ${esc(c.movies)} movies • ${esc(c.tv)} shows</small></div><span class="chip ${c.status==='alert'?'warn':'good'}">${esc(c.status)}</span></div>`).join('') + `<p class="muted">${Object.entries(d.ops||{}).map(([k,v])=>esc(k)+': '+esc(v)).join(' • ')}</p><div class="btns"><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+async function mergeDupes(apply){
+  try{
+    const d=await api('/admin/api/merge-duplicates?apply='+(apply?'true':'false'),{method:'POST'});
+    if(!apply && d.duplicates){ if(confirm(`Found ${d.duplicates} titles on more than one cluster. Merge them now?`)) return mergeDupes(true); }
+    toast(apply ? `Merged ${d.merged} titles (${d.deleted} extra docs removed)` : `${d.duplicates} duplicated titles found`);
+  }catch(e){toast(e.message)}
+}
+async function showQueue(){
+  try{
+    const d=await api('/admin/api/queue');
+    const rows=(d.channels||[]).map(c=>`<div class="item"><div class="thumb">📁</div><div class="itxt"><b>${esc(c.channel_id)}</b><small>${esc(c.pending)} pending</small></div></div>`).join('') || '<p class="muted">No per-channel backlog</p>';
+    const fw=d.floodwait_seconds>0 ? `<span class="chip danger">FloodWait ${esc(d.floodwait_seconds)}s</span>` : '';
+    const eta=formatEta(d.eta_seconds);
+    const processing=(d.processing_items||[]).map(p=>`
+      <div class="item"><div class="thumb">🎬</div><div class="itxt"><b>${esc(p.title)}</b><small>${esc(p.channel_id||'')}/${esc(p.message_id||'')} • ${p.claimed_seconds!==null?formatEta(p.claimed_seconds)+' in progress':'claimed'}${p.retry_count?` • retry ${p.retry_count}`:''}</small></div><span class="chip">${esc(p.claimed_by||'worker')}</span></div>`).join('') || '<p class="muted">No worker is processing a file right now</p>';
+    const pauseBtn=d.paused
+      ? '<button class="btn primary" onclick="queueAction(\'resume\')">▶ Resume</button>'
+      : '<button class="btn" onclick="queueAction(\'pause\')">⏸ Pause</button>';
+    openModal(`<h3>Queue desk</h3>
+      <div class="chips" style="margin-bottom:8px">
+        <span class="chip">${esc(d.engine)}</span>
+        <span class="chip ${d.paused?'warn':'good'}">${d.paused?'⏸ Paused':'▶ Running'}</span>
+        <span class="chip">${esc(d.workers)} worker(s)</span>${fw}
+      </div>
+      <div class="item"><div class="thumb">⏳</div><div class="itxt"><b>${esc(d.pending)} pending • ${esc(d.processing)} processing</b><small>${esc(d.failed)} failed • ${esc(d.retries)} retries • ETA ${eta}</small></div></div>
+      <p class="muted" style="font-size:12px">In progress</p>${processing}
+      <p class="muted" style="font-size:12px">Per-channel backlog</p>${rows}
+      <div class="btns">${pauseBtn}<button class="btn" onclick="showQueue()">↻ Refresh</button></div>
+      <div class="btns"><button class="btn danger" onclick="queueClear()">Clear queue…</button><button class="btn" onclick="closeModal()">Close</button></div>
+      <p class="notice">Live view refreshes every 5 seconds.</p>`, ()=>showQueue());
+  }catch(e){toast(e.message)}
+}
+async function queueAction(action){
+  try{
+    await api('/admin/api/queue/'+action,{method:'POST',body:'{}'});
+    toast(action==='pause'?'Queue paused':'Queue resumed');
+    await showQueue();
+  }catch(e){toast(e.message)}
+}
+async function queueClear(){
+  if(!confirm('Delete ALL queue items, processed records and checkpoints? This cannot be undone.')) return;
+  const typed=prompt('Type CLEAR to confirm');
+  if((typed||'').trim().toUpperCase()!=='CLEAR') return toast('Cancelled');
+  try{
+    const r=await api('/admin/api/queue/clear',{method:'POST',body:JSON.stringify({confirm:'CLEAR'})});
+    toast('Cleared '+(r.cleared||0)+' items');
+    await showQueue();
+  }catch(e){toast(e.message)}
+}
+async function showFailed(page=1, filterOverride){
+  const box=$('failedFilter');
+  const filter = filterOverride!==undefined ? filterOverride : (box ? box.value.trim() : '');
+  try{
+    const d=await api(`/admin/api/failed-files?page=${page}&page_size=20&reason_filter=${encodeURIComponent(filter)}`);
+    const items=(d.items||[]).map(f=>`<div class="item">
+        <div class="thumb">🧯</div>
+        <div class="itxt"><b>${esc(f.title||f.filename||'Untitled')}</b>
+          <small>${esc(f.reason||'')}${f.timestamp?' • '+esc(new Date(f.timestamp).toLocaleString()):''}</small>
+          ${f.parse_data&&f.parse_data.msg_id?`<small>Message ${esc(f.parse_data.channel)}/${esc(f.parse_data.msg_id)}</small>`:''}
+        </div>
+        <button class="tiny" title="Retry" onclick="retryFailed('${esc(f._id)}')">↻</button>
+        <button class="tiny danger" title="Delete" onclick="deleteFailed('${esc(f._id)}')">⌫</button>
+      </div>`).join('') || '<div class="empty">No failed files 🎉</div>';
+    const total=d.total_count||0, pages=d.total_pages||1, cur=d.page||page;
+    openModal(`<h3>Failed files</h3>
+      <p class="muted" style="font-size:12px">${esc(total)} entries • retry re-fetches the original Telegram message</p>
+      <input id="failedFilter" placeholder="Filter by reason" value="${esc(filter)}" onkeydown="if(event.key==='Enter') showFailed(1)">
+      <div class="btns"><button class="btn" onclick="showFailed(1)">Filter</button><button class="btn" onclick="retryAllFailed()">↻ Retry all (25)</button></div>
+      <div class="btns"><button class="btn danger" onclick="deleteAllFailed()">Delete all matching</button><button class="btn danger" onclick="clearFailed()">Clear everything</button></div>
+      <div style="margin-top:8px">${items}</div>
+      <div class="btns">
+        <button class="btn" ${cur<=1?'disabled':''} onclick="showFailed(${cur-1})">← Prev</button>
+        <button class="btn" ${cur>=pages?'disabled':''} onclick="showFailed(${cur+1})">Next →</button>
+        <button class="btn" onclick="closeModal()">Close</button>
+      </div>`);
+  }catch(e){toast(e.message)}
+}
+async function retryFailed(id){
+  try{
+    const r=await api(`/admin/api/failed-files/${encodeURIComponent(id)}/retry`,{method:'POST'});
+    toast(r.message||'Re-queued');
+    await showFailed();
+  }catch(e){toast(e.message)}
+}
+async function retryAllFailed(){
+  const box=$('failedFilter');
+  const filter=box ? box.value.trim() : '';
+  if(!confirm(`Retry up to 25 failed entries${filter?` matching “${filter}”`:''}?`)) return;
+  try{
+    toast('Retrying…');
+    const d=await api(`/admin/api/failed-files/retry-all?reason_filter=${encodeURIComponent(filter)}&limit=25`,{method:'POST'});
+    toast(`Queued ${d.queued} • failed ${d.failed}${d.remaining?` • ${d.remaining} left`:''}`);
+    await showFailed(1, filter);
+  }catch(e){toast(e.message)}
+}
+async function deleteFailed(id){
+  if(!confirm('Remove this entry from the failed list?')) return;
+  try{ await api(`/admin/api/failed-files/${encodeURIComponent(id)}`,{method:'DELETE'}); await showFailed(); }catch(e){toast(e.message)}
+}
+async function deleteAllFailed(){
+  const box=$('failedFilter');
+  const filter=box ? box.value.trim() : '';
+  if(!confirm(`Delete ALL failed entries${filter?` matching “${filter}”`:''}? This cannot be undone.`)) return;
+  try{
+    const d=await api(`/admin/api/failed-files?reason_filter=${encodeURIComponent(filter)}`,{method:'DELETE'});
+    toast(`Deleted ${d.deleted||0} entries`);
+    await showFailed(1, filter);
+  }catch(e){toast(e.message)}
+}
+async function clearFailed(){
+  if(!confirm('Clear the entire failed-files log?')) return;
+  try{ const d=await api('/admin/api/failed-files',{method:'DELETE'}); toast(`Cleared ${d.deleted||0} entries`); await showFailed(1, ''); }catch(e){toast(e.message)}
+}
+async function showCache(){
+  try{
+    const d=await api('/admin/api/cache');
+    const c=d.caches||{}, vc=c.video_chunks||{}, hot=vc.hot_start||{}, lru=vc.lru_cache||{}, remux=d.remux||{};
+    openModal(`<h3>Cache & disk</h3>
+      <div class="item"><div class="thumb">🎞</div><div class="itxt"><b>Video chunk cache</b><small>${esc(hot.slots_used||0)}/${esc(hot.slots_total||0)} hot slots • ${esc(hot.memory_mb||0)} MB • LRU ${esc(lru.items||0)}/${esc(lru.max_items||0)} • ${esc(vc.active_streams||0)} active streams</small></div></div>
+      <div class="item"><div class="thumb">🎧</div><div class="itxt"><b>Remux cache (disk)</b><small>${esc(remux.files||0)} files • ${esc(remux.mb||0)} MB of ${esc(remux.budget_mb||0)} MB • TTL ${esc(remux.ttl_hours||0)}h • ${esc(remux.partials||0)} partial</small></div></div>
+      <p class="muted" style="font-size:12px">In-memory metadata ${esc(c.file_metadata?c.file_metadata.size:0)}/${esc(c.file_metadata?c.file_metadata.maxsize:0)} • hot movies ${esc(c.hot_movies?c.hot_movies.size:0)}/${esc(c.hot_movies?c.hot_movies.maxsize:0)} • Redis ${esc(d.redis?d.redis.status:'disabled')}</p>
+      <div class="btns"><button class="btn" onclick="clearCache('video')">Clear video cache</button><button class="btn" onclick="clearCache('remux')">Clear remux files</button></div>
+      <div class="btns"><button class="btn danger" onclick="clearCache('all')">Clear all caches</button><button class="btn" onclick="showCache()">↻ Refresh</button><button class="btn" onclick="closeModal()">Close</button></div>
+      <p class="notice">Live view refreshes every 5 seconds.</p>`, ()=>showCache());
+  }catch(e){toast(e.message)}
+}
+async function clearCache(target){
+  const label=target==='all'?'ALL caches':target+' cache';
+  if(!confirm('Clear '+label+'?')) return;
+  try{
+    const r=await api('/admin/api/cache/clear',{method:'POST',body:JSON.stringify({target})});
+    toast(target==='remux'?`Freed ${(r.remux&&r.remux.freed_mb)||0} MB`:'Cache cleared');
+    await showCache();
+  }catch(e){toast(e.message)}
+}
+async function showHealth(){
+  try{
+    const d=await api('/admin/api/health');
+    const q=d.queue||{}, sys=d.system||{};
+    const clusters=(d.clusters||[]).map(c=>`<div class="item"><div class="thumb">${c.status==='up'?'🟢':'🔴'}</div><div class="itxt"><b>Cluster ${esc(c.cluster)}</b><small>${esc(c.status)}${c.error?' • '+esc(c.error):''}</small></div></div>`).join('') || '<p class="muted">No clusters</p>';
+    const usage=(d.storage&&d.storage.clusters||[]).map(c=>`<div class="item"><div class="thumb">💾</div><div class="itxt"><b>Cluster ${esc(c.cluster)} • ${esc(c.used_percent||0)}%</b><small>${esc(c.used_mb||0)} / ${esc(c.quota_mb||0)} MB</small></div><span class="chip ${c.status==='alert'?'warn':'good'}">${esc(c.status)}</span></div>`).join('') || '<p class="muted">Unavailable</p>';
+    const alerts=(d.alerts||[]).map(a=>`<div class="delete-note">${esc(a)}</div>`).join('') || '<p class="muted">No alerts 🎉</p>';
+    const fw=q.floodwait_seconds>0 ? ' • FloodWait '+q.floodwait_seconds+'s' : '';
+    const up=sys.uptime_seconds||0;
+    openModal(`<h3>Health</h3>
+      <div class="chips" style="margin-bottom:8px"><span class="chip ${d.status==='ok'?'good':'warn'}">${esc(d.status)}</span><span class="chip">v${esc(sys.version||'')}</span><span class="chip">${esc(sys.python||'')}</span></div>
+      ${alerts}
+      <p class="muted" style="font-size:12px">Clusters</p>${clusters}
+      <p class="muted" style="font-size:12px">Storage</p>${usage}
+      <p class="muted" style="font-size:12px">Queue</p>
+      <div class="item"><div class="thumb">📥</div><div class="itxt"><b>${esc(q.pending||0)} pending • ${esc(q.processing||0)} processing</b><small>${esc(q.failed||0)} failed • ${esc(q.workers||0)} workers • ${q.paused?'paused':'running'}${fw} • ETA ${formatEta(q.eta_seconds)}</small></div></div>
+      <p class="muted" style="font-size:12px">System</p>
+      <div class="item"><div class="thumb">🛠</div><div class="itxt"><b>ffmpeg ${sys.ffmpeg?'✅':'❌'} • ffprobe ${sys.ffprobe?'✅':'❌'}</b><small>Disk free ${esc(sys.disk?sys.disk.free_gb:0)} / ${esc(sys.disk?sys.disk.total_gb:0)} GB • uptime ${Math.floor(up/3600)}h ${Math.floor((up%3600)/60)}m</small></div></div>
+      <div class="btns"><button class="btn" onclick="showHealth()">↻ Refresh</button><button class="btn" onclick="showLibraryHealth()">🩹 Library health</button><button class="btn" onclick="closeModal()">Close</button></div>
+      <p class="notice">Live view refreshes every 5 seconds.</p>`, ()=>showHealth());
+  }catch(e){toast(e.message)}
+}
+async function showLibraryHealth(){
+  try{
+    const d=await api('/admin/api/library-health?sample_limit=5');
+    const t=d.totals||{};
+    const cats=(d.categories||[]).map(c=>{
+      const links=(c.items||[]).map(i=>`<a class="linkchip" href="#" onclick="event.preventDefault();jumpTo('${i.type}',${i.db_index||1},${i.tmdb_id})">${esc(i.title)}</a>`).join(' ');
+      return `<div class="item"><div class="thumb">${c.count?'⚠️':'✅'}</div>
+        <div class="itxt"><b>${esc(c.label)} • ${esc(c.count)}</b><small>${links||'Nothing to fix'}</small></div></div>`;
+    }).join('') || '<p class="muted">No data</p>';
+    openModal(`<h3>Library health</h3>
+      <div class="chips" style="margin-bottom:8px">
+        <span class="chip">${esc(t.documents||0)} titles</span>
+        <span class="chip">${esc(t.movies||0)} movies</span>
+        <span class="chip">${esc(t.tv||0)} series</span>
+        <span class="chip">${esc(t.files||0)} files</span>
+        <span class="chip">${esc(t.subtitles||0)} subs</span>
+        <span class="chip">${esc(t.episodes||0)} eps</span>
+      </div>
+      ${cats}
+      <p class="notice">Tap a title to open it in the editor. Duplicates are titles saved on more than one cluster.</p>
+      <div class="btns"><button class="btn" onclick="showLibraryHealth()">↻ Re-scan</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+function jumpTo(type, db, tmdb){
+  closeModal();
+  openMedia(type||'movie', db||1, tmdb);
+}
+async function showViews(days){
+  days = days || state.viewDays || 7;
+  state.viewDays = days;
+  try{
+    const d=await api(`/admin/api/views-analytics?days=${days}&limit=10`);
+    const daily=d.daily||[];
+    const max=Math.max(1,...daily.map(x=>x.count));
+    const bars=daily.map(x=>`<div class="bar" title="${esc(x.date)}: ${esc(x.count)} views" style="height:${Math.max(2,Math.round((x.count/max)*80))}px"></div>`).join('');
+    const every=Math.max(1,Math.ceil(daily.length/5));
+    const labels=daily.map((x,i)=>(i%every===0||i===daily.length-1)?`<span>${esc(x.date.slice(5))}</span>`:'<span></span>').join('');
+    const top=(d.top||[]).map(t=>`<div class="item"><div class="thumb">🔥</div><div class="itxt"><b>${esc(t.title)}</b><small>${esc(t.release_year||'')} • ${esc(t.media_type)} • ${esc(t.views)} views</small></div><button class="tiny" onclick="closeModal();openMedia('${t.media_type}',1,${t.tmdb_id})">→</button></div>`).join('') || '<p class="muted">No views yet</p>';
+    const totals=d.totals||{};
+    openModal(`<h3>Views analytics</h3>
+      <div class="chips"><span class="chip good">Today ${esc(totals.today||0)}</span><span class="chip">${esc(days)} days ${esc(totals.range||0)}</span><span class="chip">All time ${esc(totals.all_time||0)}</span></div>
+      <div class="chart">${bars}</div>
+      <div class="chartlabels">${labels}</div>
+      <div class="btns"><button class="btn ${days===7?'primary':''}" onclick="showViews(7)">7d</button><button class="btn ${days===14?'primary':''}" onclick="showViews(14)">14d</button><button class="btn ${days===30?'primary':''}" onclick="showViews(30)">30d</button></div>
+      <p class="muted" style="font-size:12px">Top viewed</p>${top}
+      <div class="btns"><button class="btn" onclick="showViews(${days})">↻ Refresh</button><button class="btn" onclick="closeModal()">Close</button></div>`);
+  }catch(e){toast(e.message)}
+}
+function showRescan(){
+  openModal(`<h3>Rescan channel</h3>
+    <p class="notice">Scan recent messages from a channel and queue new files. The bot must be running.</p>
+    <div class="grid2"><div><label>Channel index</label><input id="rsChannel" type="number" value="0"></div><div><label>Limit</label><input id="rsLimit" type="number" value="100"></div></div>
+    <div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="triggerRescan()">Start rescan</button></div>`);
+}
+async function triggerRescan(){
+  try{
+    const channel_index=parseInt($('rsChannel').value,10)||0;
+    const limit=parseInt($('rsLimit').value,10)||100;
+    const d=await api('/admin/api/commands/rescan',{method:'POST',body:JSON.stringify({channel_index,limit})});
+    closeModal();
+    toast(d.started ? `Rescan started (channel ${channel_index}, limit ${limit})` : 'Rescan requested');
+  }catch(e){toast(e.message)}
+}
+function showDefaultId(){
+  openModal(`<h3>Default TMDB ID</h3>
+    <p class="notice">Fallback ID used when a filename has no usable TMDB id. Leave empty to clear it.</p>
+    <label>Default ID</label><input id="defId" placeholder="e.g. 12345">
+    <div class="btns"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="saveDefaultId()">Save</button></div>`);
+}
+async function saveDefaultId(){
+  try{
+    const value=$('defId').value.trim();
+    const d=await api('/admin/api/commands/set',{method:'POST',body:JSON.stringify({default_id:value||null})});
+    closeModal();
+    toast(d.default_id ? `Default ID set to ${d.default_id}` : 'Default ID cleared');
+  }catch(e){toast(e.message)}
+}
+async function bulkLinks(preview){
+  const links=$('bulkLinks').value.trim();
+  if(!links) return toast('Paste at least one link');
+  $('bulkResult').textContent='Working…';
+  try{
+    const d=await api('/admin/api/queue/links',{method:'POST',body:JSON.stringify({links,preview})});
+    $('bulkResult').innerHTML=(d.results||[]).map(r=>`<div>${r.ok?'✅':'❌'} <b>${esc(r.channel||'')}/${esc(r.message_id||'')}</b> ${esc(r.file_name||r.error||'')}</div>`).join('') + `<div style="margin-top:6px">${preview?'Valid': 'Queued'}: ${d.queued} • ${d.failed} failed</div>`;
+    toast(preview ? `Previewed ${d.total} link(s)` : `Queued ${d.queued} of ${d.total}`);
+  }catch(e){ $('bulkResult').textContent=''; toast(e.message); }
+}
+function showManualAdd(){
+  openModal(`<h3>Manual add</h3>
+    <p class="notice">Files the post from its TMDB/IMDb page instead of reading the filename, so release names like <code>...DDP5.1.H.264-PMi-XDMovies.mkv</code> cannot break the add.</p>
+    <label>Telegram file post (t.me link)</label><input id="mLink" placeholder="https://t.me/your_channel/12345">
+    <label>TMDB or IMDb link / id</label><input id="mRef" placeholder="themoviedb.org/movie/1690876 &nbsp;or&nbsp; tt1234567 &nbsp;or&nbsp; 1690876">
+    <div class="grid2">
+      <div><label>Type</label><select id="mKind" onchange="manualKind()"><option value="movie">Movie</option><option value="tv">Series episode</option></select></div>
+      <div><label>Quality</label><select id="mQuality"><option value="">Detect from file</option><option>480p</option><option>540p</option><option>720p</option><option>1080p</option><option>2K</option><option>4K</option></select></div>
+    </div>
+    <div class="grid2" id="mEpRow" style="display:none">
+      <div><label>Season</label><input id="mSeason" type="number" min="1" placeholder="1"></div>
+      <div><label>Episode</label><input id="mEpisode" type="number" min="1" placeholder="1"></div>
+    </div>
+    <div class="grid2">
+      <div><label>Rip</label><select id="mRip"><option value="">Blu-ray (default)</option><option value="WEB-DL">WEB-DL</option><option value="WEBRip">WEBRip</option><option value="HDRip">HDRip</option><option value="HDTV">HDTV</option><option value="DVDRip">DVDRip</option><option value="CAM">CAM</option></select></div>
+      <div><label>Codec</label><select id="mCodec"><option value="">Detect from file</option><option value="h264">h264</option><option value="h265">h265</option><option value="vp9">vp9</option></select></div>
+    </div>
+    <label>Languages</label><input id="mLangs" placeholder="te, hi  (or Telugu, Hindi) — blank uses TMDB's original language">
+    <div id="mOut" class="muted" style="font-size:13px;line-height:1.5"></div>
+    <div class="btns"><button class="btn" onclick="closeModal()">Close</button><button class="btn purple" onclick="submitManualAdd()">Add to queue</button></div>`);
+}
+function manualKind(){ $('mEpRow').style.display = $('mKind').value==='tv' ? '' : 'none'; }
+async function submitManualAdd(){
+  const link=$('mLink').value.trim(), media_ref=$('mRef').value.trim();
+  if(!link) return toast('Paste the t.me link of the file post');
+  if(!media_ref) return toast('Paste a TMDB or IMDb link');
+  const kind=$('mKind').value;
+  const season=parseInt($('mSeason').value,10)||null, episode=parseInt($('mEpisode').value,10)||null;
+  if(kind==='tv' && (!season || !episode)) return toast('Series need a season and episode number');
+  $('mOut').textContent='Reading TMDB…';
+  try{
+    const d=await api('/admin/api/queue/manual',{method:'POST',body:JSON.stringify({
+      link, media_ref, kind, season, episode,
+      quality:$('mQuality').value||null, rip:$('mRip').value||null,
+      languages:$('mLangs').value.trim()||null, codec:$('mCodec').value||null
+    })});
+    const tag = d.media_type==='tv' ? ` S${d.season_number}E${d.episode_number}` : ` (${d.quality})`;
+    $('mOut').innerHTML = `${d.ok?'✅':'⚠️'} <b>${esc(d.title)}</b>${esc(tag)} · TMDB ${esc(d.tmdb_id)} · ${esc(d.quality)} ${esc(d.rip)} · ${esc((d.languages||[]).join(','))}${d.codec?' · '+esc(d.codec):''}<br><span class="muted">File: ${esc(d.file_name||'')}</span><br>${esc(d.detail||'')}`;
+    toast(d.duplicate ? 'That file is already in the library' : (d.ok ? `Queued ${d.title}` : 'Not queued — see the window'));
+  }catch(e){ $('mOut').textContent=''; toast(e.message); }
+}
+(async function boot(){ if(await checkSession()){ setAuthed(true); await loadFromQueryOrList(); } else { setAuthed(false); } })();
+</script>
+</body>
+</html>

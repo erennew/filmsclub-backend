@@ -1,6 +1,9 @@
+import re
+import os
+import unicodedata
 import pycountry
-from pyrogram.file_id import FileId
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
+from wzgram.file_id import FileId
 from Backend.logger import LOGGER
 from Backend import __version__, now, timezone
 from Backend.config import Telegram
@@ -9,16 +12,15 @@ from asyncio import create_subprocess_exec, create_subprocess_shell
 from aiofiles import open as aiopen
 from aiofiles.os import path as aiopath, remove as aioremove
 from asyncio.subprocess import PIPE
-from pyrogram import Client
-from Backend.pyrofork import StreamBot
-import re
-import os
+from wzgram import Client
+from Backend.wzgram_pkg import StreamBot
 
-from pyrogram import enums
+from wzgram import enums
 
 
 def is_media(message):
     return next((getattr(message, attr) for attr in ["document", "photo", "video", "audio", "voice", "video_note", "sticker", "animation"] if getattr(message, attr)), None)
+
 
 async def get_file_ids(client: Client, chat_id: int, message_id: int) -> Optional[FileId]:
     message = await client.get_messages(chat_id, message_id)
@@ -34,6 +36,7 @@ async def get_file_ids(client: Client, chat_id: int, message_id: int) -> Optiona
     setattr(file_id, 'unique_id', file_unique_id)
     return file_id
 
+
 def get_readable_file_size(size_in_bytes):
     size_in_bytes = int(size_in_bytes) if str(size_in_bytes).isdigit() else 0
     if not size_in_bytes:
@@ -46,29 +49,259 @@ def get_readable_file_size(size_in_bytes):
     return f'{size_in_bytes:.2f}{SIZE_UNITS[index]}' if index > 0 else f'{size_in_bytes:.2f}B'
 
 
-def clean_filename(filename):
-    # 1. Strip channel branding prefixes at start: "• @name • -", "[@name] -", "@name -"
-    cleaned_filename = re.sub(
-        r'^[•·\s]*[\[\(]?\s*@[A-Za-z0-9_]+\s*[\]\)]?\s*[•·]?\s*[-–—]?\s*',
-        ' ', filename
+def extract_languages_from_filename(filename: str) -> List[str]:
+    """
+    Extract language codes from filename patterns like [Tel + Tam + Mal + Kan]
+    Returns list of ISO 639-1 language codes.
+    """
+    language_map = {
+        # Indian languages
+        'tel': 'te', 'telugu': 'te',
+        'tam': 'ta', 'tamil': 'ta',
+        'mal': 'ml', 'malayalam': 'ml',
+        'kan': 'kn', 'kannada': 'kn',
+        'hin': 'hi', 'hindi': 'hi',
+        'ben': 'bn', 'bengali': 'bn',
+        'mar': 'mr', 'marathi': 'mr',
+        'guj': 'gu', 'gujarati': 'gu',
+        'pun': 'pa', 'punjabi': 'pa',
+        'urd': 'ur', 'urdu': 'ur',
+        
+        # International
+        'eng': 'en', 'english': 'en',
+        'spa': 'es', 'spanish': 'es',
+        'fre': 'fr', 'french': 'fr',
+        'ger': 'de', 'german': 'de',
+        'ita': 'it', 'italian': 'it',
+        'jpn': 'ja', 'japanese': 'ja',
+        'kor': 'ko', 'korean': 'ko',
+        'chi': 'zh', 'chinese': 'zh',
+        'rus': 'ru', 'russian': 'ru',
+        'ara': 'ar', 'arabic': 'ar',
+    }
+    
+    # Pattern 1: [Tel + Tam + Mal + Kan] or [#Telugu + #Tamil + #Hindi + #English]
+    pattern1 = r'\[([^\]]+)\]'
+    for m in re.finditer(pattern1, filename, re.IGNORECASE):
+        content = m.group(1)
+        # Split by + or | or , or whitespace
+        parts = re.split(r'[\+\|\s,]+', content)
+        languages = []
+        for part in parts:
+            # Strip leading # (hashtag format like #Telugu) and lowercase
+            part_clean = part.strip().lstrip('#').lower()
+            if part_clean in language_map:
+                languages.append(language_map[part_clean])
+            elif len(part_clean) <= 3 and part_clean.isalpha():
+                # Try to find by 3-letter prefix code
+                for key, value in language_map.items():
+                    if key.startswith(part_clean):
+                        languages.append(value)
+                        break
+        if languages:
+            return list(dict.fromkeys(languages))  # Remove duplicates
+    
+    # Pattern 2: (Telugu + Tamil) or (Hindi, English)
+    pattern2 = r'\(([^\)]+)\)'
+    match = re.search(pattern2, filename, re.IGNORECASE)
+    if match:
+        content = match.group(1)
+        if '+' in content or ',' in content:
+            parts = re.split(r'[\+\|\s,]+', content)
+            languages = []
+            for part in parts:
+                part_clean = part.strip().lower()
+                if part_clean in language_map:
+                    languages.append(language_map[part_clean])
+            if languages:
+                return list(dict.fromkeys(languages))
+    
+    return []
+
+
+def clean_filename(filename: str) -> Tuple[str, List[str]]:
+    """
+    Enhanced filename cleaning that also extracts languages.
+    Returns (cleaned_filename, detected_languages)
+    """
+    original = filename
+    
+    # Extract languages first
+    detected_languages = extract_languages_from_filename(original)
+    
+    # ========== 0. PREPROCESSING: Handle multi-line and Unicode ==========
+    # Replace newlines with spaces
+    cleaned = re.sub(r'[\r\n]+', ' ', filename)
+    
+    # Normalize Unicode variants (𝑱𝒐𝒊𝒏 -> Join). NFKC folds stylised
+    # Latin letters but keeps non-Latin scripts (Japanese, Korean, Hindi...)
+    # intact, unlike the previous ASCII-strip that erased whole titles.
+    cleaned = unicodedata.normalize('NFKC', cleaned)
+    
+    # Remove Unicode arrows and special symbols
+    unicode_symbols = r'[»«›‹•·▪▫●○■□◆◇★☆✦✧✩✪✫✬✭✮✯✰✱✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❄❅❆❇❈❉❊❋❌❍❎❏❐❑❒❓❔❕❖❗❘❙❚❛❜❝❞❟❠❡❢❣❤❥❦❧❨❩❪❫❬❭❮❯❰❱❲❳❴❵❶❷❸❹❺❻❼❽❾❿➀➁➂➃➄➅➆➇➈➉➊➋➌➍➎➏➐➑➒➓➔➕➖➗➘➙➚➛➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➰➱➲➳➴➵➶➷➸➹➺➻➼➽➾➿⟀⟁⟂⟃⟄⟅⟆⟇⟈⟉⟊⟋⟌⟍⟎⟏⟐⟑⟒⟓⟔⟕⟖⟗⟘⟙⟚⟛⟜⟝⟞⟟⟠⟡⟢⟣⟤⟥⟦⟧⟨⟩⟪⟫⟬⟭⟮⟯⟰⟱⟲⟳⟴⟵⟶⟷⟸⟹⟺⟻⟼⟽⟾⟿⤀⤁⤂⤃⤄⤅⤆⤇⤈⤉⤊⤋⤌⤍⤎⤏⤐⤑⤒⤓⤔⤕⤖⤗⤘⤙⤚⤛⤜⤝⤞⤟⤠⤡⤢⤣⤤⤥⤦⤧⤨⤩⤪⤫⤬⤭⤮⤯⤰⤱⤲⤳⤴⤵⤶⤷⤸⤹⤺⤻⤼⤽⤾⤿⥀⥁⥂⥃⥄⥅⥆⥇⥈⥉⥊⥋⥌⥍⥎⥏⥐⥑⥒⥓⥔⥕⥖⥗⥘⥙⥚⥛⥜⥝⥞⥟⥠⥡⥢⥣⥤⥥⥦⥧⥨⥩⥪⥫⥬⥭⥮⥯⥰⥱⥲⥳⥴⥵⥶⥷⥸⥹⥺⥻⥼⥽⥾⥿⦀⦁⦂⦃⦄⦅⦆⦇⦈⦉⦊⦋⦌⦍⦎⦏⦐⦑⦒⦓⦔⦕⦖⦗⦘⦙⦚⦛⦜⦝⦞⦟⦠⦡⦢⦣⦤⦥⦦⦧⦨⦩⦪⦫⦬⦭⦮⦯⦰⦱⦲⦳⦴⦵⦶⦷⦸⦹⦺⦻⦼⦽⦾⦿⧀⧁⧂⧃⧄⧅⧆⧇⧈⧉⧊⧋⧌⧍⧎⧏⧐⧑⧒⧓⧔⧕⧖⧗⧘⧙⧚⧛⧜⧝⧞⧟⧠⧡⧢⧣⧤⧥⧦⧧⧨⧩⧪⧫⧬⧭⧮⧯⧰⧱⧲⧳⧴⧵⧶⧷⧸⧹⧺⧻⧼⧽⧾⧿⨀⨁⨂⨃⨄⨅⨆⨇⨈⨉⨊⨋⨌⨍⨎⨏⨐⨑⨒⨓⨔⨕⨖⨗⨘⨙⨚⨛⨜⨝⨞⨟⨠⨡⨢⨣⨤⨥⨦⨧⨨⨩⨪⨫⨬⨭⨮⨯⨰⨱⨲⨳⨴⨵⨶⨷⨸⨹⨺⨻⨼⨽⨾⨿⩀⩁⩂⩃⩄⩅⩆⩇⩈⩉⩊⩋⩌⩍⩎⩏⩐⩑⩒⩓⩔⩕⩖⩗⩘⩙⩚⩛⩜⩝⩞⩟⩠⩡⩢⩣⩤⩥⩦⩧⩨⩩⩪⩫⩬⩭⩮⩯⩰⩱⩲⩳⩴⩵⩶⩷⩸⩹⩺⩻⩼⩽⩾⩿⪀⪁⪂⪃⪄⪅⪆⪇⪈⪉⪊⪋⪌⪍⪎⪏⪐⪑⪒⪓⪔⪕⪖⪗⪘⪙⪚⪛⪜⪝⪞⪟⪠⪡⪢⪣⪤⪥⪦⪧⪨⪩⪪⪫⪬⪭⪮⪯⪰⪱⪲⪳⪴⪵⪶⪷⪸⪹⪺⪻⪼⪽⪾⪿⫀⫁⫂⫃⫄⫅⫆⫇⫈⫉⫊⫋⫌⫍⫎⫏⫐⫑⫒⫓⫔⫕⫖⫗⫘⫙⫚⫛⫝̸⫝⫞⫟⫠⫡⫢⫣⫤⫥⫦⫧⫨⫩⫪⫫⫬⫭⫮⫯⫰⫱⫲⫳⫴⫵⫶⫷⫸⫹⫺⫻⫼⫽⫾⫿⬀⬁⬂⬃⬄⬅⬆⬇⬈⬉⬊⬋⬌⬍⬎⬏⬐⬑⬒⬓⬔⬕⬖⬗⬘⬙⬚⬛⬜⬝⬞⬟⬠⬡⬢⬣⬤⬥⬦⬧⬨⬩⬪⬫⬬⬭⬮⬯⬰⬱⬲⬳⬴⬵⬶⬷⬸⬹⬺⬻⬼⬽⬾⬿⭀⭁⭂⭃⭄⭅⭆⭇⭈⭉⭊⭋⭌⭍⭎⭏⭐⭑⭒⭓⭔⭕⭖⭗⭘⭙⭚⭛⭜⭝⭞⭟⭠⭡⭢⭣⭤⭥⭦⭧⭨⭩⭪⭫⭬⭭⭮⭯⭰⭱⭲⭳⭴⭵⭶⭷⭸⭹⭺⭻⭼⭽⭾⭿⮀⮁⮂⮃⮄⮅⮆⮇⮈⮉⮊⮋⮌⮍⮎⮏⮐⮑⮒⮓⮔⮕⮖⮗⮘⮙⮚⮛⮜⮝⮞⮟⮠⮡⮢⮣⮤⮥⮦⮧⮨⮩⮪⮫⮬⮭⮮⮯⮰⮱⮲⮳⮴⮵⮶⮷⮸⮹⮺⮻⮼⮽⮾⮿⯀⯁⯂⯃⯄⯅⯆⯇⯈⯉⯊⯋⯌⯍⯎⯏⯐⯑⯒⯓⯔⯕⯖⯗⯘⯙⯚⯛⯜⯝⯞⯟⯠⯡⯢⯣⯤⯥⯦⯧⯨⯩⯪⯫⯬⯭⯮⯯⯰⯱⯲⯳⯴⯵⯶⯷⯸⯹⯺⯻⯼⯽⯾⯿ⰀⰁⰂⰃⰄⰅⰆⰇⰈⰉⰊⰋⰌⰍⰎⰏⰐⰑⰒⰓⰔⰕⰖⰗⰘⰙⰚⰛⰜⰝⰞⰟⰠⰡⰢⰣⰤⰥⰦⰧⰨⰩⰪⰫⰬⰭⰮⰯⰰⰱⰲⰳⰴⰵⰶⰷⰸⰹⰺⰻⰼⰽⰾⰿⱀⱁⱂⱃⱄⱅⱆⱇⱈⱉⱊⱋⱌⱍⱎⱏⱐⱑⱒⱓⱔⱕⱖⱗⱘⱙⱚⱛⱜⱝⱞⱟⱠⱡⱢⱣⱤⱥⱦⱧⱨⱩⱪⱫⱬⱭⱮⱯⱰⱱⱲⱳⱴⱵⱶⱷⱸⱹⱺⱻⱼⱽⱾⱿⲀⲁⲂⲃⲄⲅⲆⲇⲈⲉⲊⲋⲌⲍⲎⲏⲐⲑⲒⲓⲔⲕⲖⲗⲘⲙⲚⲛⲜⲝⲞⲟⲠⲡⲢⲣⲤⲥⲦⲧⲨⲩⲪⲫⲬⲭⲮⲯⲰⲱⲲⲳⲴⲵⲶⲷⲸⲹⲺⲻⲼⲽⲾⲿⳀⳁⳂⳃⳄⳅⳆⳇⳈⳉⳊⳋⳌⳍⳎⳏⳐⳑⳒⳓⳔⳕⳖⳗⳘⳙⳚⳛⳜⳝⳞⳟⳠⳡⳢⳣⳤ⳥⳦⳧⳨⳩⳪ⳫⳬⳭⳮ⳯⳰⳱Ⳳⳳ⳴⳵⳶⳷⳸⳹⳺⳻⳼⳽⳾⳿ⴀⴁⴂⴃⴄⴅⴆⴇⴈⴉⴊⴋⴌⴍⴎⴏⴐⴑⴒⴓⴔⴕⴖⴗⴘⴙⴚⴛⴜⴝⴞⴟⴠⴡⴢⴣⴤⴥ⴦ⴧ⴨⴩⴪⴫⴬ⴭ⴮⴯ⴰⴱⴲⴳⴴⴵⴶⴷⴸⴹⴺⴻⴼⴽⴾⴿⵀⵁⵂⵃⵄⵅⵆⵇⵈⵉⵊⵋⵌⵍⵎⵏⵐⵑⵒⵓⵔⵕⵖⵗⵘⵙⵚⵛⵜⵝⵞⵟⵠⵡⵢⵣⵤⵥⵦⵧ⵨⵩⵪⵫⵬⵭⵮ⵯ⵰⵱⵲⵳⵴⵵⵶⵷⵸⵹⵺⵻⵼⵽⵾⵿ⶀⶁⶂⶃⶄⶅⶆⶇⶈⶉⶊⶋⶌⶍⶎⶏⶐⶑⶒⶓⶔⶕⶖ⶗⶘⶙⶚⶛⶜⶝⶞⶟ⶠⶡⶢⶣⶤⶥⶦ⶧ⶨⶩⶪⶫⶬⶭⶮ⶯ⶰⶱⶲⶳⶴⶵⶶ⶷ⶸⶹⶺⶻⶼⶽⶾ⶿ⷀⷁⷂⷃⷄⷅⷆ⷇ⷈⷉⷊⷋⷌⷍⷎ⷏ⷐⷑⷒⷓⷔⷕⷖ⷗ⷘⷙⷚⷛⷜⷝⷞ⷟ⷠⷡⷢⷣⷤⷥⷦⷧⷨⷩⷪⷫⷬⷭⷮⷯⷰⷱⷲⷳⷴⷵⷶⷷⷸⷹⷺⷻⷼⷽⷾⷿ⸀⸁⸂⸃⸄⸅⸆⸇⸈⸉⸊⸋⸌⸍⸎⸏⸐⸑⸒⸓⸔⸕⸖⸗⸘⸙⸚⸛⸜⸝⸞⸟⸠⸡⸢⸣⸤⸥⸦⸧⸨⸩⸪⸫⸬⸭⸮ⸯ⸰ⱁⱂⱃⱄⱅⱆⱇⱈⱉⱊⱋⱌⱍⱎⱏⱐⱑⱒⱓⱔⱕⱖⱗⱘⱙⱚⱛⱜⱝⱞⱟⱠⱡⱢⱣⱤⱥⱦⱧⱨⱩⱪⱫⱬⱭⱮⱯⱰⱱⱲⱳⱴⱵⱶⱷⱸⱹⱺⱻⱼⱽⱾⱿⲀⲁⲂⲃⲄⲅⲆⲇⲈⲉⲊⲋⲌⲍⲎⲏⲐⲑⲒⲓⲔⲕⲖⲗⲘⲙⲚⲛⲜⲝⲞⲟⲠⲡⲢⲣⲤⲥⲦⲧⲨⲩⲪⲫⲬⲭⲮⲯⲰⲱⲲⲳⲴⲵⲶⲷⲸⲹⲺⲻⲼⲽⲾⲿⳀⳁⳂⳃⳄⳅⳆⳇⳈⳉⳊⳋⳌⳍⳎⳏⳐⳑⳒⳓⳔⳕⳖⳗⳘⳙⳚⳛⳜⳝⳞⳟⳠⳡⳢⳣⳤ⳥⳦⳧⳨⳩⳪ⳫⳬⳭⳮ⳯⳰⳱Ⳳⳳ⳴⳵⳶⳷⳸⳹⳺⳻⳼⳽⳾⳿ⴀⴁⴂⴃⴄⴅⴆⴇⴈⴉⴊⴋⴌⴍⴎⴏⴐⴑⴒⴓⴔⴕⴖⴗⴘⴙⴚⴛⴜⴝⴞⴟⴠⴡⴢⴣⴤⴥ⴦ⴧ⴨⴩⴪⴫⴬ⴭ⴮⴯ⴰⴱⴲⴳⴴⴵⴶⴷⴸⴹⴺⴻⴼⴽⴾⴿⵀⵁⵂⵃⵄⵅⵆⵇⵈⵉⵊⵋⵌⵍⵎⵏⵐⵑⵒⵓⵔⵕᵖᵗᵘᵙᵚᵛᵜᵝᵞᵟᵠᵡᵢᵣᵤᵥᵦᵧᵨᵩᵪᵫᵬᵭᵮᵯᵰᵱᵲᵳᵴᵵᵶᵷᵸᵹᵺᵻᵼᵽᵾᵿᶀᶁᶂᶃᶄᶅᶆᶇᶈᶉᶊᶋᶌᶍᶎᶏᶐᶑᶒᶓᶔᶕᶖᶗᶘᶙᶚᶛᶜᶝᶞᶟᶠᶡᶢᶣᶤᶥᶦᶧᶨᶩᶪᶫᶬᶭᶮᶯᶰᶱᶲᶳᶴᶵᶶᶷᶸᶹᶺᶻᶼᶽᶾᶿ]'
+    cleaned = re.sub(unicode_symbols, ' ', cleaned)
+    
+    # Special handling: Remove @username prefix only at very start when followed by separator
+    # This handles filenames like "@THEMZNEW_Spider_Man" where @THEMZNEW is a username prefix
+    cleaned = re.sub(r'^@[A-Z0-9_]+[\s\-\:_]+', '', cleaned)
+    
+    # ========== 1. REMOVE CHANNEL PROMOTIONS ==========
+    # Handle [@ChannelName] - format (ENHANCED for multiple occurrences)
+    cleaned = re.sub(
+        r'\[@[A-Za-z0-9_]+\]\s*[-–—]?\s*',
+        '',
+        cleaned
     )
-    # 2. Remove Telegram usernames with underscores, dashes, brackets, spaces
-    # Handles: @WANTED_Originals, @PH_FILES, [@Animes2u], @TG_Movies4u_, etc.
-    pattern = r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]_-]*|[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]_-]*'
-    cleaned_filename = re.sub(pattern, ' ', cleaned_filename)
-    # Remove common uploader prefixes like "mj_link_4u -"
-    cleaned_filename = re.sub(r'^[A-Za-z0-9_]+\s*-\s*', ' ', cleaned_filename)
-    cleaned_filename = re.sub(r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b)(?=\W)', '', cleaned_filename, flags=re.IGNORECASE)
-    cleaned_filename = re.sub(r'\\[ntr]', ' ', cleaned_filename)
-    cleaned_filename = re.sub(r'\s+', ' ', cleaned_filename).strip()
-    return cleaned_filename
+    
+    # Handle @ChannelName - format (multiple occurrences)
+    cleaned = re.sub(
+        r'@[A-Za-z0-9_]+\s*[-–—]?\s*',
+        '',
+        cleaned
+    )
+    
+    # Handle • @ChannelName • - format
+    cleaned = re.sub(
+        r'[•·]\s*@[A-Za-z0-9_]+\s*[•·]\s*[-–—]?\s*',
+        '',
+        cleaned
+    )
+    
+    # 2. Strip channel branding prefixes at start
+    cleaned = re.sub(
+        r'^[•·\s]*[\[\(]?\s*@[A-Za-z0-9_]+\s*[\]\)]?\s*[•·]?\s*[-–—]?\s*',
+        ' ',
+        cleaned
+    )
+    
+    # 3. Remove Telegram usernames with underscores, dashes, brackets, spaces (ENHANCED)
+    # Pattern for @username variations - handle multiple occurrences
+    # IMPORTANT: Only remove if followed by separator (space, dash, bracket) to avoid removing @ from filenames
+    username_patterns = [
+        r'[\s\[\]_-]*@[A-Za-z0-9_]+[\s\[\]\-_:]+',  # @username followed by separator
+        r'[\s\[\]_-]*@[A-Za-z0-9-]+[\s\[\]\-_:]+',  # @username-with-dashes followed by separator
+        r'[\s\[\]_-]*t\.me/[A-Za-z0-9_]+[\s\[\]_-]*',  # t.me/username
+        r'[\s\[\]_-]*telegram\.me/[A-Za-z0-9_]+[\s\[\]_-]*',  # telegram.me/username
+        r'[\s\[\]_-]*joinchat/[A-Za-z0-9_-]+[\s\[\]_-]*',  # joinchat/...
+    ]
+    for pattern in username_patterns:
+        cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
+    
+    # 4. Remove common uploader prefixes and branding (ENHANCED)
+    # Only remove if the uploader name is in brackets/parentheses or has specific indicators
+    # This prevents removing parts of actual titles like "Spider-Man" -> "Man"
+    uploader_patterns = [
+        r'^\[[A-Za-z0-9_]+\]\s*[-–—]?\s*',  # [UploaderName] -
+        r'^\([A-Za-z0-9_]+\)\s*[-–—]?\s*',  # (UploaderName) -
+        r'^\{[A-Za-z0-9_]+\}\s*[-–—]?\s*',  # {UploaderName} -
+        r'^[A-Za-z0-9_]+:\s*',  # UploaderName:
+        r'\s*[-–—]\s*\[[A-Za-z0-9_]+\]\s*$',  # - [UploaderName] at end
+        r'\s*[-–—]\s*\([A-Za-z0-9_]+\)\s*$',  # - (UploaderName) at end
+        # Only remove bare uploader names at end if they're all uppercase (common for release groups)
+        r'\s*[-–—]\s*[A-Z]{2,}\s*$',  # - UPPERCASE at end
+    ]
+    for pattern in uploader_patterns:
+        cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
+    
+    # 5. Remove technical tags (ENHANCED)
+    technical_tags = [
+        r'(?<=\W)(org|AMZN|DDP|DD|NF|AAC|TVDL|WEB-DL|WEBRip|BluRay|HDTV|5\.1|2\.1|2\.0|7\.0|7\.1|5\.0|~|\b\w+kbps\b|x265|x264|HEVC|H\.?264|H\.?265)(?=\W)',
+        r'\b(?:EAC3|AC3|DTS|DTS-HD|TrueHD|Atmos|FLAC|MP3|Opus)\b',
+        r'\b(?:10bit|8bit|Hi10P)\b',
+        r'\b(?:HDR|HDR10|HDR10\+|Dolby\.?Vision|DV)\b',
+        r'\b(?:REMUX|REMUXED|REMUX\.?WEB)\b',
+        r'\b(?:HQ|HDRip|WEBRip|WEB-DL|BluRay)\b',
+    ]
+    for pattern in technical_tags:
+        cleaned = re.sub(pattern, '', cleaned, flags=re.IGNORECASE)
+    
+    # 6. Remove caption header like [@CloudMovieX] or [ChannelName]
+    cleaned = re.sub(r'^\s*\[@?[A-Za-z0-9_]+\]\s*', '', cleaned)
+
+    # 6b. Remove language bracket patterns like [#Telugu + #Tamil + #Hindi + #English]
+    #     or [Tel + Tam + Mal + Kan] — always strip the whole block
+    cleaned = re.sub(
+        r'\[[^\]]*(?:#?Tel|#?Tam|#?Mal|#?Kan|#?Hin|#?Eng|Tamil|Telugu|Malayalam|Kannada|Hindi|English)[^\]]*\]',
+        '', cleaned, flags=re.IGNORECASE
+    )
+
+    # 6c. Remove file-size tags like 1.8GB, 700MB, 2.1GB
+    cleaned = re.sub(r'\b\d+(?:\.\d+)?\s*(?:GB|MB|KB)\b', '', cleaned, flags=re.IGNORECASE)
+
+    # 6d. Remove audio spec blocks like (DD5.1 - 192Kbps) or (DD5.1 192Kbps) or (AAC 320Kbps)
+    cleaned = re.sub(r'\([^)]*(?:DD|DTS|AAC|EAC3|Kbps|kbps)[^)]*\)', '', cleaned, flags=re.IGNORECASE)
+
+    # 6e. Remove HQ tag and similar release quality labels
+    cleaned = re.sub(r'\bHQ\b', '', cleaned, flags=re.IGNORECASE)
+
+    # 7. Remove ESubs, Subs tags (ENHANCED)
+    sub_tags = r'\b(?:ESubs?|Subs?|HC|Subbed|Dubbed|Hardcoded|Softcoded|Forced)\b'
+    cleaned = re.sub(sub_tags, '', cleaned, flags=re.IGNORECASE)
+    
+    # 8. Remove quality tags that might interfere with name detection
+    quality_tags = r'\b(?:1080p|720p|480p|4K|2160p|1440p|SD|HD|FHD|UHD)\b'
+    cleaned = re.sub(quality_tags, '', cleaned, flags=re.IGNORECASE)
+    
+    # 9. Remove newlines/tabs
+    cleaned = re.sub(r'\\[ntr]', ' ', cleaned)
+    
+    # 10. Separate extension if present
+    ext = ""
+    ext_match = re.search(r'\.[a-z0-9]{3,4}$', cleaned, re.IGNORECASE)
+    if ext_match:
+        ext = ext_match.group()
+        cleaned = cleaned[:-len(ext)]
+
+    # 11. Replace dots and underscores with spaces in base title
+    cleaned = re.sub(r'[._]', ' ', cleaned, flags=re.IGNORECASE)
+
+    # 12. Remove common unwanted text patterns (ENHANCED for Unicode)
+    unwanted_patterns = [
+        r'\s*[-–—]\s*Join\s*@\w+\s*',  # - Join @username
+        r'\s*[-–—]\s*Join\s+\w+\s*',  # - Join channel (without @)
+        r'\s*[-–—]\s*Subscribe\s*',  # - Subscribe
+        r'\s*[-–—]\s*Follow\s*',  # - Follow
+        r'\s*[-–—]\s*Like\s*',  # - Like
+        r'\s*[-–—]\s*Share\s*',  # - Share
+        r'\s*[-–—]\s*Telegram\s*',  # - Telegram
+        r'\s*[-–—]\s*Channel\s*',  # - Channel
+        r'\s*[-–—]\s*Main\s+channel\s*',  # - Main channel
+        r'\s*[-–—]\s*Official\s+channel\s*',  # - Official channel
+        r'\s*\(\s*Join\s*\)',  # (Join)
+        r'\s*\(\s*Subscribe\s*\)',  # (Subscribe)
+        r'\b(?:www\.|https?://|ftp://)[^\s]+',  # URLs
+        r'\b(?:joinchat|t\.me|telegram\.me)/[^\s]+',  # Telegram links
+    ]
+    for pattern in unwanted_patterns:
+        cleaned = re.sub(pattern, ' ', cleaned, flags=re.IGNORECASE)
+
+    # 13. Remove empty brackets () [] {} and collapse consecutive hyphens
+    cleaned = re.sub(r'\(\s*\)|\[\s*\]|\{\s*\}', ' ', cleaned)
+    cleaned = re.sub(r'(\s*[-–—]\s*){2,}', ' - ', cleaned)
+
+    # 14. Keep letters, numbers, spaces, hyphens, parentheses, brackets, apostrophes
+    cleaned = re.sub(r'[^\w\s\-\(\)\[\]\']', ' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    # 15. Strip leading/trailing special characters and hyphens from base title
+    cleaned = re.sub(r'^[\s\-\.\[\]\(\)]+', '', cleaned)
+    cleaned = re.sub(r'[\s\-\.\[\]\(\)]+$', '', cleaned)
+    cleaned = re.sub(r'\s*[-–—]\s*$', '', cleaned).strip()
+
+    # Re-attach extension
+    if ext:
+        cleaned = f"{cleaned}{ext}"
+
+    return cleaned, detected_languages
 
 
 def normalize_filename(filename: str) -> str:
     """Normalize filename before PTN.parse to handle edge cases."""
-    # 1. Fix malformed extensions (missing closing bracket/paren before ext)
-    # e.g. "[Telugu (DD.mkv" -> "[Telugu (DD)].mkv"
-    # e.g. "[Telugu (Org .mkv" -> "[Telugu (Org)].mkv"
+    # 1. Replace dots and underscores with spaces for better metadata detection
+    filename = filename.replace('.', ' ').replace('_', ' ')
+    
+    # 2. Fix malformed extensions (missing closing bracket/paren before ext)
     ext = os.path.splitext(filename)[1]
     if ext:
         base = filename[: -len(ext)]
@@ -81,22 +314,21 @@ def normalize_filename(filename: str) -> str:
             base += ')'
         filename = base + ext
 
-    # 2. Normalize "S01 - EP07" / "S01 - E07" / "S01 EP07" -> "S01E07"
+    # 3. Normalize "S01 - EP07" / "S01 - E07" / "S01 EP07" -> "S01E07"
     filename = re.sub(r'S(\d{1,3})\s*[-_]?\s*EP?(\d{1,4})\b', r'S\1E\2', filename, flags=re.IGNORECASE)
 
-    # 3. Remove trailing dash/space before extension: "HDRip -.mkv" -> "HDRip.mkv"
+    # 4. Remove trailing dash/space before extension
     filename = re.sub(r'[\s\-]+(?=\.(mkv|mp4|avi|mov)$)', '', filename, flags=re.IGNORECASE)
 
-    # 4. Remove leading dashes/spaces
+    # 5. Remove leading dashes/spaces
     filename = re.sub(r'^[\s\-]+', '', filename)
 
-    # 5. Fix double dots and spaces around dots
+    # 6. Fix double dots and spaces around dots
     filename = re.sub(r'\s+\.', '.', filename)
     filename = re.sub(r'\.\s+', '.', filename)
     filename = re.sub(r'\.+', '.', filename)
 
     return filename.strip()
-
 
 
 def get_readable_time(seconds: int) -> str:
@@ -123,26 +355,25 @@ def get_readable_time(seconds: int) -> str:
     return readable_time
 
 
-
 def extract_tmdb_id(url):
     # Match TMDB URLs
     tmdb_match = re.search(r'/(movie|tv)/(\d+)', url)
     if tmdb_match:
-        return tmdb_match.group(2)  # Returns the TMDB ID
+        return tmdb_match.group(2)
 
     # Match IMDb URLs
     imdb_match = re.search(r'/title/(tt\d+)', url)
     if imdb_match:
-        return imdb_match.group(1)  # Returns the IMDb ID
+        return imdb_match.group(1)
 
     return None
+
 
 def remove_urls(text):
     url_pattern = r'\b(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*'
     text_without_urls = re.sub(url_pattern, '', text)
     cleaned_text = re.sub(r'\s+', ' ', text_without_urls).strip()
     return cleaned_text
-
 
 
 def normalize_languages(language):
@@ -178,15 +409,12 @@ async def cmd_exec(cmd, shell=False):
     return stdout, stderr, proc.returncode
 
 
-
 async def restart_notification():
     chat_id, msg_id = 0, 0
 
     try:
-        # Check if the restart message file exists
         if await aiopath.exists(".restartmsg"):
             async with aiopen(".restartmsg", "r") as f:
-                # Read the chat ID and message ID from the file
                 data = await f.readlines()
                 chat_id, msg_id = map(int, data)
 
@@ -194,17 +422,195 @@ async def restart_notification():
                 repo = Telegram.UPSTREAM_REPO.split('/')
                 UPSTREAM_REPO = f"https://github.com/{repo[-2]}/{repo[-1]}"
                 await StreamBot.edit_message_text(
-                chat_id=chat_id,
-                message_id=msg_id,
-                text=f"<blockquote>♻️ Restart Successfully...! \n\nDate: {now.strftime('%d/%m/%y')}\nTime: {now.strftime('%I:%M:%S %p')}\nTimeZone: {timezone.zone}\n\nRepo: {UPSTREAM_REPO}\nBranch: {Telegram.UPSTREAM_BRANCH}\nVersion: {__version__}</blockquote>",
-                parse_mode=enums.ParseMode.HTML
-            )
-
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text=f"<blockquote>♻️ Restart Successfully...! \n\nDate: {now.strftime('%d/%m/%y')}\nTime: {now.strftime('%I:%M:%S %p')}\nTimeZone: {timezone.zone}\n\nRepo: {UPSTREAM_REPO}\nBranch: {Telegram.UPSTREAM_BRANCH}\nVersion: {__version__}</blockquote>",
+                    parse_mode=enums.ParseMode.HTML
+                )
             except Exception as e:
                 LOGGER.error(f"Failed to edit restart message: {e}")
 
-            # Remove the restart message file
             await aioremove(".restartmsg")
 
     except Exception as e:
         LOGGER.error(f"Error in restart_notification: {e}")
+
+
+# =============================================================================
+# TMDB VALIDATION WITH CACHING
+# =============================================================================
+import asyncio
+from datetime import datetime, timedelta
+from Backend.config import QueueConfig, TMDBValidation, Telegram
+from themoviedb import aioTMDb
+
+# TMDB client for validation
+tmdb_validator = aioTMDb(api_key=Telegram.TMDB_API, language="en-US", region="US")
+
+# Cache for validated TMDB IDs
+tmdb_validation_cache = {}
+tmdb_cache_expiry = {}
+
+# Track cache hits/misses for metrics
+tmdb_cache_hits = 0
+tmdb_cache_misses = 0
+
+
+async def validate_tmdb_id_thorough(tmdb_id: int, media_type: str, retry_count: int = 0) -> bool:
+    """
+    Thorough TMDB validation with caching and exponential backoff for timeouts.
+    Returns True if ID exists and is valid.
+    This is SLOW but ACCURATE.
+    """
+    global tmdb_cache_hits, tmdb_cache_misses
+    
+    if not TMDBValidation.ENABLE_VALIDATION:
+        return True  # Skip validation if disabled
+    
+    # Check cache first
+    cache_key = f"{media_type}:{tmdb_id}"
+    if TMDBValidation.CACHE_VALID_IDS:
+        if cache_key in tmdb_validation_cache:
+            expiry = tmdb_cache_expiry.get(cache_key, datetime.min)
+            if datetime.utcnow() < expiry:
+                tmdb_cache_hits += 1
+                LOGGER.debug(f"TMDB cache hit: {cache_key} = {tmdb_validation_cache[cache_key]}")
+                return tmdb_validation_cache[cache_key]
+    
+    tmdb_cache_misses += 1
+    
+    try:
+        LOGGER.info(f"🔍 Validating TMDB ID {tmdb_id} ({media_type})...")
+        
+        # Slow but thorough validation
+        if media_type == "movie":
+            # Fetch movie details (takes 2-5 seconds)
+            result = await asyncio.wait_for(
+                tmdb_validator.movie(tmdb_id).details(),
+                timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+            )
+            is_valid = result is not None and hasattr(result, 'id')
+            
+            if is_valid:
+                LOGGER.info(f"✅ TMDB validation PASSED for movie {tmdb_id}: {result.title if result else 'Unknown'}")
+            else:
+                LOGGER.warning(f"❌ TMDB validation FAILED for movie {tmdb_id}")
+                
+        elif media_type == "tv":
+            # Fetch TV details (takes 2-5 seconds)
+            result = await asyncio.wait_for(
+                tmdb_validator.tv(tmdb_id).details(),
+                timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+            )
+            is_valid = result is not None and hasattr(result, 'id')
+            
+            if is_valid:
+                LOGGER.info(f"✅ TMDB validation PASSED for TV {tmdb_id}: {result.name if result else 'Unknown'}")
+            else:
+                LOGGER.warning(f"❌ TMDB validation FAILED for TV {tmdb_id}")
+        else:
+            return False
+        
+        # Cache the result
+        if TMDBValidation.CACHE_VALID_IDS:
+            tmdb_validation_cache[cache_key] = is_valid
+            tmdb_cache_expiry[cache_key] = datetime.utcnow() + timedelta(seconds=QueueConfig.TMDB_CACHE_TTL)
+        
+        return is_valid
+        
+    except asyncio.TimeoutError:
+        LOGGER.error(f"⏰ TMDB validation TIMEOUT for {media_type} {tmdb_id} after {QueueConfig.TMDB_VALIDATION_TIMEOUT}s")
+        
+        # Smart exponential backoff: 5s, 10s, 20s. Cap retries here —
+        # the old code recursed forever when SKIP_ON_TIMEOUT was disabled.
+        max_retries = 3
+        if retry_count < max_retries:
+            wait_time = 2 ** retry_count * 5
+            LOGGER.warning(f"🔄 TMDB timeout, retrying in {wait_time}s (attempt {retry_count + 1}/{max_retries})")
+            await asyncio.sleep(wait_time)
+            return await validate_tmdb_id_thorough(tmdb_id, media_type, retry_count + 1)
+
+        LOGGER.error(f"❌ TMDB validation failed after {max_retries} retries")
+        if TMDBValidation.SKIP_ON_TIMEOUT:
+            LOGGER.warning(f"⚠️ Skipping validation due to timeout (file will be skipped)")
+        return False
+            
+    except Exception as e:
+        LOGGER.error(f"❌ TMDB validation ERROR for {media_type} {tmdb_id}: {e}")
+        return False
+
+
+async def validate_episode_exists(tmdb_id: int, season: int, episode: int) -> bool:
+    """
+    Validate that a specific episode exists in TMDB.
+    Very slow but ensures accuracy.
+    """
+    if not TMDBValidation.ENABLE_VALIDATION:
+        return True
+    
+    cache_key = f"episode:{tmdb_id}:{season}:{episode}"
+    
+    # Check cache
+    if cache_key in tmdb_validation_cache:
+        expiry = tmdb_cache_expiry.get(cache_key, datetime.min)
+        if datetime.utcnow() < expiry:
+            return tmdb_validation_cache[cache_key]
+    
+    try:
+        LOGGER.info(f"🔍 Validating episode S{season}E{episode} for TMDB ID {tmdb_id}...")
+        
+        # Fetch season details (takes 3-5 seconds)
+        season_details = await asyncio.wait_for(
+            tmdb_validator.season(tmdb_id, season).details(),
+            timeout=QueueConfig.TMDB_VALIDATION_TIMEOUT
+        )
+        
+        if not season_details or not hasattr(season_details, 'episodes'):
+            return False
+        
+        # Check if episode exists
+        episode_numbers = [ep.episode_number for ep in season_details.episodes if hasattr(ep, 'episode_number')]
+        is_valid = episode in episode_numbers
+        
+        if is_valid:
+            LOGGER.info(f"✅ Episode validation PASSED: S{season}E{episode} exists")
+        else:
+            LOGGER.warning(f"❌ Episode validation FAILED: S{season}E{episode} not found (available: {episode_numbers})")
+        
+        # Cache result
+        tmdb_validation_cache[cache_key] = is_valid
+        tmdb_cache_expiry[cache_key] = datetime.utcnow() + timedelta(seconds=QueueConfig.TMDB_CACHE_TTL)
+        
+        return is_valid
+        
+    except asyncio.TimeoutError:
+        LOGGER.error(f"⏰ Episode validation TIMEOUT for S{season}E{episode}")
+        return False
+    except Exception as e:
+        LOGGER.error(f"❌ Episode validation ERROR: {e}")
+        return False
+
+
+async def cleanup_tmdb_cache():
+    """Remove expired TMDB cache entries every hour."""
+    while True:
+        await asyncio.sleep(3600)  # Run every hour
+        now = datetime.utcnow()
+        expired = [k for k, v in tmdb_cache_expiry.items() if now >= v]
+        for key in expired:
+            tmdb_validation_cache.pop(key, None)
+            tmdb_cache_expiry.pop(key, None)
+        if expired:
+            LOGGER.info(f"🧹 Cleaned {len(expired)} expired TMDB cache entries")
+
+
+def get_tmdb_cache_stats() -> dict:
+    """Get TMDB cache statistics for metrics."""
+    total = tmdb_cache_hits + tmdb_cache_misses
+    hit_rate = (tmdb_cache_hits / total * 100) if total > 0 else 0
+    return {
+        "cache_size": len(tmdb_validation_cache),
+        "hits": tmdb_cache_hits,
+        "misses": tmdb_cache_misses,
+        "hit_rate": round(hit_rate, 2)
+    }

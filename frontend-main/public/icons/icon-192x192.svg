@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C17"/>
+      <stop offset="50%" stop-color="#0B1020"/>
+      <stop offset="100%" stop-color="#050810"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="50%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" ry="115" fill="url(#bg)"/>
+  <rect x="2" y="2" width="508" height="508" rx="113" ry="113" fill="none" stroke="#2563EB" stroke-width="3" opacity="0.3"/>
+  <circle cx="256" cy="256" r="160" fill="#2563EB" opacity="0.12"/>
+  <g transform="translate(256, 256)">
+    <path d="M-110,-15 C-110,-80 -40,-115 30,-100 C70,-90 120,-60 120,10 C120,50 85,90 30,90 C-35,90 -85,55 -55,0 C-40,-25 -10,-40 30,-30 C60,-18 70,5 50,35 C35,55 0,55 -30,35" 
+          fill="none" stroke="url(#brand)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M-85,55 C-40,-40 40,-70 95,-20 C120,10 85,70 15,65 C-40,60 -85,15 -30,-60 C0,-95 70,-90 105,-55" 
+          fill="none" stroke="url(#brand)" stroke-width="17" opacity="0.85" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="0" cy="-6" r="16" fill="#06B6D4" opacity="0.95"/>
+  </g>
+</svg>

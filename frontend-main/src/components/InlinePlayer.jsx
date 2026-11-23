@@ -10,6 +10,8 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
   const [currentSubtitleTrack, setCurrentSubtitleTrack] = useState(-1);
   const [showAudioDropdown, setShowAudioDropdown] = useState(false);
   const [showSubDropdown, setShowSubDropdown] = useState(false);
+  const [streamError, setStreamError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   const playerRef = useRef(null);
   const audioDropdownRef = useRef(null);
@@ -52,7 +54,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
         const data = await response.json();
 
         // Audio tracks
-        if (data.audio_tracks?.length > 1) {
+        if (data.audio_tracks?.length > 0) {
           setAudioTracks(data.audio_tracks);
           const defaultIndex = data.audio_tracks.findIndex((t) => t.is_default);
           setCurrentAudioTrack(defaultIndex >= 0 ? defaultIndex : 0);
@@ -197,6 +199,46 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
+  /*
+   * Stream failure handling.
+   *
+   * Without this, a dead /dl/ link (404, 410, dropped network, CORS) left Plyr
+   * showing a black box with controls that did nothing — no message, no retry.
+   * That is the single most likely failure a viewer hits.
+   */
+  useEffect(() => {
+    setStreamError(false);
+    const plyr = playerRef.current?.plyr;
+    const media = plyr?.media;
+    if (!media) return undefined;
+
+    const onError = () => setStreamError(true);
+    const onStalled = () => {
+      // Only treat a stall as fatal once the element has actually failed to
+      // reach a playable state; a brief stall during buffering is normal.
+      if (media.networkState === 3 && media.readyState === 0) setStreamError(true);
+    };
+
+    media.addEventListener("error", onError);
+    media.addEventListener("stalled", onStalled);
+    return () => {
+      media.removeEventListener("error", onError);
+      media.removeEventListener("stalled", onStalled);
+    };
+  }, [sources, retryKey]);
+
+  const retryStream = () => {
+    setStreamError(false);
+    setRetryKey((n) => n + 1);
+    const media = playerRef.current?.plyr?.media;
+    try {
+      media?.load();
+      media?.play?.()?.catch?.(() => {});
+    } catch {
+      /* the reload below is the real recovery path */
+    }
+  };
+
   const plyrProps = useMemo(
     () => ({
       source: {
@@ -223,15 +265,54 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
     [sources, poster]
   );
 
-  const hasToolbar = audioTracks.length > 1 || subtitleTracks.length > 0;
+  const hasToolbar = audioTracks.length > 0 || subtitleTracks.length > 0;
 
   return (
-    <div className="w-full bg-black rounded-2xl overflow-hidden">
+    <div className="inline-player w-full rounded-[4px] overflow-hidden" style={{ background: '#08090b', lineHeight: 0 }}>
+      <style>{`
+        .inline-player .plyr {
+          --plyr-color-main: #e9b872 !important;
+          --plyr-video-background: #08090b !important;
+          --plyr-control-color: #f2ede3 !important;
+          --plyr-progress-playing-background: #e9b872 !important;
+        }
+      `}</style>
+      {streamError && (
+        <div
+          role="alert"
+          className="flex flex-col items-center justify-center gap-3 bg-carbon px-5 py-10 text-center"
+          style={{ lineHeight: 1.5 }}
+        >
+          <p className="timecode text-[10px] uppercase tracking-[0.22em] text-signal">
+            This print failed to load
+          </p>
+          <p className="max-w-sm text-sm text-bone/65">
+            The link for this file is unreachable. Try another quality, or retry
+            in a moment.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={retryStream}
+              className="inline-flex items-center gap-2 rounded-[3px] bg-projector px-4 py-2.5 text-sm font-bold text-ink transition-colors hover:bg-projector-bright focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2 rounded-[3px] border border-bone/15 bg-bone/5 px-4 py-2.5 text-sm font-medium text-bone/85 transition-colors hover:bg-bone/10 hover:text-bone focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-projector/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      )}
       {/* Toolbar: Audio + Subtitle Selectors */}
-      {hasToolbar && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-[#111] border-b border-white/5">
+      {hasToolbar && !streamError && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-carbon border-b border-bone/8">
           {/* Audio Selector */}
-          {audioTracks.length > 1 && (
+          {audioTracks.length > 0 && (
             <div ref={audioDropdownRef} className="relative">
               <button
                 onClick={(e) => {
@@ -239,7 +320,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                   setShowAudioDropdown((p) => !p);
                   setShowSubDropdown(false);
                 }}
-                className="flex items-center gap-2 text-[13px] text-white/80 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
+                className="flex items-center gap-2 text-[13px] text-bone/80 hover:text-bone bg-bone/[0.04] hover:bg-bone/10 px-3 py-1.5 rounded-[3px] transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -257,8 +338,8 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                 </svg>
               </button>
               {showAudioDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-[#1a1a1a] rounded-lg overflow-hidden min-w-[220px] border border-white/10 shadow-2xl z-50">
-                  <div className="px-3 py-2 text-[11px] text-white/40 uppercase tracking-wider border-b border-white/5">Audio Track</div>
+                <div className="absolute top-full left-0 mt-1 bg-carbon rounded-[4px] overflow-hidden min-w-[220px] border border-bone/10 shadow-2xl z-50">
+                  <div className="px-3 py-2 font-mono text-[10px] text-bone/60 uppercase tracking-wider border-b border-bone/8">Audio track</div>
                   {audioTracks.map((track, index) => (
                     <button
                       key={index}
@@ -266,7 +347,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                         e.stopPropagation();
                         switchAudioTrack(index);
                       }}
-                      className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${index === currentAudioTrack ? "text-green-400" : "text-white/80"}`}
+                      className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-bone/[0.06] transition-colors ${index === currentAudioTrack ? "text-projector" : "text-bone/80"}`}
                     >
                       {index === currentAudioTrack ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -277,7 +358,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                       )}
                       <span>{track.title || track.language?.toUpperCase() || `Track ${index + 1}`}</span>
                       {track.channels > 2 && (
-                        <span className="ml-auto text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-white/50">{track.channels}ch</span>
+                        <span className="ml-auto font-mono text-[10px] bg-bone/10 px-1.5 py-0.5 rounded-[2px] text-bone/50">{track.channels}ch</span>
                       )}
                     </button>
                   ))}
@@ -295,7 +376,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                   setShowSubDropdown((p) => !p);
                   setShowAudioDropdown(false);
                 }}
-                className="flex items-center gap-2 text-[13px] text-white/80 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors"
+                className="flex items-center gap-2 text-[13px] text-bone/80 hover:text-bone bg-bone/[0.04] hover:bg-bone/10 px-3 py-1.5 rounded-[3px] transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -312,14 +393,14 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                 </svg>
               </button>
               {showSubDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-[#1a1a1a] rounded-lg overflow-hidden min-w-[200px] border border-white/10 shadow-2xl z-50">
-                  <div className="px-3 py-2 text-[11px] text-white/40 uppercase tracking-wider border-b border-white/5">Subtitles</div>
+                <div className="absolute top-full left-0 mt-1 bg-carbon rounded-[4px] overflow-hidden min-w-[200px] border border-bone/10 shadow-2xl z-50">
+                  <div className="px-3 py-2 font-mono text-[10px] text-bone/60 uppercase tracking-wider border-b border-bone/8">Subtitles</div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       switchSubtitleTrack(-1);
                     }}
-                    className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${currentSubtitleTrack === -1 ? "text-green-400" : "text-white/80"}`}
+                    className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-bone/[0.06] transition-colors ${currentSubtitleTrack === -1 ? "text-projector" : "text-bone/80"}`}
                   >
                     {currentSubtitleTrack === -1 ? (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -337,7 +418,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                         e.stopPropagation();
                         switchSubtitleTrack(index);
                       }}
-                      className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-white/10 transition-colors ${index === currentSubtitleTrack ? "text-green-400" : "text-white/80"}`}
+                      className={`w-full text-left px-3 py-2.5 text-[13px] flex items-center gap-3 hover:bg-bone/[0.06] transition-colors ${index === currentSubtitleTrack ? "text-projector" : "text-bone/80"}`}
                     >
                       {index === currentSubtitleTrack ? (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -348,7 +429,7 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
                       )}
                       <span>{track.title || track.language?.toUpperCase() || `Sub ${index + 1}`}</span>
                       {track.is_default && (
-                        <span className="ml-auto text-[10px] bg-green-500/20 text-green-400 px-1.5 rounded">Default</span>
+                        <span className="ml-auto font-mono text-[10px] bg-projector/15 text-projector px-1.5 rounded-[2px]">Default</span>
                       )}
                     </button>
                   ))}
@@ -361,8 +442,8 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
 
       {/* Remux active indicator */}
       {(currentAudioTrack > 0 || currentSubtitleTrack >= 0) && (
-        <div className="px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
-          <span className="text-[11px] text-amber-400/80">
+        <div className="px-4 py-1.5 bg-projector/[0.08] border-b border-projector/20 flex items-center justify-between">
+          <span className="text-xs text-projector/80">
             Audio/Subtitle remux active — first load may take a moment, then cached for instant switching
           </span>
         </div>
@@ -370,7 +451,11 @@ const InlinePlayer = forwardRef(function InlinePlayer({ sources, poster, fileId,
 
       {/* Video Player */}
       {sources.length > 0 && (
-        <div className="plyr-wrapper">
+        <div
+          key={retryKey}
+          className="plyr-wrapper"
+          style={{ display: streamError ? "none" : "block", lineHeight: 0, fontSize: 0 }}
+        >
           <Plyr ref={playerRef} {...plyrProps} />
         </div>
       )}

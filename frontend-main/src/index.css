@@ -2,89 +2,341 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
+:root {
+  --ink: #08090b;
+  --carbon: #14151a;
+  --bone: #f2ede3;
+  --projector: #e9b872;
+  --projector-bright: #f0ca98;
+  --projector-deep: #d9a65c;
+  --signal: #ff5a3c;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /*
+   * ── Mobile bottom-chrome ladder ──────────────────────────────────────
+   *
+   * The dock, the mobile play bar, the PWA install prompt and toasts are all
+   * `position: fixed` and can be on screen at the same time on a detail page.
+   * Rather than hand-tuning each offset, they stack off one measurement: the
+   * dock's total footprint, verified at 73px (52px surface + 12px the orb rises
+   * above it + 9px it floats off the screen edge).
+   *
+   *   dock      bottom 0                                     top  73
+   *   play bar  bottom footprint + 0.5rem   =  81px   (56px)  top 137
+   *   install   bottom footprint + 4.5rem   = 145px   (~72px) top 217
+   *   toasts    bottom footprint + 10.25rem = 237px
+   *
+   * Changing the dock's height means changing one token; nothing overlaps
+   * silently.
+   */
+  --mob-dock-footprint: 73px;
+}
+
+/*
+ * Preflight already zeroes margin/padding on every element, so this block only
+ * duplicated it. `box-sizing` is kept because it is load-bearing site-wide, and
+ * the reset is narrowed to elements rather than `*` so it cannot outrank
+ * component styles by sitting on the universal selector.
+ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: sans-serif;
-  scroll-behavior: smooth;
 }
+
+html {
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  /*
+   * scroll-behavior:smooth belongs on user-initiated scrolls, not route
+   * changes. With it global, every navigation animated the jump to the top of
+   * the new page, which felt laggy. ScrollManager handles route scrolls
+   * explicitly (instant), and in-page anchors opt into smooth individually.
+   */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /*
+   * Paint the ink canvas on the ROOT, not only on <body>.
+   *
+   * Without this the document canvas falls back to the browser default, which
+   * is white. That only becomes visible when the content does not paint — i.e.
+   * when a JS bundle fails to load or execute (stale HTML pointing at a deleted
+   * hash after a deploy, a blocked/aborted chunk request, an error thrown during
+   * module init). Measured: with /assets/js/* blocked, <body> still reported
+   * ink but its background had nothing to cover, and the screen was 100% white
+   * (mean luminance 255) with an empty #root.
+   *
+   * Because body's background propagates to the canvas when html has none, this
+   * changes nothing in the healthy case — verified 0% white with JS loaded. It
+   * only converts a blank white page into a blank ink page, which reads as
+   * intentional and matches the app's dark identity while the error boundary or
+   * a retry takes over.
+   */
+  background-color: var(--ink);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:focus-within {
+    scroll-behavior: smooth;
+  }
+}
+
 body {
-  background: #000000;
+  background: var(--ink);
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  color: var(--bone);
+  overflow-x: hidden;
 }
-/* Mask */
+
+::selection {
+  background: rgba(233, 184, 114, 0.85);
+  color: #08090b;
+}
+
+/*
+ * Dark-theme form fields.
+ *
+ * These rules used to be four near-identical blocks that stamped
+ * `background-color: var(--carbon) !important` (and `color: … !important`) on
+ * every input, textarea and select. The `!important` beat the inline
+ * `backgroundColor: "rgba(255,255,255,0.05)"` on the mobile search field in
+ * Nav.jsx, so that field rendered carbon-on-carbon — effectively black text on
+ * a black box. Inline text colour is the intended API here, so these rules now
+ * supply a *default* the component can override, and only the WebKit-specific
+ * text-fill fix stays important (it has no inline equivalent).
+ */
+input,
+textarea,
+select {
+  color: var(--bone);
+  caret-color: var(--projector);
+  background-color: var(--carbon);
+  -webkit-text-fill-color: var(--bone);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(242, 237, 227, 0.45);
+  -webkit-text-fill-color: rgba(242, 237, 227, 0.45);
+  opacity: 1;
+}
+
+/*
+ * Search inputs must not paint an opaque box of their own: the surrounding
+ * component (the nav search field, filter chips) supplies the surface.
+ */
+input[type="search"] {
+  background-color: transparent;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  color: var(--bone);
+  caret-color: var(--projector);
+}
+
+/* ── Custom Scrollbar — projection booth ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background-color: var(--ink);
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--ink);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b98f52, #8a6a3e);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--projector), #b98f52);
+}
+
+/* ── Glassmorphic Effects ── */
+.glass {
+  background: rgba(8, 9, 11, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+}
+
+.glass-light {
+  background: rgba(242, 237, 227, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(242, 237, 227, 0.1);
+}
+
+.glass-dark {
+  background: rgba(8, 9, 11, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(242, 237, 227, 0.05);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(242, 237, 227, 0.05) 0%, rgba(242, 237, 227, 0.015) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+  border-radius: 0.5rem;
+}
+
+/* ── Cinematic Gradient Overlays ── */
+.hero-gradient {
+  background: linear-gradient(90deg, var(--ink) 0%, transparent 55%, var(--ink) 100%);
+}
+
+.hero-gradient-bottom {
+  background: linear-gradient(0deg, var(--ink) 0%, transparent 100%);
+}
+
+/* ── Film Grain ── */
+.film-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/*
+ * ── Hero scrim behind the fixed header ──────────────────────────────
+ *
+ * The header used `bg-gradient-to-b from-ink/85 to-transparent` plus
+ * `backdrop-blur-sm`. On the homepage that combination produced a visibly
+ * smeared band across the top of the hero: a 4px backdrop blur is too weak to
+ * read as frosted glass but strong enough to destroy the image's sharpness, so
+ * the result looked like a rendering fault rather than an intentional scrim.
+ * Measured on the built CSS it cut local gradient energy by only ~10% while
+ * spreading pixel detail across the full header height.
+ *
+ * What replaces it: a pure gradient scrim with no backdrop-filter. Over the
+ * hero it is invisible (the hero already darkens its own top edge), and on
+ * every other page it still gives the logo and links contrast over content that
+ * scrolls beneath. Nothing is blurred, so nothing can smear.
+ *
+ * Kept deliberately light at the bottom edge (0.30 → transparent) so it never
+ * stacks into a hard horizontal band against the hero artwork; the weight sits
+ * in the first few pixels where the logo actually is.
+ *
+ * The stopped-scrolled state keeps a real blur, because there the header sits
+ * over solid page background at 95% opacity, where a blur reads correctly.
+ */
+.cx-nav-scrim {
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 9, 11, 0.86) 0%,
+    rgba(8, 9, 11, 0.58) 48%,
+    rgba(8, 9, 11, 0.20) 80%,
+    transparent 100%
+  );
+}
+
+/* ── Editorial utilities ── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: rgba(233, 184, 114, 0.9);
+}
+
+.eyebrow::before {
+  content: "";
+  width: 1.4rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.eyebrow--plain::before {
+  display: none;
+}
+
+.timecode {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.hairline {
+  border-color: rgba(242, 237, 227, 0.1);
+}
+
+/* ── Card Hover Effects ── */
+.card-hover {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -18px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(233, 184, 114, 0.14);
+}
+
+/* ── Mask ── */
 .mask {
-  mask-image: linear-gradient(to top, transparent, #121212);
+  mask-image: linear-gradient(to top, transparent, #08090b);
 }
+
+/* ── Modal Styles ── */
 .modal {
   transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
-} /* Default video player style */
-
-#player {
-  transition: transform 0.3s ease;
 }
 
-/* Portrait mode */
-@media (orientation: portrait) {
-  #player {
-    transform: rotate(90deg) scale(1.75);
-    transform-origin: center center;
-  }
-}
-/* Landscape mode */
-@media (orientation: landscape) {
-  #player {
-    transform: none;
-  }
-}
-::-webkit-scrollbar {
-  width: 1px;
-  height: 1px;
-  background-color: transparent;
-}
-/* Track */
-::-webkit-scrollbar-track {
-  background-color: transparent;
-}
+/*
+ * A `#player { transform: rotate(90deg) scale(1.75) }` portrait-mode hack used
+ * to live here. Nothing in the app renders an element with id="player" any
+ * more (the inline player uses `.plyr`), so the rule was inert — but it was a
+ * trap: any future `<div id="player">` would silently render sideways and
+ * upscaled on every phone. Removed rather than left as a landmine.
+ */
 
-/* Handle */
-::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 5px;
-}
-
-/* Handle on hover */
-::-webkit-scrollbar-thumb:hover {
-  background: transparent;
-}
-
-/* Loading Details */
-/* HTML: <div class="loader"></div> */
+/* ── Loading Animations ── */
 .loader {
   width: 20px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: #50b498;
-  box-shadow: 0 0 0 0 #50b498;
+  background: var(--projector);
+  box-shadow: 0 0 0 0 var(--projector);
   animation: l2 1.5s infinite linear;
   position: relative;
 }
+
 .loader:before,
 .loader:after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 0 0 #50b498;
+  box-shadow: 0 0 0 0 var(--projector);
   animation: inherit;
   animation-delay: -0.5s;
 }
+
 .loader:after {
   animation-delay: -1s;
 }
+
 @keyframes l2 {
   100% {
-    box-shadow: 0 0 0 40px #50b4982f;
+    box-shadow: 0 0 0 40px rgba(233, 184, 114, 0.18);
   }
 }
 
@@ -93,42 +345,46 @@ body {
   width: 10px;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: #50b498;
-  box-shadow: 0 0 0 0 #50b498;
+  background: var(--projector);
+  box-shadow: 0 0 0 0 var(--projector);
   animation: l3 1.5s infinite linear;
   position: relative;
 }
+
 .loader-search:before,
 .loader-search:after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  box-shadow: 0 0 0 0 #50b498;
+  box-shadow: 0 0 0 0 var(--projector);
   animation: inherit;
   animation-delay: -0.5s;
 }
+
 .loader-search:after {
   animation-delay: -1s;
 }
+
 @keyframes l3 {
   100% {
-    box-shadow: 0 0 0 30px #50b4982f;
+    box-shadow: 0 0 0 30px rgba(233, 184, 114, 0.18);
   }
 }
 
-/*Episodes Loading*/
+/* Episodes Loading */
 .loader-episode {
   width: 40px;
   aspect-ratio: 1;
-  --c: linear-gradient(#50b498 0 0);
-  --r1: radial-gradient(farthest-side at bottom, #50b498 93%, #50b498);
-  --r2: radial-gradient(farthest-side at top, #50b498 93%, #50b498);
+  --c: linear-gradient(var(--projector) 0 0);
+  --r1: radial-gradient(farthest-side at bottom, var(--projector) 93%, var(--projector));
+  --r2: radial-gradient(farthest-side at top, var(--projector) 93%, var(--projector));
   background: var(--c), var(--r1), var(--r2), var(--c), var(--r1), var(--r2),
     var(--c), var(--r1), var(--r2);
   background-repeat: no-repeat;
   animation: l4 1s infinite alternate;
 }
+
 @keyframes l4 {
   0%,
   25% {
@@ -162,7 +418,7 @@ body {
   }
 }
 
-/* Audio Track Selector Styles */
+/* ── Audio Track Selector Styles ── */
 .audio-track-selector {
   position: absolute;
   top: 10px;
@@ -171,22 +427,24 @@ body {
 }
 
 .audio-track-button {
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
+  background: rgba(8, 9, 11, 0.78);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.12);
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
-  backdrop-filter: blur(4px);
-  transition: background 0.2s ease;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  font-family: "Manrope", sans-serif;
 }
 
 .audio-track-button:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(233, 184, 114, 0.14);
+  border-color: rgba(233, 184, 114, 0.4);
 }
 
 .audio-track-button .audio-icon {
@@ -218,23 +476,24 @@ body {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 4px;
-  background: rgba(0, 0, 0, 0.9);
-  border-radius: 4px;
-  padding: 4px 0;
-  min-width: 180px;
-  max-height: 250px;
+  margin-top: 6px;
+  background: rgba(20, 21, 26, 0.97);
+  border-radius: 8px;
+  padding: 6px 0;
+  min-width: 200px;
+  max-height: 280px;
   overflow-y: auto;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(233, 184, 114, 0.12);
+  border: 1px solid rgba(242, 237, 227, 0.08);
 }
 
 .audio-track-option {
   width: 100%;
   background: none;
   border: none;
-  color: white;
-  padding: 10px 12px;
+  color: var(--bone);
+  padding: 10px 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -242,14 +501,15 @@ body {
   font-size: 14px;
   transition: background 0.15s ease;
   text-align: left;
+  font-family: "Manrope", sans-serif;
 }
 
 .audio-track-option:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(242, 237, 227, 0.07);
 }
 
 .audio-track-option.selected {
-  background: rgba(80, 180, 152, 0.3);
+  background: rgba(233, 184, 114, 0.14);
 }
 
 .audio-track-option .lang-flag {
@@ -265,15 +525,15 @@ body {
 
 .audio-track-option .channels-badge {
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(242, 237, 227, 0.08);
   padding: 2px 6px;
-  border-radius: 3px;
-  color: #ccc;
+  border-radius: 4px;
+  color: rgba(242, 237, 227, 0.55);
 }
 
 .audio-track-option .check-icon {
   font-size: 12px;
-  color: #50b498;
+  color: var(--projector);
 }
 
 /* Firefox warning */
@@ -281,14 +541,15 @@ body {
   position: absolute;
   top: 50px;
   right: 60px;
-  background: rgba(255, 193, 7, 0.9);
-  color: #000;
+  background: rgba(233, 184, 114, 0.95);
+  color: #08090b;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
   z-index: 19;
-  max-width: 200px;
+  max-width: 210px;
   text-align: center;
+  font-family: "Manrope", sans-serif;
 }
 
 /* Responsive adjustments */
@@ -308,7 +569,7 @@ body {
   }
 
   .audio-track-dropdown {
-    min-width: 150px;
+    min-width: 160px;
   }
 
   .audio-api-warning {
@@ -319,31 +580,33 @@ body {
   }
 }
 
-/* Subtitle Track Selector Styles */
+/* ── Subtitle Track Selector Styles ── */
 .subtitle-selector {
   position: absolute;
   top: 10px;
-  right: 180px;  /* Left of audio selector */
+  right: 180px;
   z-index: 20;
 }
 
 .subtitle-track-button {
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  border: none;
+  background: rgba(8, 9, 11, 0.78);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.12);
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
-  backdrop-filter: blur(4px);
-  transition: background 0.2s ease;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  font-family: "Manrope", sans-serif;
 }
 
 .subtitle-track-button:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(233, 184, 114, 0.14);
+  border-color: rgba(233, 184, 114, 0.4);
 }
 
 .subtitle-track-button .subtitle-icon {
@@ -375,23 +638,24 @@ body {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 4px;
-  background: rgba(0, 0, 0, 0.9);
-  border-radius: 4px;
-  padding: 4px 0;
-  min-width: 180px;
-  max-height: 250px;
+  margin-top: 6px;
+  background: rgba(20, 21, 26, 0.97);
+  border-radius: 8px;
+  padding: 6px 0;
+  min-width: 200px;
+  max-height: 280px;
   overflow-y: auto;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(233, 184, 114, 0.12);
+  border: 1px solid rgba(242, 237, 227, 0.08);
 }
 
 .subtitle-track-option {
   width: 100%;
   background: none;
   border: none;
-  color: white;
-  padding: 10px 12px;
+  color: var(--bone);
+  padding: 10px 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -399,14 +663,15 @@ body {
   font-size: 14px;
   transition: background 0.15s ease;
   text-align: left;
+  font-family: "Manrope", sans-serif;
 }
 
 .subtitle-track-option:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(242, 237, 227, 0.07);
 }
 
 .subtitle-track-option.selected {
-  background: rgba(80, 180, 152, 0.3);
+  background: rgba(233, 184, 114, 0.14);
 }
 
 .subtitle-track-option .lang-flag {
@@ -421,30 +686,30 @@ body {
 }
 
 .subtitle-track-option .forced-badge {
-  font-size: 9px;
-  background: rgba(255, 193, 7, 0.8);
-  color: #000;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-weight: bold;
+  font-size: 10px;
+  background: rgba(233, 184, 114, 0.85);
+  color: #08090b;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 700;
 }
 
 .subtitle-track-option .format-badge {
-  font-size: 9px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ccc;
-  padding: 1px 5px;
-  border-radius: 3px;
+  font-size: 10px;
+  background: rgba(242, 237, 227, 0.1);
+  color: rgba(242, 237, 227, 0.7);
+  padding: 2px 5px;
+  border-radius: 4px;
 }
 
 .subtitle-track-option .check-icon {
   font-size: 12px;
-  color: #50b498;
+  color: var(--projector);
 }
 
 .dropdown-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(242, 237, 227, 0.08);
   margin: 4px 0;
 }
 
@@ -465,6 +730,1119 @@ body {
   }
 
   .subtitle-track-dropdown {
-    min-width: 150px;
+    min-width: 160px;
+  }
+}
+
+/* ── Premium Animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(233, 184, 114, 0); }
+  50% { box-shadow: 0 0 20px 4px rgba(233, 184, 114, 0.24); }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes splash-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.5s ease-out;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.5s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.35s ease-out;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-splash-sweep {
+  animation: splash-sweep 1.8s ease-in-out infinite;
+}
+
+/* ── CSS replacements for framer-motion (first-load path) ───────────────────
+ * These back the animations that used to be provided by framer-motion in
+ * HomeHero, TopTenToday, HomeSections and Nav. framer was pulled into the eager
+ * entry graph just for these few fades, which shipped a 112KB `vendor-motion`
+ * chunk on every page; they are plain keyframes now. Detail routes (Watch,
+ * Similars, SearchResults, MyList, …) still use framer and are unchanged.
+ *
+ * Every class here is applied conditionally by JS — the components drop the
+ * class entirely when the visitor prefers reduced motion, so those users get no
+ * animation at all (not a shortened one). The `reduce` media query below is a
+ * second belt-and-braces guard.
+ */
+
+/* Hero slide copy: opacity 0→1, y 22→0 over 0.6s. Matches the old framer tween
+   `{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }`. */
+@keyframes hero-copy-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero-copy {
+  animation: hero-copy-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Section / Top-10 card reveal: opacity 0→1, y ~10-12→0. Duration is left on
+   the element via `animation-delay` for the staggered entrance, so the keyframes
+   here stay delay-agnostic. `both` holds the start state during the delay, so
+   cards never flash at full opacity before their turn. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-reveal-up {
+  animation: reveal-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Desktop nav active underline: a short fade-in instead of framer's shared
+   `layoutId` pill (which slid between links). */
+@keyframes nav-pill-in {
+  from { opacity: 0; transform: scaleX(0.6); }
+  to   { opacity: 1; transform: scaleX(1); }
+}
+
+.nav-active-pill {
+  transform-origin: center;
+  animation: nav-pill-in 0.22s ease-out both;
+}
+
+/* Desktop search dropdown: opacity 0→1, y -6→0, scale .98→1 (framed as a small
+   drop-down from under the field). Exit is intentionally not animated. */
+@keyframes nav-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nav-dropdown-in {
+  transform-origin: top right;
+  animation: nav-dropdown-in 0.15s ease-out both;
+}
+
+/* Mobile full-screen search overlay: opacity 0→1, y 20→0 over 0.2s. Entrance
+   only — the overlay unmounts immediately on close (exit animation dropped,
+   per the migration note in the task). */
+@keyframes nav-overlay-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-overlay-in {
+  animation: nav-overlay-in 0.2s ease-out both;
+}
+
+/* Dock tab press feedback: framer's `whileTap={{ scale: 0.92 }}`. Applied only
+   when motion is allowed (the component omits the class under reduced motion). */
+.mob-dock__tabinner--pressable {
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mob-dock__tab:active .mob-dock__tabinner--pressable {
+  transform: scale(0.92);
+}
+
+/* Dock orb: framer moved this single element between cells with a shared
+   `layoutId`. It is now one element parked by `--mob-dock-i`, travelling with
+   the same `left` transition the cradle uses (see `.mob-dock__cradle`), so both
+   planes move in lockstep. The geometry rule lives in the dock section below,
+   next to `.mob-dock__orb`, so it overrides that class's `left: 50%` by source
+   order. */
+
+/* Second guard: if a class ever gets applied despite the JS check, still
+   disable these animations for reduced-motion visitors. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-copy,
+  .animate-reveal-up,
+  .nav-active-pill,
+  .nav-dropdown-in,
+  .nav-overlay-in {
+    animation: none !important;
+  }
+
+  .mob-dock__tabinner--pressable,
+  .mob-dock__orb--travelling {
+    transition: none !important;
+  }
+}
+
+/* ── Premium Card Hover Effects ── */
+.premium-card {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.premium-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(233, 184, 114, 0.1);
+}
+
+.premium-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 9, 11, 0.88) 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+/* ── Skeleton Loading Animation ── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(242, 237, 227, 0.04) 25%,
+    rgba(242, 237, 227, 0.08) 50%,
+    rgba(242, 237, 227, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+/*
+ * ── ASCII dragons stage (splash) ──────────────────────────────────
+ *
+ * The scene in `src/vendor/dragons.js` reads its entire palette from these
+ * custom properties at runtime — `getComputedStyle(stage)` on construction and
+ * again on every theme change. Every one of them is required: the reader does
+ * `value.split(',').map(Number)` with no fallback, so a missing property yields
+ * a one-element [0] array and every mixed colour downstream becomes NaN (the
+ * canvas then paints nothing at all, which reads as "the animation is broken"
+ * rather than "a variable is missing").
+ *
+ * The values are the CloudXMovies palette expressed as bare RGB triples, because
+ * canvas needs numbers it can interpolate, not colour strings:
+ *
+ *   --rgb-bg    ink          the flight background and shadow-fill colour
+ *   --rgb-fg    bone         stars, grid, clouds, wind, the shadow hatch
+ *   --rgb-skin  bone-muted   the base the breeds are tinted from (unused when
+ *                            `colorful: false`, but read unconditionally)
+ *   --rgb-dot   bone-subtle  the quiet night-sky dot field
+ *   --rgb-wake  projector    the trail a wingbeat leaves in the grid
+ *   --rgb-a1..3 gold ramp    sparks and fire breath
+ *   --grid-alpha             strength of the dotted grid behind the flight
+ *
+ * `colorful: false` at the call site keeps the dragons monochrome on purpose:
+ * five differently coloured breeds is a demo flourish, and against our ink
+ * backdrop it read as confetti behind the wordmark. Monochrome, the shapes and
+ * the gold sparks carry it.
+ */
+.cx-dragon-stage {
+  --rgb-bg: 8, 9, 11;            /* ink            */
+  --rgb-fg: 242, 237, 227;       /* bone           */
+  --rgb-skin: 168, 164, 155;     /* bone-muted     */
+  --rgb-dot: 143, 139, 131;      /* bone-subtle    */
+  --rgb-wake: 233, 184, 114;     /* projector      */
+  --rgb-a1: 233, 184, 114;       /* projector      */
+  --rgb-a2: 240, 202, 152;       /* projector-bright */
+  --rgb-a3: 217, 166, 92;        /* projector-deep */
+  --grid-alpha: 0.05;
+}
+
+/* ── ASCII reveal skin (ascii-reveal) ──────────────────────────────
+ * Maps the library's custom properties onto our own tokens so the glyph
+ * grid inherits the screening-room palette and our mono face instead of
+ * the package defaults (Geist Mono / blue accent). The library reads these
+ * from whichever ancestor carries `.ascii-scope`, so one class on a page
+ * or section is enough.
+ *
+ * --ascii-skeleton is the resting glyph colour. It is deliberately
+ * bone-subtle (#8F8B83, 4.8:1 on ink) rather than a translucent bone/20:
+ * a skeleton is decorative, but faint glyph noise at very low contrast
+ * reads as dirt on the panel rather than as a placeholder.
+ */
+.ascii-scope {
+  --ascii-accent: #e9b872;   /* projector      */
+  --ascii-glyph: #a8a49b;    /* bone-muted     */
+  --ascii-skeleton: #8f8b83; /* bone-subtle    */
+  --ascii-flash: #f0ca98;    /* projector-bright */
+  --ascii-surface: #08090b;  /* ink            */
+  --ascii-font: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Glyph blocks default to an 8px radius; match the card's 4px. */
+  --ars-radius: 4px;
+}
+
+/*
+ * The library emits a fixed 96-column glyph grid and its rows are plain text,
+ * so the grid's aspect ratio cannot be set at render time. Rather than scaling
+ * it (which smears the glyphs), the row height is derived from the poster box
+ * itself: one row = 100cqh / 24, which is exactly what PosterBlock asks for, so
+ * the texture fills any card height at any breakpoint. Surplus columns run past
+ * the right edge and read as continuing texture rather than stopping short.
+ *
+ * line-height must be pinned to 1 on both .ars and .ars-block: the library sets
+ * `.ars-block { line-height: 1.3 }`, and since it injects its stylesheet at
+ * runtime (into <head>, after this file) relying on the cascade would leave the
+ * grid 30% too tall. These selectors are two classes deep, so they win on
+ * specificity regardless of injection order.
+ *
+ * The library's own dither defaults (--ars-base: .22) are left untouched; colour
+ * comes from --ascii-skeleton above. Measured against the carbon card backdrop
+ * the glyph texture sits at ~1.9:1 — present enough to read as a placeholder,
+ * quiet enough not to compete with real posters.
+ */
+.cx-ascii-poster {
+  container-type: size;
+}
+.cx-ascii-poster .ars {
+  position: absolute;
+  inset: 0;
+  /* Fallback for engines without container query units. */
+  font-size: 22px;
+  line-height: 1;
+  /*
+   * Wave tuning — this is what makes the animation read as alive rather than
+   * broken, and it matters most on phones.
+   *
+   * The engine sweeps a highlight band across each element every `--ars-speed`
+   * seconds; the band is `--ars-band` percent of the element's width. Dither's
+   * shipped values are 55% over 1.8s, which measured as a ~0.6s sweep followed
+   * by ~1.2s of a completely blank canvas — 63% of frames had zero painted
+   * pixels. On a wide desktop card that gap is forgivable; on a 179px-wide
+   * mobile poster it read as "the loading animation is not working", because
+   * the placeholder sat empty with no visible motion at all.
+   *
+   * These values were measured frame-by-frame at 390x844 and chosen for a 0%
+   * blank-frame ratio while still clearly moving: 95% width over 1.0s gives a
+   * continuous drift with ~30 distinct intensity levels per cycle.
+   *
+   * NOTE the units, which are easy to get wrong: `--ars-band` is a bare
+   * percentage number (95 means 95%; the engine divides by 100, so 0.95 would
+   * become 0.95%), and `--ars-speed` is in *seconds* (the engine multiplies by
+   * 1000, so 900 would mean 15 minutes, not 0.9s).
+   */
+  --ars-band: 95;
+  --ars-speed: 1;
+}
+@supports (height: 100cqh) {
+  .cx-ascii-poster .ars {
+    font-size: calc(100cqh / 24);
+  }
+}
+.cx-ascii-poster .ars-block {
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+  background: transparent;
+}
+
+/* ── Hide Scrollbar ── */
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Section Title Styles ── */
+.section-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--bone);
+}
+
+/* ── Brand Glow ── */
+.brand-text {
+  background: linear-gradient(135deg, var(--projector-bright) 0%, var(--projector) 60%, var(--projector-deep) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Focus Styles ── */
+*:focus-visible {
+  outline: 2px solid var(--projector);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Button Base ── */
+.btn-primary {
+  background: var(--projector);
+  color: #08090b;
+  border: none;
+  border-radius: 4px;
+  padding: 11px 26px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 10px 30px -12px rgba(233, 184, 114, 0.5);
+  font-family: "Manrope", sans-serif;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px -12px rgba(233, 184, 114, 0.65);
+  background: var(--projector-bright);
+}
+
+.btn-secondary {
+  background: rgba(242, 237, 227, 0.06);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.16);
+  border-radius: 4px;
+  padding: 11px 26px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+  font-family: "Manrope", sans-serif;
+}
+
+.btn-secondary:hover {
+  background: rgba(242, 237, 227, 0.12);
+  border-color: rgba(242, 237, 227, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ── Rating Badge ── */
+.rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(233, 184, 114, 0.1);
+  border: 1px solid rgba(233, 184, 114, 0.25);
+  color: var(--projector);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── Genre Badge ── */
+.genre-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: rgba(242, 237, 227, 0.05);
+  border: 1px solid rgba(242, 237, 227, 0.12);
+  color: rgba(242, 237, 227, 0.75);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── Section Separator Line ── */
+.section-line {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(233, 184, 114, 0.6) 0%, rgba(233, 184, 114, 0.15) 55%, transparent 100%);
+  border-radius: 9999px;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Mobile Touch Fix ── */
+@media (max-width: 768px) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Safe Area for iOS ── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Installed-PWA (standalone) hardening ─────────────────────────────
+ *
+ * In standalone mode there is no browser toolbar, so mobile browsers start
+ * sizing the viewport to the full screen including the areas under the status
+ * bar and the gesture bar. Two consequences this app has to handle:
+ *
+ *  1. A fixed bottom dock pinned with only a plain `bottom` value sits under
+ *     the iOS home-gesture bar. Every dock/modal already adds
+ *     `--safe-bottom` individually, but a standalone launch can also shift the
+ *     visual viewport when the keyboard opens (search, admin forms), which left
+ *     the dock floating in the middle of the screen. Pinning it to the visual
+ *     viewport keeps it at the bottom edge.
+ *
+ *  2. `100vh` in standalone equals the *largest* viewport, so the full-screen
+ *     player overflowed by the height of the gesture bar. Those places now use
+ *     `100dvh`; this keeps `--app-vh` available for anything that needs it.
+ */
+html {
+  --app-vh: 100dvh;
+}
+@supports not (height: 100dvh) {
+  html {
+    --app-vh: 100vh;
+  }
+}
+
+@media (display-mode: standalone) {
+  /* Stop iOS from rubber-banding the whole document behind the fixed chrome,
+     which showed the page background as a flash above the header. */
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/*
+ * ── Toasts above the mobile dock ─────────────────────────────────────
+ *
+ * ToastContainer is positioned bottom-right with react-toastify's default 1rem
+ * gutter. On phones that put every toast underneath the floating navigation
+ * dock, so confirmations appeared to be swallowed — the toast was rendering,
+ * just behind the dock and out of sight.
+ *
+ * Below `navlg` (the breakpoint where the dock disappears) the container is
+ * lifted clear of the mobile chrome. The offset has to clear the taller of the
+ * two stacks, because both are fixed and both can be on screen at once on a
+ * detail page:
+ *
+ * ══ Mobile bottom-chrome ladder ══
+ *
+ *   dock      bottom   0                                     top  90
+ *   play bar  bottom  footprint + 0.5rem   =  98px   (56px)  top 154
+ *   install   bottom  footprint + 4.5rem   = 162px   (~72px) top 234
+ *   toasts    bottom  footprint + 10.25rem = 254px           top 254+
+ *
+ * so toasts clear the install prompt by ~20px and the play bar by 100px. Safe
+ * area is added on top so an installed PWA keeps toasts off the gesture bar.
+ */
+@media (max-width: 989px) {
+  .Toastify__toast-container--bottom-right,
+  .Toastify__toast-container--bottom-left,
+  .Toastify__toast-container--bottom-center {
+    bottom: calc(var(--safe-bottom, 0px) + var(--mob-dock-footprint, 73px) + 10.25rem) !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: auto !important;
+  }
+  .Toastify__toast {
+    border-radius: 6px;
+  }
+}
+
+/*
+ * ── Stop iOS Safari zooming on focus ─────────────────────────────────
+ *
+ * iOS zooms the page when a text field with a font-size below 16px receives
+ * focus, and it never zooms back out cleanly — the search box in the header and
+ * the admin console's fields all use `text-sm` (12.8px in this theme), so
+ * tapping search on a phone left the whole layout magnified and the sticky
+ * header half off-screen.
+ *
+ * Scoped to touch devices (`hover: none` + `pointer: coarse`) so the desktop
+ * UI keeps its designed type scale. `!important` is required because these
+ * fields set their size with Tailwind utilities of equal specificity. A uniform
+ * 16px is used rather than a focus-only rule: a size that changes on focus
+ * makes the text visibly jump the instant the keyboard opens.
+ */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Hide Scrollbar (cross-browser) ──
+   NOTE: the base `.no-scrollbar` rules live earlier in this file (~line 810);
+   this block used to repeat them, and the repetition silently overrode the
+   first definition. Only the parts unique to this block are kept. */
+
+/* ── Genre Swiper — prevent horizontal bleed ── */
+.genre-swiper {
+  overflow: hidden !important;
+  padding-bottom: 4px;
+}
+.genre-swiper .swiper-wrapper {
+  align-items: flex-start;
+}
+
+/*
+ * Skeleton shimmer and the episode spinner are defined earlier in this file
+ * (the `.skeleton` background gradient at ~798 and `.loader-episode`'s custom
+ * loader at ~305). Repeating them here shadowed those richer definitions with
+ * plainer ones, so the first, full definitions win again.
+ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Swiper pagination — hero dots override ── */
+.swiper-pagination-bullet {
+  background: rgba(242, 237, 227, 0.35);
+  opacity: 1;
+  transition: all 0.3s;
+}
+.swiper-pagination-bullet-active {
+  background: var(--projector);
+  transform: scaleX(1.5);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   PLYR PLAYER — Global overrides
+   Problem: Plyr renders <video> as an inline replaced element which leaves a
+   4-8px phantom gap at the bottom (line-height baseline gap). Combined with
+   bg-black on the wrapper this appears as a black strip below the controls.
+   Fix: force display:block on the video, zero the line-height on the wrapper,
+   and make the InlinePlayer flex column so children have zero gap.
+────────────────────────────────────────────────────────────────────────────── */
+
+/* 1. The .plyr-wrapper div — kill the inline-block baseline gap */
+.plyr-wrapper {
+  display: block;
+  line-height: 0;
+  font-size: 0;
+}
+
+/* 2. The .plyr root — no extra margin/padding, fill the wrapper */
+.plyr {
+  display: block !important;
+  width: 100% !important;
+  line-height: 0 !important;
+}
+
+/* 3. The inner video-wrapper — no gap at the bottom */
+.plyr__video-wrapper {
+  display: block !important;
+  line-height: 0 !important;
+}
+
+/* 4. The actual <video> tag — force block so baseline gap disappears */
+.plyr__video-wrapper video,
+.plyr video {
+  display: block !important;
+  width: 100% !important;
+  line-height: 0 !important;
+}
+
+/* 5. Controls bar: sits absolutely inside, so no extra space below video */
+.plyr__controls {
+  /* already position:absolute, but ensure no extra bottom margin */
+  margin-bottom: 0 !important;
+  padding-bottom: 8px !important;
+}
+
+/* 6. Brand color — projector amber */
+.plyr {
+  --plyr-color-main: #e9b872;
+  --plyr-video-background: #08090b;
+  --plyr-control-color: #f2ede3;
+  --plyr-progress-playing-background: #e9b872;
+  --plyr-progress-buffered-background: rgba(242, 237, 227, 0.3);
+  --plyr-range-thumb-background: #e9b872;
+  --plyr-range-fill-background: #e9b872;
+}
+
+/* 7. Remove the default shadow-bottom on controls — it can add space */
+.plyr--video .plyr__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, transparent 100%) !important;
+}
+
+/* 8. Progress bar slightly taller for easier tap on mobile */
+@media (max-width: 768px) {
+  .plyr__progress input[type=range] {
+    height: 14px !important;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-float,
+  .animate-glow-pulse {
+    animation: none !important;
+  }
+}
+
+/* ===========================================================================
+   Floating glass navigation dock (mobile / small tablet)
+
+   Scope note: everything here is prefixed `mob-dock`. The dock is hidden at
+   `navlg` (990px), which is the same width where the desktop header appears, so
+   exactly one chrome mode is ever on screen. Nothing in this block affects the
+   desktop header.
+
+   The glass is built from layers rather than a single translucent fill, because
+   a flat `rgba()` + blur reads as a grey smear on a dark UI. What sells it:
+
+     · a vertical tint ramp  (denser at the bottom where page content scrolls
+       under it, thinner at the top where the lit edge is)
+     · a 1px lit top edge    (inset highlight, the "light catching glass" cue)
+     · a hairline low-alpha border, brighter at the top than the bottom
+     · an inner shadow       (gives the surface thickness)
+     · two ambient shadows   (a tight one for contact, a wide soft one for lift)
+
+   Fallbacks are explicit: `@supports not (backdrop-filter)` raises the surface
+   opacity so the labels stay legible if blur is unavailable, and
+   `prefers-reduced-transparency` drops the glass entirely.
+   =========================================================================== */
+
+.mob-dock {
+  /* Geometry — one source of truth, reused by the orb/cradle alignment. */
+  --dock-h: 52px;
+  --dock-radius: 20px;
+  --dock-pad-x: 6px;
+  --dock-lift: 0.55rem;
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  bottom: calc(var(--safe-bottom, 0px) + var(--dock-lift));
+  padding: 0 0.75rem;
+
+  /* Hidden while the keyboard is up, so it never floats over form fields. */
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mob-dock[data-keyboard-open="true"] {
+  opacity: 0;
+  transform: translateY(120%);
+  pointer-events: none;
+}
+
+.mob-dock__inner {
+  max-width: 27rem; /* 432px — keeps 5 items comfortable on tablets */
+  margin: 0 auto;
+  /* Room above the surface for the orb to rise into without being clipped. */
+  padding-top: 12px;
+}
+
+.mob-dock__surface {
+  position: relative;
+  isolation: isolate;
+  height: var(--dock-h);
+  border-radius: var(--dock-radius);
+
+  /*
+   * Tint ramp. Bottom-weighted on purpose: page content scrolls underneath the
+   * dock, so the underside needs more body, while the top stays lighter to let
+   * the highlight edge read.
+   */
+  background: linear-gradient(
+    to bottom,
+    rgba(30, 32, 38, 0.62) 0%,
+    rgba(20, 21, 26, 0.78) 52%,
+    rgba(14, 15, 19, 0.86) 100%
+  );
+
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+
+  box-shadow:
+    /* lit top edge */
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    /* faint bottom bounce, keeps the rim from vanishing */
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    /* inner thickness */
+    inset 0 14px 22px -18px rgba(255, 255, 255, 0.5),
+    inset 0 -16px 26px -22px rgba(0, 0, 0, 0.9),
+    /* contact shadow */
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    /* lift / ambient */
+    0 22px 48px -14px rgba(0, 0, 0, 0.82),
+    0 8px 18px -12px rgba(0, 0, 0, 0.6);
+}
+
+.mob-dock__surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.07) 38%,
+    rgba(255, 255, 255, 0.03) 72%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Very subtle warm tint in the top third, tying the glass to the amber accent
+   without turning it into a coloured panel. */
+.mob-dock__surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 80% at 50% -20%,
+    rgba(233, 184, 114, 0.09) 0%,
+    transparent 60%
+  );
+}
+
+.mob-dock__grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 100%;
+  padding: 0 var(--dock-pad-x);
+}
+
+/* --- travelling cradle ---------------------------------------------------- */
+/* A soft radial shade sitting under the active cell. It reads as the dock
+   surface dipping where the orb rests. Driven by --mob-dock-i (active index). */
+.mob-dock__cradle {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  height: 100%;
+  width: calc((100% - (var(--dock-pad-x) * 2)) / 5);
+  left: calc(var(--dock-pad-x) + (var(--mob-dock-i) * ((100% - (var(--dock-pad-x) * 2)) / 5)));
+  border-radius: 18px;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 70% at 50% 42%,
+    rgba(233, 184, 114, 0.14) 0%,
+    rgba(233, 184, 114, 0.05) 45%,
+    transparent 72%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* --- tab ------------------------------------------------------------------ */
+.mob-dock__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px minimum touch target; the surface is 62px tall so this is exceeded
+     vertically and the full column width horizontally. */
+  min-height: 44px;
+  min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+  outline: none;
+}
+
+.mob-dock__tab:focus-visible .mob-dock__tabinner {
+  outline: 2px solid var(--projector);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+
+.mob-dock__tabinner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding-bottom: 9px;
+}
+
+.mob-dock__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  color: rgba(242, 237, 227, 0.62);
+  transition: color 260ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mob-dock__tab:active .mob-dock__icon {
+  color: rgba(242, 237, 227, 0.9);
+}
+
+/*
+ * The icon that rides inside the orb.
+ *
+ * Geometry, derived from the orb rather than eyeballed: the orb sits at
+ * -12px relative to this box and is 38px tall, so its centre is at
+ * -12 + 19 = +7px. The glyph is 19px, so its top edge must be 7 - 9.5 = -2.5px
+ * for it to sit optically centred. (An earlier version used `top: 0` with a
+ * margin, which put the glyph several px low — close enough to look almost
+ * right, which is what makes misalignment look sloppy rather than obvious.)
+ */
+.mob-dock__icon--raised {
+  position: absolute;
+  top: -2.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #2a1c07;
+  font-size: 19px;
+  z-index: 3;
+}
+
+.mob-dock__label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 227, 0.55);
+  transition: color 260ms ease, opacity 260ms ease, transform 260ms ease;
+  white-space: nowrap;
+}
+
+.mob-dock__tab.is-active .mob-dock__label {
+  color: var(--projector);
+  opacity: 0.92;
+  transform: translateY(1px);
+}
+
+/* --- raised orb ----------------------------------------------------------- */
+.mob-dock__orb {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  margin-left: -19px; /* -(ORB / 2), ORB = 38px */
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+
+  /*
+   * Amber glass. The highlight is deliberately restrained. An earlier version
+   * put near-white at the top of both this gradient and the ::before sheen, and
+   * the two stacked until the orb's upper half measured only 32% saturation —
+   * it read as a pale white bead rather than the brand amber. Measured across
+   * four intensities, these values keep the top of the disc at 41% saturation
+   * (vs 32%) while still catching light, so the orb stays recognisably #E9B872.
+   */
+  background:
+    radial-gradient(90% 90% at 34% 16%, rgba(255, 246, 231, 0.26) 0%, rgba(255, 246, 231, 0) 40%),
+    linear-gradient(160deg, var(--projector-bright) 0%, var(--projector) 42%, var(--projector-deep) 100%);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 5px rgba(120, 74, 12, 0.34),
+    0 2px 4px rgba(0, 0, 0, 0.34),
+    0 10px 20px -6px rgba(233, 184, 114, 0.45);
+}
+
+/*
+ * Travelling orb.
+ *
+ * framer-motion moved a single `<motion.span layoutId="mobDockOrb">` between
+ * grid cells, interpolating its position. That one animation was enough to pull
+ * the whole library into the first-load bundle, so the orb is now one element
+ * parked by the same `--mob-dock-i` index the cradle uses and moved with the
+ * same `left` transition — the two planes travel in lockstep and there is no
+ * unmount/remount between tabs.
+ *
+ * Geometry: centred on column `i`. The column left edge is the same expression
+ * as `.mob-dock__cradle`; adding half a column centres the orb in it, and
+ * `margin-left: -19px` (half of ORB = 38px) then centres the disc on that point.
+ * `top: -12px` and the raised icon offset come from `.mob-dock__orb` /
+ * `.mob-dock__icon--raised`, so the orb still breaks the dock's top edge and
+ * hides the flat icon underneath. This rule must come after `.mob-dock__orb`
+ * so it overrides that class's `left: 50%`.
+ */
+.mob-dock__orb--travelling {
+  left: calc(
+    var(--dock-pad-x) +
+    (var(--mob-dock-i) * ((100% - (var(--dock-pad-x) * 2)) / 5)) +
+    (((100% - (var(--dock-pad-x) * 2)) / 5) / 2)
+  );
+  margin-left: -19px;
+}
+
+/* Specular sheen on the orb's upper-left, and a hairline rim. */
+.mob-dock__orb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    42% 28% at 33% 19%,
+    rgba(255, 255, 255, 0.26) 0%,
+    rgba(255, 255, 255, 0.05) 46%,
+    transparent 66%
+  );
+  pointer-events: none;
+}
+
+.mob-dock__orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+/* --- fallbacks ------------------------------------------------------------ */
+
+/* No backdrop-filter: compensate with a denser surface so labels stay legible. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mob-dock__surface {
+    background: linear-gradient(
+      to bottom,
+      rgba(26, 28, 33, 0.97) 0%,
+      rgba(18, 19, 24, 0.98) 100%
+    );
+  }
+}
+
+/* Users who ask for less transparency get an opaque dock. */
+@media (prefers-reduced-transparency: reduce) {
+  .mob-dock__surface {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: #14151a;
+  }
+  .mob-dock__surface::after {
+    display: none;
+  }
+}
+
+/* Tighter on very narrow phones so five labels never crowd. Both the icon and
+   the label step DOWN here — an earlier version grew the icon to 19px, which was
+   backwards and made the 320px dock look heavier than the 390px one. */
+@media (max-width: 359px) {
+  .mob-dock {
+    padding: 0 0.5rem;
+  }
+  .mob-dock__icon {
+    font-size: 17px;
+  }
+  .mob-dock__icon--raised {
+    font-size: 18px;
+    top: -2px; /* re-centre for the 18px glyph inside the 38px orb */
+  }
+  .mob-dock__label {
+    font-size: 7.5px;
+    letter-spacing: 0.04em;
   }
 }

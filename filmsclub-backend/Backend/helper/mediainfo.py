@@ -3,7 +3,7 @@ from aiofiles import open as aiopen
 from aiofiles.os import remove as aioremove, path as aiopath, mkdir
 from os import path as ospath
 from Backend.helper.pyro import cmd_exec
-from Backend.pyrofork import StreamBot
+from Backend.wzgram_pkg import StreamBot
 from re import search as re_search
 from Backend.logger import LOGGER
 

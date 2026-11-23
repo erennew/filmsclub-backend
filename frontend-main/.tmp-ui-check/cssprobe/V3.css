@@ -1,0 +1,2559 @@
+*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*/
+
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+     tab-size: 4;
+  /* 3 */
+  font-family: Manrope, Inter, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
+
+:root, [data-theme] {
+  color: hsl(var(--nextui-foreground));
+  background-color: hsl(var(--nextui-background));
+}
+
+:root,.light,[data-theme="light"] {
+  color-scheme: light;
+  --nextui-background: 0 0% 100%;
+  --nextui-foreground-50: 0 0% 98.04%;
+  --nextui-foreground-100: 240 4.76% 95.88%;
+  --nextui-foreground-200: 240 5.88% 90%;
+  --nextui-foreground-300: 240 4.88% 83.92%;
+  --nextui-foreground-400: 240 5.03% 64.9%;
+  --nextui-foreground-500: 240 3.83% 46.08%;
+  --nextui-foreground-600: 240 5.2% 33.92%;
+  --nextui-foreground-700: 240 5.26% 26.08%;
+  --nextui-foreground-800: 240 3.7% 15.88%;
+  --nextui-foreground-900: 240 5.88% 10%;
+  --nextui-foreground: 201.81999999999994 24.44% 8.82%;
+  --nextui-divider: 0 0% 6.67%;
+  --nextui-divider-opacity: 0.15;
+  --nextui-focus: 212.01999999999998 100% 46.67%;
+  --nextui-overlay: 0 0% 0%;
+  --nextui-content1: 0 0% 100%;
+  --nextui-content1-foreground: 201.81999999999994 24.44% 8.82%;
+  --nextui-content2: 240 4.76% 95.88%;
+  --nextui-content2-foreground: 240 3.7% 15.88%;
+  --nextui-content3: 240 5.88% 90%;
+  --nextui-content3-foreground: 240 5.26% 26.08%;
+  --nextui-content4: 240 4.88% 83.92%;
+  --nextui-content4-foreground: 240 5.2% 33.92%;
+  --nextui-default-50: 0 0% 98.04%;
+  --nextui-default-100: 240 4.76% 95.88%;
+  --nextui-default-200: 240 5.88% 90%;
+  --nextui-default-300: 240 4.88% 83.92%;
+  --nextui-default-400: 240 5.03% 64.9%;
+  --nextui-default-500: 240 3.83% 46.08%;
+  --nextui-default-600: 240 5.2% 33.92%;
+  --nextui-default-700: 240 5.26% 26.08%;
+  --nextui-default-800: 240 3.7% 15.88%;
+  --nextui-default-900: 240 5.88% 10%;
+  --nextui-default-foreground: 0 0% 0%;
+  --nextui-default: 240 4.88% 83.92%;
+  --nextui-primary-50: 212.5 92.31% 94.9%;
+  --nextui-primary-100: 211.84000000000003 92.45% 89.61%;
+  --nextui-primary-200: 211.84000000000003 92.45% 79.22%;
+  --nextui-primary-300: 212.24 92.45% 68.82%;
+  --nextui-primary-400: 212.14 92.45% 58.43%;
+  --nextui-primary-500: 212.01999999999998 100% 46.67%;
+  --nextui-primary-600: 212.14 100% 38.43%;
+  --nextui-primary-700: 212.24 100% 28.82%;
+  --nextui-primary-800: 211.84000000000003 100% 19.22%;
+  --nextui-primary-900: 211.84000000000003 100% 9.61%;
+  --nextui-primary-foreground: 0 0% 100%;
+  --nextui-primary: 212.01999999999998 100% 46.67%;
+  --nextui-secondary-50: 270 61.54% 94.9%;
+  --nextui-secondary-100: 270 59.26% 89.41%;
+  --nextui-secondary-200: 270 59.26% 78.82%;
+  --nextui-secondary-300: 270 59.26% 68.24%;
+  --nextui-secondary-400: 270 59.26% 57.65%;
+  --nextui-secondary-500: 270 66.67% 47.06%;
+  --nextui-secondary-600: 270 66.67% 37.65%;
+  --nextui-secondary-700: 270 66.67% 28.24%;
+  --nextui-secondary-800: 270 66.67% 18.82%;
+  --nextui-secondary-900: 270 66.67% 9.41%;
+  --nextui-secondary-foreground: 0 0% 100%;
+  --nextui-secondary: 270 66.67% 47.06%;
+  --nextui-success-50: 146.66999999999996 64.29% 94.51%;
+  --nextui-success-100: 145.71000000000004 61.4% 88.82%;
+  --nextui-success-200: 146.2 61.74% 77.45%;
+  --nextui-success-300: 145.78999999999996 62.57% 66.47%;
+  --nextui-success-400: 146.01 62.45% 55.1%;
+  --nextui-success-500: 145.96000000000004 79.46% 43.92%;
+  --nextui-success-600: 146.01 79.89% 35.1%;
+  --nextui-success-700: 145.78999999999996 79.26% 26.47%;
+  --nextui-success-800: 146.2 79.78% 17.45%;
+  --nextui-success-900: 145.71000000000004 77.78% 8.82%;
+  --nextui-success-foreground: 0 0% 0%;
+  --nextui-success: 145.96000000000004 79.46% 43.92%;
+  --nextui-warning-50: 54.55000000000001 91.67% 95.29%;
+  --nextui-warning-100: 37.139999999999986 91.3% 90.98%;
+  --nextui-warning-200: 37.139999999999986 91.3% 81.96%;
+  --nextui-warning-300: 36.95999999999998 91.24% 73.14%;
+  --nextui-warning-400: 37.00999999999999 91.26% 64.12%;
+  --nextui-warning-500: 37.02999999999997 91.27% 55.1%;
+  --nextui-warning-600: 37.00999999999999 74.22% 44.12%;
+  --nextui-warning-700: 36.95999999999998 73.96% 33.14%;
+  --nextui-warning-800: 37.139999999999986 75% 21.96%;
+  --nextui-warning-900: 37.139999999999986 75% 10.98%;
+  --nextui-warning-foreground: 0 0% 0%;
+  --nextui-warning: 37.02999999999997 91.27% 55.1%;
+  --nextui-danger-50: 339.13 92% 95.1%;
+  --nextui-danger-100: 340 91.84% 90.39%;
+  --nextui-danger-200: 339.3299999999999 90% 80.39%;
+  --nextui-danger-300: 339.11 90.6% 70.78%;
+  --nextui-danger-400: 339 90% 60.78%;
+  --nextui-danger-500: 339.20000000000005 90.36% 51.18%;
+  --nextui-danger-600: 339 86.54% 40.78%;
+  --nextui-danger-700: 339.11 85.99% 30.78%;
+  --nextui-danger-800: 339.3299999999999 86.54% 20.39%;
+  --nextui-danger-900: 340 84.91% 10.39%;
+  --nextui-danger-foreground: 0 0% 100%;
+  --nextui-danger: 339.20000000000005 90.36% 51.18%;
+  --nextui-divider-weight: 1px;
+  --nextui-disabled-opacity: .5;
+  --nextui-font-size-tiny: 0.75rem;
+  --nextui-font-size-small: 0.875rem;
+  --nextui-font-size-medium: 1rem;
+  --nextui-font-size-large: 1.125rem;
+  --nextui-line-height-tiny: 1rem;
+  --nextui-line-height-small: 1.25rem;
+  --nextui-line-height-medium: 1.5rem;
+  --nextui-line-height-large: 1.75rem;
+  --nextui-radius-small: 8px;
+  --nextui-radius-medium: 12px;
+  --nextui-radius-large: 14px;
+  --nextui-border-width-small: 1px;
+  --nextui-border-width-medium: 2px;
+  --nextui-border-width-large: 3px;
+  --nextui-box-shadow-small: 0px 0px 5px 0px rgb(0 0 0 / 0.02), 0px 2px 10px 0px rgb(0 0 0 / 0.06), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+  --nextui-box-shadow-medium: 0px 0px 15px 0px rgb(0 0 0 / 0.03), 0px 2px 30px 0px rgb(0 0 0 / 0.08), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+  --nextui-box-shadow-large: 0px 0px 30px 0px rgb(0 0 0 / 0.04), 0px 30px 60px 0px rgb(0 0 0 / 0.12), 0px 0px 1px 0px rgb(0 0 0 / 0.3);
+  --nextui-hover-opacity: .8;
+}
+
+.dark,[data-theme="dark"] {
+  color-scheme: dark;
+  --nextui-background: 0 0% 0%;
+  --nextui-foreground-50: 240 5.88% 10%;
+  --nextui-foreground-100: 240 3.7% 15.88%;
+  --nextui-foreground-200: 240 5.26% 26.08%;
+  --nextui-foreground-300: 240 5.2% 33.92%;
+  --nextui-foreground-400: 240 3.83% 46.08%;
+  --nextui-foreground-500: 240 5.03% 64.9%;
+  --nextui-foreground-600: 240 4.88% 83.92%;
+  --nextui-foreground-700: 240 5.88% 90%;
+  --nextui-foreground-800: 240 4.76% 95.88%;
+  --nextui-foreground-900: 0 0% 98.04%;
+  --nextui-foreground: 210 5.56% 92.94%;
+  --nextui-focus: 212.01999999999998 100% 46.67%;
+  --nextui-overlay: 0 0% 0%;
+  --nextui-divider: 0 0% 100%;
+  --nextui-divider-opacity: 0.15;
+  --nextui-content1: 240 5.88% 10%;
+  --nextui-content1-foreground: 0 0% 98.04%;
+  --nextui-content2: 240 3.7% 15.88%;
+  --nextui-content2-foreground: 240 4.76% 95.88%;
+  --nextui-content3: 240 5.26% 26.08%;
+  --nextui-content3-foreground: 240 5.88% 90%;
+  --nextui-content4: 240 5.2% 33.92%;
+  --nextui-content4-foreground: 240 4.88% 83.92%;
+  --nextui-default-50: 240 5.88% 10%;
+  --nextui-default-100: 240 3.7% 15.88%;
+  --nextui-default-200: 240 5.26% 26.08%;
+  --nextui-default-300: 240 5.2% 33.92%;
+  --nextui-default-400: 240 3.83% 46.08%;
+  --nextui-default-500: 240 5.03% 64.9%;
+  --nextui-default-600: 240 4.88% 83.92%;
+  --nextui-default-700: 240 5.88% 90%;
+  --nextui-default-800: 240 4.76% 95.88%;
+  --nextui-default-900: 0 0% 98.04%;
+  --nextui-default-foreground: 0 0% 100%;
+  --nextui-default: 240 5.26% 26.08%;
+  --nextui-primary-50: 211.84000000000003 100% 9.61%;
+  --nextui-primary-100: 211.84000000000003 100% 19.22%;
+  --nextui-primary-200: 212.24 100% 28.82%;
+  --nextui-primary-300: 212.14 100% 38.43%;
+  --nextui-primary-400: 212.01999999999998 100% 46.67%;
+  --nextui-primary-500: 212.14 92.45% 58.43%;
+  --nextui-primary-600: 212.24 92.45% 68.82%;
+  --nextui-primary-700: 211.84000000000003 92.45% 79.22%;
+  --nextui-primary-800: 211.84000000000003 92.45% 89.61%;
+  --nextui-primary-900: 212.5 92.31% 94.9%;
+  --nextui-primary-foreground: 0 0% 100%;
+  --nextui-primary: 212.01999999999998 100% 46.67%;
+  --nextui-secondary-50: 270 66.67% 9.41%;
+  --nextui-secondary-100: 270 66.67% 18.82%;
+  --nextui-secondary-200: 270 66.67% 28.24%;
+  --nextui-secondary-300: 270 66.67% 37.65%;
+  --nextui-secondary-400: 270 66.67% 47.06%;
+  --nextui-secondary-500: 270 59.26% 57.65%;
+  --nextui-secondary-600: 270 59.26% 68.24%;
+  --nextui-secondary-700: 270 59.26% 78.82%;
+  --nextui-secondary-800: 270 59.26% 89.41%;
+  --nextui-secondary-900: 270 61.54% 94.9%;
+  --nextui-secondary-foreground: 0 0% 100%;
+  --nextui-secondary: 270 59.26% 57.65%;
+  --nextui-success-50: 145.71000000000004 77.78% 8.82%;
+  --nextui-success-100: 146.2 79.78% 17.45%;
+  --nextui-success-200: 145.78999999999996 79.26% 26.47%;
+  --nextui-success-300: 146.01 79.89% 35.1%;
+  --nextui-success-400: 145.96000000000004 79.46% 43.92%;
+  --nextui-success-500: 146.01 62.45% 55.1%;
+  --nextui-success-600: 145.78999999999996 62.57% 66.47%;
+  --nextui-success-700: 146.2 61.74% 77.45%;
+  --nextui-success-800: 145.71000000000004 61.4% 88.82%;
+  --nextui-success-900: 146.66999999999996 64.29% 94.51%;
+  --nextui-success-foreground: 0 0% 0%;
+  --nextui-success: 145.96000000000004 79.46% 43.92%;
+  --nextui-warning-50: 37.139999999999986 75% 10.98%;
+  --nextui-warning-100: 37.139999999999986 75% 21.96%;
+  --nextui-warning-200: 36.95999999999998 73.96% 33.14%;
+  --nextui-warning-300: 37.00999999999999 74.22% 44.12%;
+  --nextui-warning-400: 37.02999999999997 91.27% 55.1%;
+  --nextui-warning-500: 37.00999999999999 91.26% 64.12%;
+  --nextui-warning-600: 36.95999999999998 91.24% 73.14%;
+  --nextui-warning-700: 37.139999999999986 91.3% 81.96%;
+  --nextui-warning-800: 37.139999999999986 91.3% 90.98%;
+  --nextui-warning-900: 54.55000000000001 91.67% 95.29%;
+  --nextui-warning-foreground: 0 0% 0%;
+  --nextui-warning: 37.02999999999997 91.27% 55.1%;
+  --nextui-danger-50: 340 84.91% 10.39%;
+  --nextui-danger-100: 339.3299999999999 86.54% 20.39%;
+  --nextui-danger-200: 339.11 85.99% 30.78%;
+  --nextui-danger-300: 339 86.54% 40.78%;
+  --nextui-danger-400: 339.20000000000005 90.36% 51.18%;
+  --nextui-danger-500: 339 90% 60.78%;
+  --nextui-danger-600: 339.11 90.6% 70.78%;
+  --nextui-danger-700: 339.3299999999999 90% 80.39%;
+  --nextui-danger-800: 340 91.84% 90.39%;
+  --nextui-danger-900: 339.13 92% 95.1%;
+  --nextui-danger-foreground: 0 0% 100%;
+  --nextui-danger: 339.20000000000005 90.36% 51.18%;
+  --nextui-divider-weight: 1px;
+  --nextui-disabled-opacity: .5;
+  --nextui-font-size-tiny: 0.75rem;
+  --nextui-font-size-small: 0.875rem;
+  --nextui-font-size-medium: 1rem;
+  --nextui-font-size-large: 1.125rem;
+  --nextui-line-height-tiny: 1rem;
+  --nextui-line-height-small: 1.25rem;
+  --nextui-line-height-medium: 1.5rem;
+  --nextui-line-height-large: 1.75rem;
+  --nextui-radius-small: 8px;
+  --nextui-radius-medium: 12px;
+  --nextui-radius-large: 14px;
+  --nextui-border-width-small: 1px;
+  --nextui-border-width-medium: 2px;
+  --nextui-border-width-large: 3px;
+  --nextui-box-shadow-small: 0px 0px 5px 0px rgb(0 0 0 / 0.05), 0px 2px 10px 0px rgb(0 0 0 / 0.2), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+  --nextui-box-shadow-medium: 0px 0px 15px 0px rgb(0 0 0 / 0.06), 0px 2px 30px 0px rgb(0 0 0 / 0.22), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+  --nextui-box-shadow-large: 0px 0px 30px 0px rgb(0 0 0 / 0.07), 0px 30px 60px 0px rgb(0 0 0 / 0.26), inset 0px 0px 1px 0px rgb(255 255 255 / 0.15);
+  --nextui-hover-opacity: .9;
+}
+
+:root {
+  --ink: #08090b;
+  --carbon: #14151a;
+  --bone: #f2ede3;
+  --projector: #e9b872;
+  --projector-bright: #f0ca98;
+  --projector-deep: #d9a65c;
+  --signal: #ff5a3c;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /*
+   * ── Mobile bottom-chrome ladder ──────────────────────────────────────
+   *
+   * The dock, the mobile play bar, the PWA install prompt and toasts are all
+   * `position: fixed` and can be on screen at the same time on a detail page.
+   * Rather than hand-tuning each offset, they stack off one measurement: the
+   * dock's total footprint, verified at 73px (52px surface + 12px the orb rises
+   * above it + 9px it floats off the screen edge).
+   *
+   *   dock      bottom 0                                     top  73
+   *   play bar  bottom footprint + 0.5rem   =  81px   (56px)  top 137
+   *   install   bottom footprint + 4.5rem   = 145px   (~72px) top 217
+   *   toasts    bottom footprint + 10.25rem = 237px
+   *
+   * Changing the dock's height means changing one token; nothing overlaps
+   * silently.
+   */
+  --mob-dock-footprint: 73px;
+}
+
+/*
+ * Preflight already zeroes margin/padding on every element, so this block only
+ * duplicated it. `box-sizing` is kept because it is load-bearing site-wide, and
+ * the reset is narrowed to elements rather than `*` so it cannot outrank
+ * component styles by sitting on the universal selector.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  /*
+   * scroll-behavior:smooth belongs on user-initiated scrolls, not route
+   * changes. With it global, every navigation animated the jump to the top of
+   * the new page, which felt laggy. ScrollManager handles route scrolls
+   * explicitly (instant), and in-page anchors opt into smooth individually.
+   */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /*
+   * Paint the ink canvas on the ROOT, not only on <body>.
+   *
+   * Without this the document canvas falls back to the browser default, which
+   * is white. That only becomes visible when the content does not paint — i.e.
+   * when a JS bundle fails to load or execute (stale HTML pointing at a deleted
+   * hash after a deploy, a blocked/aborted chunk request, an error thrown during
+   * module init). Measured: with /assets/js/* blocked, <body> still reported
+   * ink but its background had nothing to cover, and the screen was 100% white
+   * (mean luminance 255) with an empty #root.
+   *
+   * Because body's background propagates to the canvas when html has none, this
+   * changes nothing in the healthy case — verified 0% white with JS loaded. It
+   * only converts a blank white page into a blank ink page, which reads as
+   * intentional and matches the app's dark identity while the error boundary or
+   * a retry takes over.
+   */
+  background-color: var(--ink);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:focus-within {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  background: var(--ink);
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
+  color: var(--bone);
+  overflow-x: hidden;
+}
+
+::-moz-selection {
+  background: rgba(233, 184, 114, 0.85);
+  color: #08090b;
+}
+
+::selection {
+  background: rgba(233, 184, 114, 0.85);
+  color: #08090b;
+}
+
+/*
+ * Dark-theme form fields.
+ *
+ * These rules used to be four near-identical blocks that stamped
+ * `background-color: var(--carbon) !important` (and `color: … !important`) on
+ * every input, textarea and select. The `!important` beat the inline
+ * `backgroundColor: "rgba(255,255,255,0.05)"` on the mobile search field in
+ * Nav.jsx, so that field rendered carbon-on-carbon — effectively black text on
+ * a black box. Inline text colour is the intended API here, so these rules now
+ * supply a *default* the component can override, and only the WebKit-specific
+ * text-fill fix stays important (it has no inline equivalent).
+ */
+
+input,
+textarea,
+select {
+  color: var(--bone);
+  caret-color: var(--projector);
+  background-color: var(--carbon);
+  -webkit-text-fill-color: var(--bone);
+}
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  color: rgba(242, 237, 227, 0.45);
+  -webkit-text-fill-color: rgba(242, 237, 227, 0.45);
+  opacity: 1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(242, 237, 227, 0.45);
+  -webkit-text-fill-color: rgba(242, 237, 227, 0.45);
+  opacity: 1;
+}
+
+/*
+ * Search inputs must not paint an opaque box of their own: the surrounding
+ * component (the nav search field, filter chips) supplies the surface.
+ */
+
+input[type="search"] {
+  background-color: transparent;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  color: var(--bone);
+  caret-color: var(--projector);
+}
+
+/* ── Custom Scrollbar — projection booth ── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background-color: var(--ink);
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--ink);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b98f52, #8a6a3e);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--projector), #b98f52);
+}
+
+/* ── Glassmorphic Effects ── */
+
+.glass {
+  background: rgba(8, 9, 11, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+}
+
+.glass-light {
+  background: rgba(242, 237, 227, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(242, 237, 227, 0.1);
+}
+
+.glass-dark {
+  background: rgba(8, 9, 11, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(242, 237, 227, 0.05);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(242, 237, 227, 0.05) 0%, rgba(242, 237, 227, 0.015) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+  border-radius: 0.5rem;
+}
+
+/* ── Cinematic Gradient Overlays ── */
+
+.hero-gradient {
+  background: linear-gradient(90deg, var(--ink) 0%, transparent 55%, var(--ink) 100%);
+}
+
+.hero-gradient-bottom {
+  background: linear-gradient(0deg, var(--ink) 0%, transparent 100%);
+}
+
+/* ── Film Grain ── */
+
+.film-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/*
+ * ── Hero scrim behind the fixed header ──────────────────────────────
+ *
+ * The header used `bg-gradient-to-b from-ink/85 to-transparent` plus
+ * `backdrop-blur-sm`. On the homepage that combination produced a visibly
+ * smeared band across the top of the hero: a 4px backdrop blur is too weak to
+ * read as frosted glass but strong enough to destroy the image's sharpness, so
+ * the result looked like a rendering fault rather than an intentional scrim.
+ * Measured on the built CSS it cut local gradient energy by only ~10% while
+ * spreading pixel detail across the full header height.
+ *
+ * What replaces it: a pure gradient scrim with no backdrop-filter. Over the
+ * hero it is invisible (the hero already darkens its own top edge), and on
+ * every other page it still gives the logo and links contrast over content that
+ * scrolls beneath. Nothing is blurred, so nothing can smear.
+ *
+ * Kept deliberately light at the bottom edge (0.30 → transparent) so it never
+ * stacks into a hard horizontal band against the hero artwork; the weight sits
+ * in the first few pixels where the logo actually is.
+ *
+ * The stopped-scrolled state keeps a real blur, because there the header sits
+ * over solid page background at 95% opacity, where a blur reads correctly.
+ */
+
+.cx-nav-scrim {
+  background: linear-gradient(
+    to bottom,
+    rgba(8, 9, 11, 0.86) 0%,
+    rgba(8, 9, 11, 0.58) 48%,
+    rgba(8, 9, 11, 0.20) 80%,
+    transparent 100%
+  );
+}
+
+/* ── Editorial utilities ── */
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: rgba(233, 184, 114, 0.9);
+}
+
+.eyebrow::before {
+  content: "";
+  width: 1.4rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.eyebrow--plain::before {
+  display: none;
+}
+
+.timecode {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.hairline {
+  border-color: rgba(242, 237, 227, 0.1);
+}
+
+/* ── Card Hover Effects ── */
+
+.card-hover {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px -18px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(233, 184, 114, 0.14);
+}
+
+/* ── Mask ── */
+
+.mask {
+  -webkit-mask-image: linear-gradient(to top, transparent, #08090b);
+          mask-image: linear-gradient(to top, transparent, #08090b);
+}
+
+/* ── Modal Styles ── */
+
+.modal {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/*
+ * A `#player { transform: rotate(90deg) scale(1.75) }` portrait-mode hack used
+ * to live here. Nothing in the app renders an element with id="player" any
+ * more (the inline player uses `.plyr`), so the rule was inert — but it was a
+ * trap: any future `<div id="player">` would silently render sideways and
+ * upscaled on every phone. Removed rather than left as a landmine.
+ */
+
+/* ── Loading Animations ── */
+
+.loader {
+  width: 20px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--projector);
+  box-shadow: 0 0 0 0 var(--projector);
+  animation: l2 1.5s infinite linear;
+  position: relative;
+}
+
+.loader:before,
+.loader:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 var(--projector);
+  animation: inherit;
+  animation-delay: -0.5s;
+}
+
+.loader:after {
+  animation-delay: -1s;
+}
+
+@keyframes l2 {
+  100% {
+    box-shadow: 0 0 0 40px rgba(233, 184, 114, 0.18);
+  }
+}
+
+/* Loading Search results */
+
+.loader-search {
+  width: 10px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--projector);
+  box-shadow: 0 0 0 0 var(--projector);
+  animation: l3 1.5s infinite linear;
+  position: relative;
+}
+
+.loader-search:before,
+.loader-search:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 var(--projector);
+  animation: inherit;
+  animation-delay: -0.5s;
+}
+
+.loader-search:after {
+  animation-delay: -1s;
+}
+
+@keyframes l3 {
+  100% {
+    box-shadow: 0 0 0 30px rgba(233, 184, 114, 0.18);
+  }
+}
+
+/* Episodes Loading */
+
+.loader-episode {
+  width: 40px;
+  aspect-ratio: 1;
+  --c: linear-gradient(var(--projector) 0 0);
+  --r1: radial-gradient(farthest-side at bottom, var(--projector) 93%, var(--projector));
+  --r2: radial-gradient(farthest-side at top, var(--projector) 93%, var(--projector));
+  background: var(--c), var(--r1), var(--r2), var(--c), var(--r1), var(--r2),
+    var(--c), var(--r1), var(--r2);
+  background-repeat: no-repeat;
+  animation: l4 1s infinite alternate;
+}
+
+@keyframes l4 {
+  0%,
+  25% {
+    background-size: 8px 0, 8px 4px, 8px 4px, 8px 0, 8px 4px, 8px 4px, 8px 0,
+      8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(50% - 2px), 0 calc(50% + 2px), 50% 50%,
+      50% calc(50% - 2px), 50% calc(50% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+
+  50% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 0, 8px 4px, 8px 4px, 8px 0,
+      8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(50% - 2px), 50% calc(50% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+
+  75% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 100%, 8px 4px, 8px 4px,
+      8px 0, 8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(0% - 2px), 50% calc(100% + 2px), 100% 50%, 100% calc(50% - 2px),
+      100% calc(50% + 2px);
+  }
+
+  95%,
+  100% {
+    background-size: 8px 100%, 8px 4px, 8px 4px, 8px 100%, 8px 4px, 8px 4px,
+      8px 100%, 8px 4px, 8px 4px;
+    background-position: 0 50%, 0 calc(0% - 2px), 0 calc(100% + 2px), 50% 50%,
+      50% calc(0% - 2px), 50% calc(100% + 2px), 100% 50%, 100% calc(0% - 2px),
+      100% calc(100% + 2px);
+  }
+}
+
+/* ── Audio Track Selector Styles ── */
+
+.audio-track-selector {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+  z-index: 20;
+}
+
+.audio-track-button {
+  background: rgba(8, 9, 11, 0.78);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.12);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  font-family: "Manrope", sans-serif;
+}
+
+.audio-track-button:hover {
+  background: rgba(233, 184, 114, 0.14);
+  border-color: rgba(233, 184, 114, 0.4);
+}
+
+.audio-track-button .audio-icon {
+  font-size: 14px;
+}
+
+.audio-track-button .lang-flag {
+  font-size: 16px;
+}
+
+.audio-track-button .audio-title {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-track-button .dropdown-arrow {
+  font-size: 10px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.audio-track-button .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.audio-track-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: rgba(20, 21, 26, 0.97);
+  border-radius: 8px;
+  padding: 6px 0;
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(233, 184, 114, 0.12);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+}
+
+.audio-track-option {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--bone);
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background 0.15s ease;
+  text-align: left;
+  font-family: "Manrope", sans-serif;
+}
+
+.audio-track-option:hover {
+  background: rgba(242, 237, 227, 0.07);
+}
+
+.audio-track-option.selected {
+  background: rgba(233, 184, 114, 0.14);
+}
+
+.audio-track-option .lang-flag {
+  font-size: 18px;
+}
+
+.audio-track-option .option-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audio-track-option .channels-badge {
+  font-size: 10px;
+  background: rgba(242, 237, 227, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: rgba(242, 237, 227, 0.55);
+}
+
+.audio-track-option .check-icon {
+  font-size: 12px;
+  color: var(--projector);
+}
+
+/* Firefox warning */
+
+.audio-api-warning {
+  position: absolute;
+  top: 50px;
+  right: 60px;
+  background: rgba(233, 184, 114, 0.95);
+  color: #08090b;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  z-index: 19;
+  max-width: 210px;
+  text-align: center;
+  font-family: "Manrope", sans-serif;
+}
+
+/* Responsive adjustments */
+
+@media (max-width: 640px) {
+  .audio-track-selector {
+    right: 50px;
+    top: 8px;
+  }
+
+  .audio-track-button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .audio-track-button .audio-title {
+    max-width: 50px;
+  }
+
+  .audio-track-dropdown {
+    min-width: 160px;
+  }
+
+  .audio-api-warning {
+    right: 50px;
+    top: 40px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+}
+
+/* ── Subtitle Track Selector Styles ── */
+
+.subtitle-selector {
+  position: absolute;
+  top: 10px;
+  right: 180px;
+  z-index: 20;
+}
+
+.subtitle-track-button {
+  background: rgba(8, 9, 11, 0.78);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.12);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  font-family: "Manrope", sans-serif;
+}
+
+.subtitle-track-button:hover {
+  background: rgba(233, 184, 114, 0.14);
+  border-color: rgba(233, 184, 114, 0.4);
+}
+
+.subtitle-track-button .subtitle-icon {
+  font-size: 14px;
+}
+
+.subtitle-track-button .lang-flag {
+  font-size: 16px;
+}
+
+.subtitle-track-button .subtitle-title {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle-track-button .dropdown-arrow {
+  font-size: 10px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.subtitle-track-button .dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.subtitle-track-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: rgba(20, 21, 26, 0.97);
+  border-radius: 8px;
+  padding: 6px 0;
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(233, 184, 114, 0.12);
+  border: 1px solid rgba(242, 237, 227, 0.08);
+}
+
+.subtitle-track-option {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--bone);
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  transition: background 0.15s ease;
+  text-align: left;
+  font-family: "Manrope", sans-serif;
+}
+
+.subtitle-track-option:hover {
+  background: rgba(242, 237, 227, 0.07);
+}
+
+.subtitle-track-option.selected {
+  background: rgba(233, 184, 114, 0.14);
+}
+
+.subtitle-track-option .lang-flag {
+  font-size: 18px;
+}
+
+.subtitle-track-option .option-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle-track-option .forced-badge {
+  font-size: 10px;
+  background: rgba(233, 184, 114, 0.85);
+  color: #08090b;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.subtitle-track-option .format-badge {
+  font-size: 10px;
+  background: rgba(242, 237, 227, 0.1);
+  color: rgba(242, 237, 227, 0.7);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.subtitle-track-option .check-icon {
+  font-size: 12px;
+  color: var(--projector);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: rgba(242, 237, 227, 0.08);
+  margin: 4px 0;
+}
+
+/* Responsive adjustments for subtitle selector */
+
+@media (max-width: 640px) {
+  .subtitle-selector {
+    right: 140px;
+    top: 8px;
+  }
+
+  .subtitle-track-button {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .subtitle-track-button .subtitle-title {
+    max-width: 50px;
+  }
+
+  .subtitle-track-dropdown {
+    min-width: 160px;
+  }
+}
+
+/* ── Premium Animations ── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(233, 184, 114, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 4px rgba(233, 184, 114, 0.24);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.8;
+  }
+}
+
+@keyframes splash-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.5s ease-out;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.5s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.35s ease-out;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-splash-sweep {
+  animation: splash-sweep 1.8s ease-in-out infinite;
+}
+
+/* ── Premium Card Hover Effects ── */
+
+.premium-card {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.premium-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(233, 184, 114, 0.1);
+}
+
+.premium-card:hover .card-overlay {
+  opacity: 1;
+}
+
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(8, 9, 11, 0.88) 100%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+/* ── Skeleton Loading Animation ── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(242, 237, 227, 0.04) 25%,
+    rgba(242, 237, 227, 0.08) 50%,
+    rgba(242, 237, 227, 0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+/* ── ASCII reveal skin (ascii-reveal) ──────────────────────────────
+ * Maps the library's custom properties onto our own tokens so the glyph
+ * grid inherits the screening-room palette and our mono face instead of
+ * the package defaults (Geist Mono / blue accent). The library reads these
+ * from whichever ancestor carries `.ascii-scope`, so one class on a page
+ * or section is enough.
+ *
+ * --ascii-skeleton is the resting glyph colour. It is deliberately
+ * bone-subtle (#8F8B83, 4.8:1 on ink) rather than a translucent bone/20:
+ * a skeleton is decorative, but faint glyph noise at very low contrast
+ * reads as dirt on the panel rather than as a placeholder.
+ */
+
+.ascii-scope {
+  --ascii-accent: #e9b872;
+  /* projector      */
+  --ascii-glyph: #a8a49b;
+  /* bone-muted     */
+  --ascii-skeleton: #8f8b83;
+  /* bone-subtle    */
+  --ascii-flash: #f0ca98;
+  /* projector-bright */
+  --ascii-surface: #08090b;
+  /* ink            */
+  --ascii-font: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Glyph blocks default to an 8px radius; match the card's 4px. */
+  --ars-radius: 4px;
+}
+
+/*
+ * The library emits a fixed 96-column glyph grid and its rows are plain text,
+ * so the grid's aspect ratio cannot be set at render time. Rather than scaling
+ * it (which smears the glyphs), the row height is derived from the poster box
+ * itself: one row = 100cqh / 24, which is exactly what PosterBlock asks for, so
+ * the texture fills any card height at any breakpoint. Surplus columns run past
+ * the right edge and read as continuing texture rather than stopping short.
+ *
+ * line-height must be pinned to 1 on both .ars and .ars-block: the library sets
+ * `.ars-block { line-height: 1.3 }`, and since it injects its stylesheet at
+ * runtime (into <head>, after this file) relying on the cascade would leave the
+ * grid 30% too tall. These selectors are two classes deep, so they win on
+ * specificity regardless of injection order.
+ *
+ * The library's own dither defaults (--ars-base: .22) are left untouched; colour
+ * comes from --ascii-skeleton above. Measured against the carbon card backdrop
+ * the glyph texture sits at ~1.9:1 — present enough to read as a placeholder,
+ * quiet enough not to compete with real posters.
+ */
+
+.cx-ascii-poster {
+  container-type: size;
+}
+
+.cx-ascii-poster .ars {
+  position: absolute;
+  inset: 0;
+  /* Fallback for engines without container query units. */
+  font-size: 22px;
+  line-height: 1;
+  /*
+   * Wave tuning — this is what makes the animation read as alive rather than
+   * broken, and it matters most on phones.
+   *
+   * The engine sweeps a highlight band across each element every `--ars-speed`
+   * seconds; the band is `--ars-band` percent of the element's width. Dither's
+   * shipped values are 55% over 1.8s, which measured as a ~0.6s sweep followed
+   * by ~1.2s of a completely blank canvas — 63% of frames had zero painted
+   * pixels. On a wide desktop card that gap is forgivable; on a 179px-wide
+   * mobile poster it read as "the loading animation is not working", because
+   * the placeholder sat empty with no visible motion at all.
+   *
+   * These values were measured frame-by-frame at 390x844 and chosen for a 0%
+   * blank-frame ratio while still clearly moving: 95% width over 1.0s gives a
+   * continuous drift with ~30 distinct intensity levels per cycle.
+   *
+   * NOTE the units, which are easy to get wrong: `--ars-band` is a bare
+   * percentage number (95 means 95%; the engine divides by 100, so 0.95 would
+   * become 0.95%), and `--ars-speed` is in *seconds* (the engine multiplies by
+   * 1000, so 900 would mean 15 minutes, not 0.9s).
+   */
+  --ars-band: 95;
+  --ars-speed: 1;
+}
+
+@supports (height: 100cqh) {
+  .cx-ascii-poster .ars {
+    font-size: calc(100cqh / 24);
+  }
+}
+
+.cx-ascii-poster .ars-block {
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+  background: transparent;
+}
+
+/* ── Hide Scrollbar ── */
+
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar,
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Section Title Styles ── */
+
+.section-title {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--bone);
+}
+
+/* ── Brand Glow ── */
+
+.brand-text {
+  background: linear-gradient(135deg, var(--projector-bright) 0%, var(--projector) 60%, var(--projector-deep) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Focus Styles ── */
+
+*:focus-visible {
+  outline: 2px solid var(--projector);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Button Base ── */
+
+.btn-primary {
+  background: var(--projector);
+  color: #08090b;
+  border: none;
+  border-radius: 4px;
+  padding: 11px 26px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 10px 30px -12px rgba(233, 184, 114, 0.5);
+  font-family: "Manrope", sans-serif;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px -12px rgba(233, 184, 114, 0.65);
+  background: var(--projector-bright);
+}
+
+.btn-secondary {
+  background: rgba(242, 237, 227, 0.06);
+  color: var(--bone);
+  border: 1px solid rgba(242, 237, 227, 0.16);
+  border-radius: 4px;
+  padding: 11px 26px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+  font-family: "Manrope", sans-serif;
+}
+
+.btn-secondary:hover {
+  background: rgba(242, 237, 227, 0.12);
+  border-color: rgba(242, 237, 227, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ── Rating Badge ── */
+
+.rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: rgba(233, 184, 114, 0.1);
+  border: 1px solid rgba(233, 184, 114, 0.25);
+  color: var(--projector);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── Genre Badge ── */
+
+.genre-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 3px;
+  background: rgba(242, 237, 227, 0.05);
+  border: 1px solid rgba(242, 237, 227, 0.12);
+  color: rgba(242, 237, 227, 0.75);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ── Section Separator Line ── */
+
+.section-line {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(233, 184, 114, 0.6) 0%, rgba(233, 184, 114, 0.15) 55%, transparent 100%);
+  border-radius: 9999px;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Mobile Touch Fix ── */
+
+@media (max-width: 768px) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── Safe Area for iOS ── */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* ── Installed-PWA (standalone) hardening ─────────────────────────────
+ *
+ * In standalone mode there is no browser toolbar, so mobile browsers start
+ * sizing the viewport to the full screen including the areas under the status
+ * bar and the gesture bar. Two consequences this app has to handle:
+ *
+ *  1. A fixed bottom dock pinned with only a plain `bottom` value sits under
+ *     the iOS home-gesture bar. Every dock/modal already adds
+ *     `--safe-bottom` individually, but a standalone launch can also shift the
+ *     visual viewport when the keyboard opens (search, admin forms), which left
+ *     the dock floating in the middle of the screen. Pinning it to the visual
+ *     viewport keeps it at the bottom edge.
+ *
+ *  2. `100vh` in standalone equals the *largest* viewport, so the full-screen
+ *     player overflowed by the height of the gesture bar. Those places now use
+ *     `100dvh`; this keeps `--app-vh` available for anything that needs it.
+ */
+
+html {
+  --app-vh: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  html {
+    --app-vh: 100vh;
+  }
+}
+
+@media (display-mode: standalone) {
+  /* Stop iOS from rubber-banding the whole document behind the fixed chrome,
+     which showed the page background as a flash above the header. */
+
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+/*
+ * ── Toasts above the mobile dock ─────────────────────────────────────
+ *
+ * ToastContainer is positioned bottom-right with react-toastify's default 1rem
+ * gutter. On phones that put every toast underneath the floating navigation
+ * dock, so confirmations appeared to be swallowed — the toast was rendering,
+ * just behind the dock and out of sight.
+ *
+ * Below `navlg` (the breakpoint where the dock disappears) the container is
+ * lifted clear of the mobile chrome. The offset has to clear the taller of the
+ * two stacks, because both are fixed and both can be on screen at once on a
+ * detail page:
+ *
+ * ══ Mobile bottom-chrome ladder ══
+ *
+ *   dock      bottom   0                                     top  90
+ *   play bar  bottom  footprint + 0.5rem   =  98px   (56px)  top 154
+ *   install   bottom  footprint + 4.5rem   = 162px   (~72px) top 234
+ *   toasts    bottom  footprint + 10.25rem = 254px           top 254+
+ *
+ * so toasts clear the install prompt by ~20px and the play bar by 100px. Safe
+ * area is added on top so an installed PWA keeps toasts off the gesture bar.
+ */
+
+@media (max-width: 989px) {
+  .Toastify__toast-container--bottom-right,
+  .Toastify__toast-container--bottom-left,
+  .Toastify__toast-container--bottom-center {
+    bottom: calc(var(--safe-bottom, 0px) + var(--mob-dock-footprint, 73px) + 10.25rem) !important;
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+    width: auto !important;
+  }
+
+  .Toastify__toast {
+    border-radius: 6px;
+  }
+}
+
+/*
+ * ── Stop iOS Safari zooming on focus ─────────────────────────────────
+ *
+ * iOS zooms the page when a text field with a font-size below 16px receives
+ * focus, and it never zooms back out cleanly — the search box in the header and
+ * the admin console's fields all use `text-sm` (12.8px in this theme), so
+ * tapping search on a phone left the whole layout magnified and the sticky
+ * header half off-screen.
+ *
+ * Scoped to touch devices (`hover: none` + `pointer: coarse`) so the desktop
+ * UI keeps its designed type scale. `!important` is required because these
+ * fields set their size with Tailwind utilities of equal specificity. A uniform
+ * 16px is used rather than a focus-only rule: a size that changes on focus
+ * makes the text visibly jump the instant the keyboard opens.
+ */
+
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Hide Scrollbar (cross-browser) ──
+   NOTE: the base `.no-scrollbar` rules live earlier in this file (~line 810);
+   this block used to repeat them, and the repetition silently overrode the
+   first definition. Only the parts unique to this block are kept. */
+
+/* ── Genre Swiper — prevent horizontal bleed ── */
+
+.genre-swiper {
+  overflow: hidden !important;
+  padding-bottom: 4px;
+}
+
+.genre-swiper .swiper-wrapper {
+  align-items: flex-start;
+}
+
+/*
+ * Skeleton shimmer and the episode spinner are defined earlier in this file
+ * (the `.skeleton` background gradient at ~798 and `.loader-episode`'s custom
+ * loader at ~305). Repeating them here shadowed those richer definitions with
+ * plainer ones, so the first, full definitions win again.
+ */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Swiper pagination — hero dots override ── */
+
+.swiper-pagination-bullet {
+  background: rgba(242, 237, 227, 0.35);
+  opacity: 1;
+  transition: all 0.3s;
+}
+
+.swiper-pagination-bullet-active {
+  background: var(--projector);
+  transform: scaleX(1.5);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   PLYR PLAYER — Global overrides
+   Problem: Plyr renders <video> as an inline replaced element which leaves a
+   4-8px phantom gap at the bottom (line-height baseline gap). Combined with
+   bg-black on the wrapper this appears as a black strip below the controls.
+   Fix: force display:block on the video, zero the line-height on the wrapper,
+   and make the InlinePlayer flex column so children have zero gap.
+────────────────────────────────────────────────────────────────────────────── */
+
+/* 1. The .plyr-wrapper div — kill the inline-block baseline gap */
+
+.plyr-wrapper {
+  display: block;
+  line-height: 0;
+  font-size: 0;
+}
+
+/* 2. The .plyr root — no extra margin/padding, fill the wrapper */
+
+.plyr {
+  display: block !important;
+  width: 100% !important;
+  line-height: 0 !important;
+}
+
+/* 3. The inner video-wrapper — no gap at the bottom */
+
+.plyr__video-wrapper {
+  display: block !important;
+  line-height: 0 !important;
+}
+
+/* 4. The actual <video> tag — force block so baseline gap disappears */
+
+.plyr__video-wrapper video,
+.plyr video {
+  display: block !important;
+  width: 100% !important;
+  line-height: 0 !important;
+}
+
+/* 5. Controls bar: sits absolutely inside, so no extra space below video */
+
+.plyr__controls {
+  /* already position:absolute, but ensure no extra bottom margin */
+  margin-bottom: 0 !important;
+  padding-bottom: 8px !important;
+}
+
+/* 6. Brand color — projector amber */
+
+.plyr {
+  --plyr-color-main: #e9b872;
+  --plyr-video-background: #08090b;
+  --plyr-control-color: #f2ede3;
+  --plyr-progress-playing-background: #e9b872;
+  --plyr-progress-buffered-background: rgba(242, 237, 227, 0.3);
+  --plyr-range-thumb-background: #e9b872;
+  --plyr-range-fill-background: #e9b872;
+}
+
+/* 7. Remove the default shadow-bottom on controls — it can add space */
+
+.plyr--video .plyr__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78) 0%, transparent 100%) !important;
+}
+
+/* 8. Progress bar slightly taller for easier tap on mobile */
+
+@media (max-width: 768px) {
+  .plyr__progress input[type=range] {
+    height: 14px !important;
+  }
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-float,
+  .animate-glow-pulse {
+    animation: none !important;
+  }
+}
+
+/* ===========================================================================
+   Floating glass navigation dock (mobile / small tablet)
+
+   Scope note: everything here is prefixed `mob-dock`. The dock is hidden at
+   `navlg` (990px), which is the same width where the desktop header appears, so
+   exactly one chrome mode is ever on screen. Nothing in this block affects the
+   desktop header.
+
+   The glass is built from layers rather than a single translucent fill, because
+   a flat `rgba()` + blur reads as a grey smear on a dark UI. What sells it:
+
+     · a vertical tint ramp  (denser at the bottom where page content scrolls
+       under it, thinner at the top where the lit edge is)
+     · a 1px lit top edge    (inset highlight, the "light catching glass" cue)
+     · a hairline low-alpha border, brighter at the top than the bottom
+     · an inner shadow       (gives the surface thickness)
+     · two ambient shadows   (a tight one for contact, a wide soft one for lift)
+
+   Fallbacks are explicit: `@supports not (backdrop-filter)` raises the surface
+   opacity so the labels stay legible if blur is unavailable, and
+   `prefers-reduced-transparency` drops the glass entirely.
+   =========================================================================== */
+
+.mob-dock {
+  /* Geometry — one source of truth, reused by the orb/cradle alignment. */
+  --dock-h: 52px;
+  --dock-radius: 20px;
+  --dock-pad-x: 6px;
+  --dock-lift: 0.55rem;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  bottom: calc(var(--safe-bottom, 0px) + var(--dock-lift));
+  padding: 0 0.75rem;
+  /* Hidden while the keyboard is up, so it never floats over form fields. */
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mob-dock[data-keyboard-open="true"] {
+  opacity: 0;
+  transform: translateY(120%);
+  pointer-events: none;
+}
+
+.mob-dock__inner {
+  max-width: 27rem;
+  /* 432px — keeps 5 items comfortable on tablets */
+  margin: 0 auto;
+  /* Room above the surface for the orb to rise into without being clipped. */
+  padding-top: 12px;
+}
+
+.mob-dock__surface {
+  position: relative;
+  isolation: isolate;
+  height: var(--dock-h);
+  border-radius: var(--dock-radius);
+  /*
+   * Tint ramp. Bottom-weighted on purpose: page content scrolls underneath the
+   * dock, so the underside needs more body, while the top stays lighter to let
+   * the highlight edge read.
+   */
+  background: linear-gradient(
+    to bottom,
+    rgba(30, 32, 38, 0.62) 0%,
+    rgba(20, 21, 26, 0.78) 52%,
+    rgba(14, 15, 19, 0.86) 100%
+  );
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow:
+    /* lit top edge */
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    /* faint bottom bounce, keeps the rim from vanishing */
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    /* inner thickness */
+    inset 0 14px 22px -18px rgba(255, 255, 255, 0.5),
+    inset 0 -16px 26px -22px rgba(0, 0, 0, 0.9),
+    /* contact shadow */
+    0 2px 8px rgba(0, 0, 0, 0.45),
+    /* lift / ambient */
+    0 22px 48px -14px rgba(0, 0, 0, 0.82),
+    0 8px 18px -12px rgba(0, 0, 0, 0.6);
+}
+
+.mob-dock__surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.07) 38%,
+    rgba(255, 255, 255, 0.03) 72%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Very subtle warm tint in the top third, tying the glass to the amber accent
+   without turning it into a coloured panel. */
+
+.mob-dock__surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 80% at 50% -20%,
+    rgba(233, 184, 114, 0.09) 0%,
+    transparent 60%
+  );
+}
+
+.mob-dock__grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  height: 100%;
+  padding: 0 var(--dock-pad-x);
+}
+
+/* --- travelling cradle ---------------------------------------------------- */
+
+/* A soft radial shade sitting under the active cell. It reads as the dock
+   surface dipping where the orb rests. Driven by --mob-dock-i (active index). */
+
+.mob-dock__cradle {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  height: 100%;
+  width: calc((100% - (var(--dock-pad-x) * 2)) / 5);
+  left: calc(var(--dock-pad-x) + (var(--mob-dock-i) * ((100% - (var(--dock-pad-x) * 2)) / 5)));
+  border-radius: 18px;
+  pointer-events: none;
+  background: radial-gradient(
+    60% 70% at 50% 42%,
+    rgba(233, 184, 114, 0.14) 0%,
+    rgba(233, 184, 114, 0.05) 45%,
+    transparent 72%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* --- tab ------------------------------------------------------------------ */
+
+.mob-dock__tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px minimum touch target; the surface is 62px tall so this is exceeded
+     vertically and the full column width horizontally. */
+  min-height: 44px;
+  min-width: 44px;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+  outline: none;
+}
+
+.mob-dock__tab:focus-visible .mob-dock__tabinner {
+  outline: 2px solid var(--projector);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+
+.mob-dock__tabinner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  width: 100%;
+  height: 100%;
+  padding-bottom: 9px;
+}
+
+.mob-dock__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  color: rgba(242, 237, 227, 0.62);
+  transition: color 260ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mob-dock__tab:active .mob-dock__icon {
+  color: rgba(242, 237, 227, 0.9);
+}
+
+/*
+ * The icon that rides inside the orb.
+ *
+ * Geometry, derived from the orb rather than eyeballed: the orb sits at
+ * -12px relative to this box and is 38px tall, so its centre is at
+ * -12 + 19 = +7px. The glyph is 19px, so its top edge must be 7 - 9.5 = -2.5px
+ * for it to sit optically centred. (An earlier version used `top: 0` with a
+ * margin, which put the glyph several px low — close enough to look almost
+ * right, which is what makes misalignment look sloppy rather than obvious.)
+ */
+
+.mob-dock__icon--raised {
+  position: absolute;
+  top: -2.5px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #2a1c07;
+  font-size: 19px;
+  z-index: 3;
+}
+
+.mob-dock__label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 227, 0.55);
+  transition: color 260ms ease, opacity 260ms ease, transform 260ms ease;
+  white-space: nowrap;
+}
+
+.mob-dock__tab.is-active .mob-dock__label {
+  color: var(--projector);
+  opacity: 0.92;
+  transform: translateY(1px);
+}
+
+/* --- raised orb ----------------------------------------------------------- */
+
+.mob-dock__orb {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  margin-left: -19px;
+  /* -(ORB / 2), ORB = 38px */
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  /*
+   * Amber glass. The highlight is deliberately restrained. An earlier version
+   * put near-white at the top of both this gradient and the ::before sheen, and
+   * the two stacked until the orb's upper half measured only 32% saturation —
+   * it read as a pale white bead rather than the brand amber. Measured across
+   * four intensities, these values keep the top of the disc at 41% saturation
+   * (vs 32%) while still catching light, so the orb stays recognisably #E9B872.
+   */
+  background:
+    radial-gradient(90% 90% at 34% 16%, rgba(255, 246, 231, 0.26) 0%, rgba(255, 246, 231, 0) 40%),
+    linear-gradient(160deg, var(--projector-bright) 0%, var(--projector) 42%, var(--projector-deep) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 5px rgba(120, 74, 12, 0.34),
+    0 2px 4px rgba(0, 0, 0, 0.34),
+    0 10px 20px -6px rgba(233, 184, 114, 0.45);
+}
+
+/* Specular sheen on the orb's upper-left, and a hairline rim. */
+
+.mob-dock__orb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    42% 28% at 33% 19%,
+    rgba(255, 255, 255, 0.26) 0%,
+    rgba(255, 255, 255, 0.05) 46%,
+    transparent 66%
+  );
+  pointer-events: none;
+}
+
+.mob-dock__orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+/* --- fallbacks ------------------------------------------------------------ */
+
+/* No backdrop-filter: compensate with a denser surface so labels stay legible. */
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mob-dock__surface {
+    background: linear-gradient(
+      to bottom,
+      rgba(26, 28, 33, 0.97) 0%,
+      rgba(18, 19, 24, 0.98) 100%
+    );
+  }
+}
+
+/* Users who ask for less transparency get an opaque dock. */
+
+@media (prefers-reduced-transparency: reduce) {
+  .mob-dock__surface {
+    backdrop-filter: none;
+    background: #14151a;
+  }
+
+  .mob-dock__surface::after {
+    display: none;
+  }
+}
+
+/* Tighter on very narrow phones so five labels never crowd. Both the icon and
+   the label step DOWN here — an earlier version grew the icon to 19px, which was
+   backwards and made the 320px dock look heavier than the 390px one. */
+
+@media (max-width: 359px) {
+  .mob-dock {
+    padding: 0 0.5rem;
+  }
+
+  .mob-dock__icon {
+    font-size: 17px;
+  }
+
+  .mob-dock__icon--raised {
+    font-size: 18px;
+    top: -2px;
+    /* re-centre for the 18px glyph inside the 38px orb */
+  }
+
+  .mob-dock__label {
+    font-size: 7.5px;
+    letter-spacing: 0.04em;
+  }
+}

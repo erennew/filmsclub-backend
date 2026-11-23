@@ -1,0 +1,1250 @@
+[
+  {
+    "vp": "320x568",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 320,
+      "clientW": 320,
+      "scrollH": 11337,
+      "dock": {
+        "top": 495,
+        "bottom": 559,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 288,
+          "r": 406,
+          "w": 118
+        },
+        {
+          "tag": "SPAN",
+          "cls": "\n        absolute -bottom-3 -left-3 z-10 select-none pointer-events-none\n        font-mono",
+          "l": 276,
+          "r": 349,
+          "w": 73
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white lazy-load-image-",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "IMG",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "w-11 h-11 rounded-[3px] bg-projector text-ink flex items-center justify-center shadow-[0_8",
+          "l": 334,
+          "r": 378,
+          "w": 44
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 348,
+          "r": 366,
+          "w": 18
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 353,
+          "r": 361,
+          "w": 9
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 rounded-[4px] ring-1 ring-inset ring-bone/10 group-hover:ring-projector/6",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | NOW SCREENING | The Odyssey | MOVIE | / | 2026 | / | 8.0 | / | BLU-RAY | / | ADVENTURE · ACTION · FANTASY | Watch now | NO"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 320,
+      "clientW": 320,
+      "scrollH": 3635,
+      "dock": {
+        "top": 495,
+        "bottom": 559,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 292,
+          "r": 364,
+          "w": 72
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 292,
+          "r": 364,
+          "w": 72
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  },
+  {
+    "vp": "360x740",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 660,
+      "clientW": 360,
+      "scrollH": 11543,
+      "dock": {
+        "top": 1206,
+        "bottom": 1270,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "w-full skeleton -mx-3 sm:-mx-4 md:-mx-8 lg:-mx-12 xl:-mx-16 -mt-16 md:-mt-20",
+          "l": 324,
+          "r": 660,
+          "w": 336
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 564,
+          "r": 682,
+          "w": 118
+        },
+        {
+          "tag": "SPAN",
+          "cls": "\n        absolute -bottom-3 -left-3 z-10 select-none pointer-events-none\n        font-mono",
+          "l": 552,
+          "r": 625,
+          "w": 73
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 582,
+          "r": 682,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "w-11 h-11 rounded-[3px] bg-projector text-ink flex items-center justify-center shadow-[0_8",
+          "l": 610,
+          "r": 654,
+          "w": 44
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 624,
+          "r": 642,
+          "w": 18
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 629,
+          "r": 637,
+          "w": 9
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Top 10 Today | 01 |  | The Odyssey |  | 2026 | MOVIE | 02 |  | Heart of the Beast |  | 2026 | MOVIE | 03 |  | Avengers: Infinity"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 360,
+      "clientW": 360,
+      "scrollH": 3721,
+      "dock": {
+        "top": 667,
+        "bottom": 731,
+        "h": 64
+      },
+      "header": {
+        "h": 65
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 288,
+          "r": 368,
+          "w": 80
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 292,
+          "r": 364,
+          "w": 72
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 292,
+          "r": 364,
+          "w": 72
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  },
+  {
+    "vp": "390x844",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 11647,
+      "dock": {
+        "top": 771,
+        "bottom": 835,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 288,
+          "r": 406,
+          "w": 118
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white lazy-load-image-",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "IMG",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 rounded-[4px] ring-1 ring-inset ring-bone/10 group-hover:ring-projector/6",
+          "l": 306,
+          "r": 406,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute bottom-1 right-1 z-20",
+          "l": 374,
+          "r": 402,
+          "w": 28
+        },
+        {
+          "tag": "BUTTON",
+          "cls": "\n        flex items-center justify-center rounded-full border\n        backdrop-blur-md tra",
+          "l": 374,
+          "r": 402,
+          "w": 28
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 382,
+          "r": 395,
+          "w": 13
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 382,
+          "r": 394,
+          "w": 11
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | NOW SCREENING | The Odyssey | MOVIE | / | 2026 | / | 8.0 | / | BLU-RAY | / | ADVENTURE · ACTION · FANTASY |  | Odysseus, t"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 390,
+      "clientW": 390,
+      "scrollH": 3814,
+      "dock": {
+        "top": 771,
+        "bottom": 835,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 384,
+          "r": 456,
+          "w": 72
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 384,
+          "r": 456,
+          "w": 72
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  },
+  {
+    "vp": "412x915",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 412,
+      "clientW": 412,
+      "scrollH": 11664,
+      "dock": {
+        "top": 842,
+        "bottom": 906,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 426,
+          "r": 544,
+          "w": 118
+        },
+        {
+          "tag": "SPAN",
+          "cls": "\n        absolute -bottom-3 -left-3 z-10 select-none pointer-events-none\n        font-mono",
+          "l": 414,
+          "r": 487,
+          "w": 73
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "SPAN",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        },
+        {
+          "tag": "DIV",
+          "cls": "w-11 h-11 rounded-[3px] bg-projector text-ink flex items-center justify-center shadow-[0_8",
+          "l": 472,
+          "r": 516,
+          "w": 44
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 486,
+          "r": 504,
+          "w": 18
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 491,
+          "r": 499,
+          "w": 9
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 rounded-[4px] ring-1 ring-inset ring-bone/10 group-hover:ring-projector/6",
+          "l": 444,
+          "r": 544,
+          "w": 100
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | NOW SCREENING | The Odyssey | MOVIE | / | 2026 | / | 8.0 | / | BLU-RAY | / | ADVENTURE · ACTION · FANTASY |  | Odysseus, t"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 412,
+      "clientW": 412,
+      "scrollH": 3878,
+      "dock": {
+        "top": 842,
+        "bottom": 906,
+        "h": 64
+      },
+      "header": {
+        "h": 64
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 380,
+          "r": 460,
+          "w": 80
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 384,
+          "r": 456,
+          "w": 72
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 384,
+          "r": 456,
+          "w": 72
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 472,
+          "r": 552,
+          "w": 80
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  },
+  {
+    "vp": "844x390-landscape",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 844,
+      "clientW": 844,
+      "scrollH": 11752,
+      "dock": {
+        "top": 317,
+        "bottom": 381,
+        "h": 64
+      },
+      "header": {
+        "h": 72
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 776,
+          "r": 934,
+          "w": 158
+        },
+        {
+          "tag": "SPAN",
+          "cls": "\n        absolute -bottom-3 -left-3 z-10 select-none pointer-events-none\n        font-mono",
+          "l": 764,
+          "r": 852,
+          "w": 88
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white lazy-load-image-",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "IMG",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "w-11 h-11 rounded-[3px] bg-projector text-ink flex items-center justify-center shadow-[0_8",
+          "l": 842,
+          "r": 886,
+          "w": 44
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 856,
+          "r": 874,
+          "w": 18
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 861,
+          "r": 869,
+          "w": 9
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 rounded-[4px] ring-1 ring-inset ring-bone/10 group-hover:ring-projector/6",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | NOW SCREENING | The Odyssey | MOVIE | / | 2026 | / | 8.0 | / | BLU-RAY | / | ADVENTURE · ACTION · FANTASY |  | Odysseus, t"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 928,
+      "clientW": 844,
+      "scrollH": 2953,
+      "dock": {
+        "top": 356,
+        "bottom": 420,
+        "h": 64
+      },
+      "header": {
+        "h": 72
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 928,
+          "r": 1024,
+          "w": 96
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 928,
+          "r": 1024,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 928,
+          "r": 1024,
+          "w": 96
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 928,
+          "r": 1024,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 928,
+          "r": 1024,
+          "w": 96
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 932,
+          "r": 1020,
+          "w": 88
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 932,
+          "r": 1020,
+          "w": 88
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 1040,
+          "r": 1136,
+          "w": 96
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 1040,
+          "r": 1136,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 1040,
+          "r": 1136,
+          "w": 96
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 1040,
+          "r": 1136,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 1040,
+          "r": 1136,
+          "w": 96
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  },
+  {
+    "vp": "768x1024-tablet",
+    "home": {
+      "label": "home",
+      "path": "/",
+      "scrollW": 768,
+      "clientW": 768,
+      "scrollH": 11909,
+      "dock": {
+        "top": 951,
+        "bottom": 1015,
+        "h": 64
+      },
+      "header": {
+        "h": 72
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "relative flex-shrink-0 snap-start",
+          "l": 776,
+          "r": 934,
+          "w": 158
+        },
+        {
+          "tag": "SPAN",
+          "cls": "\n        absolute -bottom-3 -left-3 z-10 select-none pointer-events-none\n        font-mono",
+          "l": 764,
+          "r": 852,
+          "w": 88
+        },
+        {
+          "tag": "DIV",
+          "cls": "group relative block w-[100px] sm:w-[128px] md:w-[140px]",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "A",
+          "cls": "absolute inset-0 z-10 rounded-[4px] focus-visible:outline-none focus-visible:ring-2 focus-",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative aspect-[2/3] overflow-hidden rounded-[4px] bg-carbon group-hover:shadow-[0_18px_4",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "SPAN",
+          "cls": "absolute inset-0 w-full h-full lazy-load-image-background black-and-white",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "SPAN",
+          "cls": "w-full h-full object-cover object-center transition-transform duration-500 group-hover:sca",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 bg-ink/55 opacity-0 group-hover:opacity-100 transition-opacity duration-3",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        },
+        {
+          "tag": "DIV",
+          "cls": "w-11 h-11 rounded-[3px] bg-projector text-ink flex items-center justify-center shadow-[0_8",
+          "l": 842,
+          "r": 886,
+          "w": 44
+        },
+        {
+          "tag": "svg",
+          "cls": "[object SVGAnimatedString]",
+          "l": 856,
+          "r": 874,
+          "w": 18
+        },
+        {
+          "tag": "path",
+          "cls": "[object SVGAnimatedString]",
+          "l": 861,
+          "r": 869,
+          "w": 9
+        },
+        {
+          "tag": "DIV",
+          "cls": "absolute inset-0 rounded-[4px] ring-1 ring-inset ring-bone/10 group-hover:ring-projector/6",
+          "l": 794,
+          "r": 934,
+          "w": 140
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | NOW SCREENING | The Odyssey | MOVIE | / | 2026 | / | 8.0 | / | BLU-RAY | / | ADVENTURE · ACTION · FANTASY |  | Odysseus, t"
+    },
+    "detail": {
+      "label": "detail",
+      "path": "/mov/1368337",
+      "scrollW": 768,
+      "clientW": 768,
+      "scrollH": 2869,
+      "dock": {
+        "top": 951,
+        "bottom": 1015,
+        "h": 64
+      },
+      "header": {
+        "h": 72
+      },
+      "overflow": [
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 704,
+          "r": 800,
+          "w": 96
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 704,
+          "r": 800,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 704,
+          "r": 800,
+          "w": 96
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 704,
+          "r": 800,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 704,
+          "r": 800,
+          "w": 96
+        },
+        {
+          "tag": "P",
+          "cls": "line-clamp-2 text-[12px] sm:text-[13px] font-semibold leading-snug text-bone/90 transition",
+          "l": 708,
+          "r": 796,
+          "w": 88
+        },
+        {
+          "tag": "P",
+          "cls": "mt-1 line-clamp-1 timecode text-[10px] uppercase tracking-[0.08em] text-bone/60",
+          "l": 708,
+          "r": 796,
+          "w": 88
+        },
+        {
+          "tag": "DIV",
+          "cls": "flex-shrink-0 w-20 sm:w-24",
+          "l": 816,
+          "r": 912,
+          "w": 96
+        },
+        {
+          "tag": "A",
+          "cls": "group block w-20 sm:w-24 text-center rounded-[4px] focus:outline-none focus-visible:ring-2",
+          "l": 816,
+          "r": 912,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "relative mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-carbon ring-1 r",
+          "l": 816,
+          "r": 912,
+          "w": 96
+        },
+        {
+          "tag": "IMG",
+          "cls": "h-full w-full object-cover transition-all duration-500 group-hover:scale-105 opacity-100",
+          "l": 816,
+          "r": 912,
+          "w": 96
+        },
+        {
+          "tag": "DIV",
+          "cls": "mt-2.5 px-1",
+          "l": 816,
+          "r": 912,
+          "w": 96
+        }
+      ],
+      "text": "Skip to content | CloudXMovies | HOME | MOVIES | SERIES | ANIME | K-DRAMA | Add to Home Screen |  | Two taps in Safari — no app store. |  | 01 | Tap Share in Safari's toolbar. | 02 | Choos"
+    },
+    "logs": []
+  }
+]

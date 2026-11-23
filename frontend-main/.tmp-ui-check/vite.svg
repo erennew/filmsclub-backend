@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C9FF" />
+      <stop offset="100%" stop-color="#92FE9D" />
+    </linearGradient>
+    <linearGradient id="playGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8A2387" />
+      <stop offset="50%" stop-color="#E94057" />
+      <stop offset="100%" stop-color="#F27121" />
+    </linearGradient>
+  </defs>
+  <path fill="url(#cloudGrad)" d="M17.5 19h-13C2.019 19 0 16.981 0 14.5c0-1.881 1.296-3.436 3.02-4.05C3.008 10.302 3 10.152 3 10c0-3.859 3.141-7 7-7 3.336 0 6.149 2.159 6.815 5.056.223-.037.451-.056.685-.056 2.481 0 4.5 2.019 4.5 4.5S19.981 19 17.5 19z" />
+  <polygon fill="#ffffff" points="9.5,10.5 9.5,17.5 15.5,14" />
+</svg>

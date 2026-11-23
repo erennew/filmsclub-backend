@@ -1,21 +1,23 @@
 aiofiles
-pyrofork
-tgcrypto
+wzgram>=3.1.1
+warpcrypto>=2.0.7
 python-dotenv
 fastapi[standard]
 parse-torrent-title
 requests
 jinja2
 motor
-themoviedb
+themoviedb>=2.0.0,<3.0.0
 pytz
 pycountry
 httpx
+aiohttp
 hachoir
 PyJWT
 python-multipart
 passlib[bcrypt]
 bcrypt==3.2.0
+cryptography>=42.0.0
 redis>=5.0.0
 
 # SYSTEM REQUIREMENTS (not installable via pip):
@@ -24,3 +26,8 @@ redis>=5.0.0
 #   CentOS/RHEL: sudo yum install ffmpeg
 #   macOS: brew install ffmpeg
 #   Windows: Download from https://ffmpeg.org/download.html
+
+# Telegram MTProto library: wzgram v3.1.1 (wzgram, not pyrogram)
+# - Client-side rate limiter is opt-in (rate_limits={}) — off by default,
+#   server-side FloodWait handling is used instead
+# - Session strings supported for Heroku (SESSION_STRING env var)
